@@ -1,21 +1,21 @@
 import numpy as np
 from scipy import fftpack
 
-# Compute wave energy field
+
 def WaveEnergyField(u,ut,c,dx):
-    ux,uy = np.gradient(u,dx)
-    
+    # Compute wave energy field
+
+    ux, uy = np.gradient(u,dx)
     absux = np.abs(ux)
     absuy = np.abs(uy)
     absutc = np.divide(np.abs(ut),c)
-    
     w = np.multiply(absux,absux) + np.multiply(absuy,absuy) + np.multiply(absutc,absutc)
-    
+
     return w
 
-
-# Compute wave energy component field
 def WaveEnergyComponentField(uS,utS,c,dx):
+    # Compute wave energy component field
+
     wx = np.zeros(uS.shape)
     wy = np.zeros(uS.shape)
     wtc = np.zeros(uS.shape) 
@@ -25,17 +25,16 @@ def WaveEnergyComponentField(uS,utS,c,dx):
         
     return wx,wy,wtc
 
-# Compute wave solution components from energy component
 def WaveSol_from_EnergyComponent(wx,wy,wtc,c,dx,sumv):
+    # Compute wave solution components from energy component
 
     u = grad2func(wx,wy,dx,sumv)
     ut = np.multiply(wtc,c)
     
     return u,ut
 
-
-# Mapping gradient to functional value
 def grad2func(vx,vy,dx,sumv):
+    # Mapping gradient to functional value
     
     hatx = fftpack.fft2(vx)
     haty = fftpack.fft2(vy)
@@ -50,9 +49,11 @@ def grad2func(vx,vy,dx,sumv):
     radsq[0,0] = 1
     hatv = -1j*np.divide((np.multiply(hatx,xixi)+np.multiply(haty,yiyi)),radsq)
     hatv[0,0] = sumv
+
     return np.real(fftpack.ifft2(hatv))
 
-# Approximate gradient in periodic domain
 def gradient2Per(v,dx,dy):
+    # Approximate gradient in periodic domain
+
     vx,vy = np.gradient(v,dx,dy)
-    return vx,vy
+    return vx, vy

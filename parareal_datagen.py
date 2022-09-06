@@ -1,20 +1,23 @@
 import numpy as np
-#import matplotlib.pyplot as plt
-from skimage.transform import resize # for Coarsening 
+from skimage.transform import resize # for Coarsening
 import ParallelCompute as PComp
-import WavePostprocess4input as WavePostprocess #
+import WavePostprocess4input as WavePostprocess
 import WaveUtil
 import wave2 as wave2
 import wave2_spectral as w2s
 import sys
-from scipy.io import loadmat
-
 import OPPmodel
+
+'''
+to generate wave solutions sample from the medium (the second python argument 'bp310cropsM100' is the file 
+name of the medium sample; the third argument '12' is the name of the data output)
+'''
 
 def InitParareal(u0,ut0,vel,dx,dt,cT,dX,dT,T,pimax):
     """
     Initial guess in parareal scheme
     """
+
     # Number of time slices - fine and coarse propagators communicate
     ncT = round(T/cT)
     Ny,Nx = vel.shape
@@ -35,21 +38,21 @@ def InitParareal(u0,ut0,vel,dx,dt,cT,dX,dT,T,pimax):
     
     UX = resize(u0,[ny,nx],order=4)
     UtX = resize(ut0,[ny,nx],order=4)
-    
-    
+
     # Initialize iteration with coarse solution
     for j in range(ncT-1):
-        UX,UtX = wave2.wave2(UX,UtX,velX,dX,dT,cT)
+        UX,UtX = wave2.wave2(UX, UtX, velX, dX, dT, cT)
         up[:,:,j+1,0] = resize(UX,[Ny,Nx],order=4)
         utp[:,:,j+1,0] = resize(UtX,[Ny,Nx],order=4)
         
-    return up,utp,velX
+    return up, utp, velX
 
 
 def initCond(xx,yy,width,center):
     """
     Gaussian pulse wavefield
     """
+
     u0 = np.exp(-width*((xx-center[0])**2 + (yy-center[1])**2))
     ut0 = np.zeros([np.size(xx,axis=1),np.size(yy,axis=0)])
     return u0,ut0
@@ -58,13 +61,14 @@ def initCond_ricker(xx,yy,width,center):
     """
     Ricker pulse wavefield
     """
+
     u0 = np.exp(-width*((xx-center[0])**2 + (yy-center[1])**2))
     u0 = (1-2*width*((xx-center[0])**2 + (yy-center[1])**2)) *u0
     u0 = u0 / np.max(np.abs(u0))
     ut0 = np.zeros([np.size(xx,axis=1),np.size(yy,axis=0)])
     return u0,ut0
 
-if __name__ == "__main__":    
+def  generate_wave_from_medium():
     """
     generate data pair coarse and fine solutions.
     We first take a velocity sample, then take an initial
@@ -72,44 +76,35 @@ if __name__ == "__main__":
     the Procrustes parareal scheme, during which the pair
     coarse-fine solutions are computed.     
     """
+
     # Parameter setups
     T = 0.64
     cT = 0.064
     dx = 0.01 #2.0/128.0
     dt = dx/20
-    #x = np.arange(-1,1,dx)
-    #y = np.arange(-1,1,dx)
     pimax = 5
-    
-    print(cT)
-    
+
     ncT = round(T/cT)
     Ny = 256
     Nx = 256
     nx = 64
     ny = 64
+
     # Coarsening config
     m = 4
     dX = dx*m
     dT = dX/10
-    
+
     x,y = np.linspace(-1,1,Nx),np.linspace(-1,1,Ny)
     xx,yy = np.meshgrid(x,y)
-    #X = np.arange(-1,1,dX)
-    #Y = np.arange(-1,1,dX)
     X,Y = np.linspace(-1,1,nx),np.linspace(-1,1,ny)
     XX,YY = np.meshgrid(X,Y)
     
-    vname = int(sys.argv[2])  # data number
+    vname = int(sys.argv[2]) # data number
     datamode = 'train'
-    #np.random.seed = 7
     velname = sys.argv[1]
     velf = np.load(velname+'.npz')
     vellist = velf['wavespeedlist']
-    #vellist = np.zeros([10,xx.shape[0],xx.shape[1]])
-    #datamat = loadmat('marm1nonsmooth.mat')
-    #for i in range(10):
-    #    vellist[i,:,:] = resize(datamat['marm1smal'],[128,128])/4.
 
     # Define the amount of data to generate
     n_trainsamples = vellist.shape[0]
@@ -119,38 +114,33 @@ if __name__ == "__main__":
     u_init = np.zeros([xx.shape[0],xx.shape[1],n_timeslices*n_trainsamples])
     ut_init = np.zeros([xx.shape[0],xx.shape[1],n_timeslices*n_trainsamples])
     
-    # variables for initial conditions in energy components form
-    U0x = np.zeros([xx.shape[0],xx.shape[1],n_timeslices*n_trainsamples])
-    U0y = np.zeros([xx.shape[0],xx.shape[1],n_timeslices*n_trainsamples])
-    Ut0c = np.zeros([xx.shape[0],xx.shape[1],n_timeslices*n_trainsamples])
-    
     # variables for coarse solutions in energy components form
     Ucx = np.zeros([XX.shape[0],XX.shape[1],n_timeslices*n_trainsamples])
     Ucy = np.zeros([XX.shape[0],XX.shape[1],n_timeslices*n_trainsamples])
     Utc = np.zeros([XX.shape[0],XX.shape[1],n_timeslices*n_trainsamples])
+
     # variables for fine solutions in energy components form
     Ufx = np.zeros([xx.shape[0],xx.shape[1],n_timeslices*n_trainsamples])
     Ufy = np.zeros([xx.shape[0],xx.shape[1],n_timeslices*n_trainsamples])
     Utf = np.zeros([xx.shape[0],xx.shape[1],n_timeslices*n_trainsamples])
+
     # variable for the sampled velocity models
     velsamp = np.zeros([XX.shape[0],YY.shape[1],n_timeslices*n_trainsamples])
     
     centers1 = np.random.rand(n_trainsamples,2)*1.-0.5
     widths = 250+np.random.randn(n_trainsamples)*10      
     
-    for j in range(n_trainsamples):
+    for j in range(5): #n_trainsamples?????????????????????????
         print('sample', j)
         u_init[:,:,j*n_timeslices],ut_init[:,:,j*n_timeslices] = initCond_ricker(xx,yy,widths[j],centers1[j,:])
         vel = vellist[j,:,:]      
-        velX = resize(vel,XX.shape,order=4)
-        
-        ######################################################
-        
-        up,utp,velX = InitParareal(u_init[:,:,j*n_timeslices],ut_init[:,:,j*n_timeslices],\
+
+        up,utp,velX = InitParareal(u_init[:,:,j*n_timeslices],ut_init[:,:,j*n_timeslices],
                                    vel,dx,dt,cT,dX,dT,T,pimax)
         
         # Parareal iteration 
         for parI in range(pimax-1):
+
             #### SUBJECT TO CHANGE TO MULTIPROCESSING
             # Parallel solution
             vx = up[:,:,:,parI]
@@ -158,11 +148,11 @@ if __name__ == "__main__":
             print('iteration',parI)
             
             UcX,UtcX,UfX,UtfX = PComp.ParallelCompute(vx,vtx,vel,velX,dx,dX,dt,dT,cT)    
-            udx,udy,utdt = WaveUtil.WaveEnergyComponentField(UcX,UtcX,velX,dX)
+            udx,udy,utdt = WaveUtil.WaveEnergyComponentField(UcX, UtcX, velX, dX)
             UcX = resize(UcX,[Ny,Nx],order=4)
             UtcX = resize(UtcX,[Ny,Nx],order=4)
-            UcXdx,UcXdy,UtcXdt = WaveUtil.WaveEnergyComponentField(UcX,UtcX,vel,dx)
-            UfXdx,UfXdy,UtfXdt = WaveUtil.WaveEnergyComponentField(UfX,UtfX,vel,dx)
+            UcXdx,UcXdy,UtcXdt = WaveUtil.WaveEnergyComponentField(UcX, UtcX, vel, dx)
+            UfXdx,UfXdy,UtfXdt = WaveUtil.WaveEnergyComponentField(UfX, UtfX, vel, dx)
             
             ridx = np.arange(j*n_timeslices+parI*ncT,j*n_timeslices+(parI+1)*ncT)            
             Ucx[:,:,ridx] = udx
@@ -175,9 +165,9 @@ if __name__ == "__main__":
             velsamp[:,:,ridx] = np.repeat(velX[:,:,np.newaxis],ncT,axis=2)          
             
             if parI == 0:
-                P,S,Q = OPPmodel.ProcrustesShiftMap((UcXdx,UcXdy,UtcXdt),(UfXdx,UfXdy,UtfXdt),datmode='numpy')
+                P,S,Q = OPPmodel.ProcrustesShiftMap((UcXdx, UcXdy, UtcXdt), (UfXdx, UfXdy, UtfXdt), datmode='numpy')
             else:
-                P,S,Q = OPPmodel.ProcrustesShiftMap((UcXdx,UcXdy,UtcXdt),(UfXdx,UfXdy,UtfXdt),(P,S,Q),datmode='numpy')
+                P,S,Q = OPPmodel.ProcrustesShiftMap((UcXdx, UcXdy, UtcXdt), (UfXdx, UfXdy, UtfXdt), (P, S, Q), datmode='numpy')
             
             # Serial update     
             for j in range(ncT-1):
@@ -185,20 +175,18 @@ if __name__ == "__main__":
                 wt0 = resize(utp[:,:,j,parI+1],[ny,nx],order=4)
                 wX,wtX = w2s.wave2(w0,wt0,velX,dX,dT,cT)
                 
-                uX,utX = WavePostprocess.ApplyOPP2WaveSol(resize(wX,vel.shape,order=4),resize(wtX,vel.shape,order=4),\
+                uX,utX = WavePostprocess.ApplyOPP2WaveSol(resize(wX,vel.shape,order=4),resize(wtX,vel.shape,order=4),
                                                           vel,dx,(P,S,Q))
                            
-                vX,vtX = WavePostprocess.ApplyOPP2WaveSol(resize(UcX[:,:,j+1],vel.shape,order=4),\
+                vX,vtX = WavePostprocess.ApplyOPP2WaveSol(resize(UcX[:,:,j+1],vel.shape,order=4),
                                                           resize(UtcX[:,:,j+1],vel.shape,order=4),vel,dx,(P,S,Q))
                 
                 up[:,:,j+1,parI+1] = UfX[:,:,j+1] + uX - vX
-                utp[:,:,j+1,parI+1] = UtfX[:,:,j+1] + utX - vtX   
-        
-        ######################################################
+                utp[:,:,j+1,parI+1] = UtfX[:,:,j+1] + utX - vtX
 
-    # Save array
-    print('Saving data ...')
+    print('Saving data.')
     np.savez('./data/'+datamode+'data_name'+str(vname)+'.npz',vel=velsamp,Ucx=Ucx,Ucy=Ucy,Utc=Utc,Ufx=Ufx,Ufy=Ufy,Utf=Utf)
-    print('Saving done.')
+
     
-    
+if __name__ == "__main__":
+    generate_wave_from_medium()

@@ -1,11 +1,10 @@
-"""
-    Procrustean approach to shift coarse to fine solution
-"""
-
 import numpy as np
 
-# Compute Procustes shift map
+# Procrustean approach to shift coarse to fine solution
+
 def ProcrustesShiftMap(coarse_dat,fine_dat,opmap=(np.empty(0),np.empty(0),np.empty(0)),datmode='tensor'):
+    # Compute Procustes shift map
+
     Ucx,Ucy,Utc = coarse_dat
     Ufx,Ufy,Utf = fine_dat
     U,S,V = opmap
@@ -16,10 +15,10 @@ def ProcrustesShiftMap(coarse_dat,fine_dat,opmap=(np.empty(0),np.empty(0),np.emp
     elif datmode == 'numpy':
         Cdat = serial_numpy_stack(Ucx,Ucy,Utc)
         Fdat = serial_numpy_stack(Ufx,Ufy,Utf)
-        
-    U,S,V = updateSVD(U,S,V,Fdat,Cdat)
-    
-    return U,S,V
+    else:
+        raise ValueError("datmode not defined")
+
+    return updateSVD(U,S,V,Fdat,Cdat)
 
 def ProcrustesShift(U,V,coarse_arg,datmode='tensor'):
     Ux,Uy,Utc = coarse_arg
@@ -28,6 +27,8 @@ def ProcrustesShift(U,V,coarse_arg,datmode='tensor'):
         Cdat = serial_tensor_stack(Ux,Uy,Utc)
     elif datmode == 'numpy':
         Cdat = serial_numpy_stack(Ux,Uy,Utc)
+    else:
+        raise ValueError("datmode not defined")
     
     Fout0 = np.matmul(np.transpose(V),Cdat)
     Fout = np.matmul(U,Fout0)
@@ -35,7 +36,9 @@ def ProcrustesShift(U,V,coarse_arg,datmode='tensor'):
     if datmode == 'tensor':
         uxout,uyout,utcout = deserial_tensor_stack(Fout,Ux.shape[0],Ux.shape[1],Ux.shape[2])    
     elif datmode == 'numpy':
-        uxout,uyout,utcout = deserial_numpy_stack(Fout,Ux.shape[0],Ux.shape[1],Ux.shape[2])    
+        uxout,uyout,utcout = deserial_numpy_stack(Fout,Ux.shape[0],Ux.shape[1],Ux.shape[2])
+    else:
+        raise ValueError("datmode not defined")
     
     return uxout,uyout,utcout
 
@@ -70,13 +73,13 @@ def updateSVD(Uo,So,Vo,A,B):
         UtA = np.matmul(Uo.transpose(),A)
         VtB = np.matmul(Vo.transpose(),B)
     
-        QA,RA = np.linalg.qr(A - np.matmul(Uo,UtA),mode='reduced');
-        QB,RB = np.linalg.qr(B - np.matmul(Vo,VtB),mode='reduced'); 
+        QA,RA = np.linalg.qr(A - np.matmul(Uo,UtA),mode='reduced')
+        QB,RB = np.linalg.qr(B - np.matmul(Vo,VtB),mode='reduced')
     
-        term1 = np.matmul(np.concatenate((UtA,RA),axis=0), \
+        term1 = np.matmul(np.concatenate((UtA,RA),axis=0),
                           np.concatenate((VtB,RB),axis=0).transpose())
-        term2 = np.concatenate((np.concatenate((np.diag(So),np.zeros([rankold,rownum])),axis=1),\
-                               np.concatenate((np.zeros([rownum,rankold]),np.zeros([rownum,rownum])),axis=1)),\
+        term2 = np.concatenate((np.concatenate((np.diag(So),np.zeros([rankold,rownum])),axis=1),
+                               np.concatenate((np.zeros([rownum,rankold]),np.zeros([rownum,rownum])),axis=1)),
                                 axis=0)
         K = term1 + term2 
         
@@ -94,9 +97,9 @@ def updateSVD(Uo,So,Vo,A,B):
     
     return Un,Sn,Vn
 
-
-### Serialization and stacking of numpy format
 def serial_numpy_stack(ux,uy,utc):
+    # Serialization and stacking of numpy format
+
     ny,nx,ns = ux.shape
     sux = np.reshape(ux,(ny*nx,ns))
     suy = np.reshape(uy,(ny*nx,ns))
@@ -112,8 +115,9 @@ def deserial_numpy_stack(udat,ny,nx,ns):
     
     return ux,uy,utc
 
-### Serialization and stacking of tensor format
 def serial_tensor_stack(ux,uy,utc):
+    # Serialization and stacking of tensor format
+
     ns,ny,nx = ux.shape
     sux = np.transpose(np.reshape(ux,(ns,ny*nx)))
     suy = np.transpose(np.reshape(uy,(ns,ny*nx)))
@@ -123,6 +127,7 @@ def serial_tensor_stack(ux,uy,utc):
     return udat
 
 def deserial_tensor_stack(udat,ns,ny,nx):
+
     ux = np.reshape(np.transpose(udat[:ny*nx,:]),(ns,ny,nx))
     uy = np.reshape(np.transpose(udat[ny*nx:2*ny*nx,:]),(ns,ny,nx))
     utc = np.reshape(np.transpose(udat[2*ny*nx:,:]),(ns,ny,nx))

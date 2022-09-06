@@ -1,11 +1,11 @@
 import numpy as np
 from numpy import fft
 
-
 def spectral_del(v,dx):
     """
     evaluate the discrete Laplacian using spectral method
     """
+
     N1 = v.shape[0]
     N2 = v.shape[1]
     
@@ -14,6 +14,7 @@ def spectral_del(v,dx):
     [kxx,kyy] = np.meshgrid(kx,ky)
 
     U = -(kxx**2+kyy**2) * fft.fft2(v)
+
     return fft.ifft2(U)
 
 def wave2(u0,ut0,vel,dx,dt,Tf):
@@ -21,6 +22,7 @@ def wave2(u0,ut0,vel,dx,dt,Tf):
     propagate wavefield using velocity Verlet in time and spectral approx.
     of Laplacian in space
     """
+
     Nt = round(abs(Tf/dt))
     c2 = np.multiply(vel,vel)
     
@@ -34,7 +36,7 @@ def wave2(u0,ut0,vel,dx,dt,Tf):
         ddxu = spectral_del(u,dx)
         ut = ut + 0.5*dt*np.multiply(c2,ddxou+ddxu)
     
-    return np.real(u),np.real(ut)
+    return np.real(u), np.real(ut)
 
 
 def wave2s(u0,ut0,vel,dx,dt,Tf):
@@ -42,6 +44,7 @@ def wave2s(u0,ut0,vel,dx,dt,Tf):
     propagate wavefield using RK4 in time and spectral approx.
     of Laplacian in space
     """
+
     Nt = round(abs(Tf/dt))
     c2 = np.multiply(vel,vel)
     
@@ -65,5 +68,5 @@ def wave2s(u0,ut0,vel,dx,dt,Tf):
         u = u + 1./6*dt*(k1u + 2*k2u + 2*k3u + k4u)
         ut = ut + 1./6*dt*(k1ut + 2*k2ut + 2*k3ut + k4ut)
     
-    return np.real(u),np.real(ut)
+    return np.real(u), np.real(ut)
 
