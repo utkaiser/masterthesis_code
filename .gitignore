@@ -1,3 +1,5 @@
 .idea
 notes.txt
 .DS_Store
+*.npz
+*.mat
