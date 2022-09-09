@@ -3,10 +3,11 @@ import scipy.ndimage
 from skimage.transform import resize
 from skimage.filters import gaussian
 from scipy.io import loadmat
+from tqdm import tqdm
 
-#to generate samples of medium
+#TODO: simpify; just use torchs randomcrop and scale?
 
-def createCropsAndSave(origimg, m, outputdir, num_times = 40):
+def createCropsAndSave(img_list, m = 256, outputdir = "mabp4sig_size256cropsM100.npz", num_times = 50):
 
     """
     the function samples velocity models by cropping randomly 
@@ -15,46 +16,45 @@ def createCropsAndSave(origimg, m, outputdir, num_times = 40):
 
     wavespeedlist = []
 
-    if type(origimg) != list:
-        nimg = 1
-        origimg = np.expand_dims(origimg,0)
-    else:
-        nimg = len(origimg)
+    for img in img_list: #iterate over all images, and perform random modifications num_times
+        for _ in tqdm(range(num_times)):
 
-    for k in range(nimg):
-        for j in range(num_times):
+            #TODO: is that uniformly, or what is the reason for this random scale and rotation?
 
-            print('wavespeed',k,'crop', j)
-            scale = 0.08+0.04*np.random.rand() #randomly scale
+            #manipulate image
+            scale = 0.08 + 0.04 * np.random.rand() #randomly scale
             angle = np.random.randint(4) * 22.5  #random angle in 22.5 increments in degrees
-
             M = int(m/scale)  #this is how much we crop before resizing to m
-       
-            #rotate
-            npimg = scipy.ndimage.rotate(origimg[k], angle, cval=1.0, order=4, mode='wrap') # bilinear interp
-            h,w = npimg.shape
+            npimg = scipy.ndimage.rotate(img, angle, cval=1.0, order=4, mode='wrap') # bilinear interp, rotate
 
-            #crop but make sure it is not blank image
+            #crop
+            h, w = npimg.shape
             while True:
                 xTopLeft = np.random.randint(max(1,w-M)) 
                 yTopLeft = np.random.randint(max(1,h-M)) 
                 newim = npimg[yTopLeft:yTopLeft+M,xTopLeft:xTopLeft+M]
 
+                # make sure image is not blank image
                 if (newim.std()>0.005 and newim.mean()<3.8 and not np.all(newim==0)):
                     npimg = 1.0*newim
                     break
-            #resize
-            npimg = resize(npimg,(m,m),order=4)
+
+            npimg = resize(npimg,(m,m),order=4) #resize to mxm
             wavespeedlist.append(npimg)
-    np.savez(outputdir,wavespeedlist = wavespeedlist)
+
+    np.savez(outputdir, wavespeedlist = wavespeedlist) #store numpy arrays in compressed format
 
 
 if __name__ == '__main__':
 
-    datamat = loadmat('solutions/marm1nonsmooth.mat')
-    fullmarm = gaussian(datamat['marm1larg'],4)
-    databp = loadmat('solutions/bp2004.mat')
+    datamat = loadmat('data/marm1nonsmooth.mat') #image saved in .mat file
+    fullmarm = gaussian(datamat['marm1larg'],4) #filter operation
+    databp = loadmat('data/bp2004.mat')
     fullbp = gaussian(databp['V'],4)/1000
 
-    createCropsAndSave([fullmarm,fullbp], m=256, outputdir = 'mabp4sig_size256cropsM100.npz',num_times=50)
+    createCropsAndSave([fullmarm,fullbp], num_times = 5)
 
+    # import matplotlib.pyplot as plt
+    #
+    # plt.plot(fullbp)
+    # plt.show()

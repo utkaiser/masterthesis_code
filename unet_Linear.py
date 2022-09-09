@@ -7,6 +7,9 @@ class UNet(nn.Module):
 
     def __init__(self, in_channels=4, n_classes=3, depth=3, wf=0, acti_func='relu', scale_factor=2):
         '''
+            simple UNet Neural Network implementation
+
+            params:
             in_channels: number of channels in input
             n_classes: number of channels in output
             depth: number of levels
@@ -18,7 +21,7 @@ class UNet(nn.Module):
         prev_channels = in_channels
         self.down_path = nn.ModuleList()
         for i in range(depth):
-            if i!=0:
+            if i != 0:
                 self.down_path.append(
                     nn.Conv2d(prev_channels,in_channels*2**(wf+i),kernel_size=3,stride=2,padding=1,bias=False))
                 prev_channels = in_channels*2**(wf+i)
