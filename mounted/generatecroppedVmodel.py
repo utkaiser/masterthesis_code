@@ -9,6 +9,7 @@ def createCropsAndSave(origimg, m, outputdir, num_times = 40):
     the function samples velocity models by cropping randomly 
     rotated and scaled images
     """
+
     wavespeedlist = []
     if type(origimg)!=list : 
         nimg = 1
@@ -55,7 +56,9 @@ if __name__ == '__main__':
     fullmarm = gaussian(datamat['marm1larg'],4)
     databp = loadmat('bp2004.mat')
     fullbp = gaussian(databp['V'],4)/1000
-    #seed = np.random.randint(1e5+1)
         
-    createCropsAndSave([fullmarm,fullbp], m=256, outputdir = 'mabp4sig_size256cropsM100.npz',num_times=50)
+    createCropsAndSave([fullmarm,fullbp],
+                       m=256,
+                       outputdir = 'mabp4sig_size256cropsM100.npz',
+                       num_times=50)
 

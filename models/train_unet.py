@@ -10,9 +10,9 @@ from model_utils import npdat2Tensor, save_model, load_model
 def train(epochs = 1, batchsize = 128, lr = 1e-4, nlayer = 3, wf = 1, fine_coarse_scale = 4, continue_training = False):
 
     #model configuration
-    saved_model_path = './NLModule_w1_3layer_data[22].pt'
     model = unet.UNet(wf=wf, depth=nlayer, scale_factor=fine_coarse_scale).double()
-    if continue_training: load_model(saved_model_path, model)
+    if continue_training: load_model('./NLModule_w1_3layer_data[22].pt',
+                                     model)
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     model.to(device)
 
@@ -21,7 +21,7 @@ def train(epochs = 1, batchsize = 128, lr = 1e-4, nlayer = 3, wf = 1, fine_coars
     loss_f = nn.MSELoss()
 
     #set up training data
-    data_paths = ['../data/training_data_12.npz']
+    data_paths = ['../data/training_data_13.npz']
     train_loaders = []
     for path in data_paths:
         npz_PropS = np.load(path)
@@ -37,12 +37,13 @@ def train(epochs = 1, batchsize = 128, lr = 1e-4, nlayer = 3, wf = 1, fine_coars
                                                          batch_size=batchsize, shuffle=True, num_workers=1))
 
     for epoch in range(epochs):
+        print("-"*20, str(epoch), "-"*20)
 
         training_loss = 0.0
         id_loss = 0.0
 
         for train_loader in train_loaders:
-            for i, data in tqdm(enumerate(train_loader)):
+            for i, data in enumerate(tqdm(train_loader)):
 
                 inputs, labels = data[0].to(device), data[1].to(device)
                 optimizer.zero_grad()

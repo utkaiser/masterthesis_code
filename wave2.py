@@ -1,6 +1,6 @@
 import numpy as np
 
-"""
+'''
 Solving 2D second order wave equation with periodic BC
 Input: 
     u_0 (2d array) initial condition
@@ -12,7 +12,7 @@ Input:
 Output:
     u (2d array) solution at final time Tf
     ut (2d array) solution at final time Tf
-"""
+'''
 
 # Define periodic Laplacian
 def periLaplacian2(v,dx):

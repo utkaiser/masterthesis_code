@@ -5,23 +5,20 @@ import WavePostprocess4input as WavePostprocess
 import WaveUtil
 import wave2 as wave2
 import wave2_spectral as w2s
-import sys
 import OPPmodel
 
-'''
-generates wave solutions sample from the medium generated in generatecroppedVmodel.py
-'''
-
-def generate_wave_from_medium(input_file_name, output_file_appendix):
+def generate_wave_from_medium(input_path, output_path):
     """
         generate data pair coarse and fine solutions.
-        We first take a velocity sample, then take an initial
+        generates wave solutions sample from the medium generated in generatecroppedVmodel.py
+        We first take a velocity sample (we get from generatecroppedVmodel.py), then take an initial
         wavefield sample. Then propagate the wavefield using
         the Procrustes parareal scheme, during which the pair
         coarse-fine solutions are computed.
     """
 
-    ###################### Parameter setups ######################
+    ###################### Parameter setup ######################
+
     T = 0.64
     cT = 0.064
     dx = 0.01 #= around 2.0/128.0
@@ -39,17 +36,16 @@ def generate_wave_from_medium(input_file_name, output_file_appendix):
     dX = dx*m
     dT = dX/10
 
-    ##############################################################
+    #############################################################
 
+    # data setup
 
     # creates rectangular grid from evenly spaced numbers over a specified interval
-    xx,yy = np.meshgrid(np.linspace(-1,1,Nx),np.linspace(-1,1,Ny))
-    XX,YY = np.meshgrid(np.linspace(-1,1,nx),np.linspace(-1,1,ny))
-    
-    vel_list = np.load(input_file_name+'.npz')['wavespeedlist']
+    xx, yy = np.meshgrid(np.linspace(-1, 1, Nx),
+                         np.linspace(-1, 1, Ny))
 
-    # amount of data to generate
-    n_samples = vel_list.shape[0]
+    vel_list = np.load(input_path+'.npz')['wavespeedlist']
+    n_samples = 1 #vel_list.shape[0] # amount of data to generate
     time_slices = pimax*ncT
 
     # variables for initial conditions
@@ -72,22 +68,23 @@ def generate_wave_from_medium(input_file_name, output_file_appendix):
     centers1 = np.random.rand(n_samples,2)*1.-0.5
     widths = 250+np.random.randn(n_samples)*10
     
-    for j in range(5): #n_trainsamples?????????????????????????
+    for j in range(n_samples):
         print("-"*20, 'sample', j, "-"*20)
         u_init[:,:,j*time_slices],ut_init[:,:,j*time_slices] = initCond_ricker(xx,yy,widths[j],centers1[j,:])
         vel = vel_list[j,:,:]
 
-        up,utp,velX = InitParareal(u_init[:,:,j*time_slices],ut_init[:,:,j*time_slices],
-                                   vel,dx,dt,cT,dX,dT,T,pimax)
+        up,utp,velX = InitParareal(u_init[:,:,j*time_slices],
+                                   ut_init[:,:,j*time_slices],
+                                   vel,dx,cT,dX,dT,T,pimax)
         
         # Parareal iteration 
         for parI in range(pimax-1):
+            print('iteration:', parI)
 
             #### SUBJECT TO CHANGE TO MULTIPROCESSING
             # Parallel solution
             vx = up[:,:,:,parI]
             vtx = utp[:,:,:,parI]
-            print('iteration:',parI)
 
             UcX,UtcX,UfX,UtfX = PComp.ParallelCompute(vx,vtx,vel,velX,dx,dX,dt,dT,cT)    
             udx,udy,utdt = WaveUtil.WaveEnergyComponentField(UcX, UtcX, velX, dX)
@@ -128,11 +125,11 @@ def generate_wave_from_medium(input_file_name, output_file_appendix):
 
 
     print('Saving data.')
-    np.savez('./data/' + output_file_appendix + '.npz',vel=velsamp,
+    np.savez('./data/' + output_path + '.npz',vel=velsamp,
              Ucx=Ucx,Ucy=Ucy,Utc=Utc,Ufx=Ufx,Ufy=Ufy,Utf=Utf)
 
 
-def InitParareal(u0, ut0, vel, dx, dt, cT, dX, dT, T, pimax):
+def InitParareal(u0, ut0, vel, dx, cT, dX, dT, T, pimax):
     """
     Initial guess in parareal scheme
     """
@@ -189,9 +186,7 @@ def initCond_ricker(xx, yy, width, center):
     return u0, ut0
 
 
-
-
 if __name__ == "__main__":
 
-    generate_wave_from_medium(input_file_name = "mabp4sig_size256cropsM100",
-                              output_file_appendix = "training_data_12")
+    generate_wave_from_medium(input_path = "mabp4sig_size256cropsM100",
+                              output_path = "training_data_13")
