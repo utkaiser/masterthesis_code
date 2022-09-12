@@ -2,6 +2,8 @@
 # Forked from https://github.com/jvanvugt/pytorch-unet
 
 from torch import nn
+import warnings
+warnings.filterwarnings("ignore")
 
 class UNet(nn.Module):
 
@@ -11,7 +13,7 @@ class UNet(nn.Module):
     in_channels: number of channels in input
     n_classes: number of channels in output
     depth: number of levels
-    wf: channel multiplication factor each level
+    wf: channel multiplication factor each level (spatial extent of the filters)
     acti_func: activation function
     '''
 
