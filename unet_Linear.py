@@ -4,6 +4,7 @@
 from torch import nn
 
 class UNet(nn.Module):
+
     '''
     JNet class.
     Init params
@@ -13,7 +14,8 @@ class UNet(nn.Module):
     wf: channel multiplication factor each level
     acti_func: activation function
     '''
-    def __init__(self, in_channels=4, n_classes=3, depth=3, wf=0, acti_func='identity', scale_factor=2):
+
+    def __init__(self, in_channels=4, n_classes=3, depth=3, wf=0, acti_func='identity', scale_factor=4):
         super(UNet, self).__init__()
         self.depth = depth
         prev_channels = in_channels

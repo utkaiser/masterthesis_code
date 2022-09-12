@@ -2,7 +2,6 @@ import numpy as np
 import scipy.ndimage
 from skimage.transform import resize
 from skimage.filters import gaussian
-
 from scipy.io import loadmat
 
 def createCropsAndSave(origimg, m, outputdir, num_times = 40):
@@ -52,9 +51,9 @@ def createCropsAndSave(origimg, m, outputdir, num_times = 40):
 
 if __name__ == '__main__':
 
-    datamat = loadmat('../old_code/marm1nonsmooth.mat')
+    datamat = loadmat('marm1nonsmooth.mat')
     fullmarm = gaussian(datamat['marm1larg'],4)
-    databp = loadmat('../old_code/bp2004.mat')
+    databp = loadmat('bp2004.mat')
     fullbp = gaussian(databp['V'],4)/1000
     #seed = np.random.randint(1e5+1)
         
