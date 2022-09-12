@@ -11,7 +11,7 @@ def train(epochs = 1, batchsize = 128, lr = 1e-4, nlayer = 3, wf = 1, fine_coars
 
     #model configuration
     saved_model_path = './NLModule_w1_3layer_data[22].pt'
-    model = unet.UNet(wf=wf, depth=nlayer, acti_func='relu', scale_factor=fine_coarse_scale).double()
+    model = unet.UNet(wf=wf, depth=nlayer, scale_factor=fine_coarse_scale).double()
     if continue_training: load_model(saved_model_path, model)
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     model.to(device)
