@@ -52,9 +52,9 @@ def createCropsAndSave(origimg, m, outputdir, num_times = 40):
 
 if __name__ == '__main__':
 
-    datamat = loadmat('marm1nonsmooth.mat')
+    datamat = loadmat('../old_code/marm1nonsmooth.mat')
     fullmarm = gaussian(datamat['marm1larg'],4)
-    databp = loadmat('bp2004.mat')
+    databp = loadmat('../old_code/bp2004.mat')
     fullbp = gaussian(databp['V'],4)/1000
     #seed = np.random.randint(1e5+1)
         

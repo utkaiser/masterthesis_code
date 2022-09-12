@@ -47,9 +47,9 @@ def createCropsAndSave(img_list, m = 256, outputdir = "mabp4sig_size256cropsM100
 
 if __name__ == '__main__':
 
-    datamat = loadmat('data/marm1nonsmooth.mat') #image saved in .mat file
+    datamat = loadmat('mounted/marm1nonsmooth.mat') #image saved in .mat file
     fullmarm = gaussian(datamat['marm1larg'],4) #filter operation
-    databp = loadmat('data/bp2004.mat')
+    databp = loadmat('mounted/bp2004.mat')
     fullbp = gaussian(databp['V'],4)/1000
 
     createCropsAndSave([fullmarm,fullbp], num_times = 5)

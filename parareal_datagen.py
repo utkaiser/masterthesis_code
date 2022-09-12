@@ -42,46 +42,42 @@ def generate_wave_from_medium(input_file_name, output_file_appendix):
     ##############################################################
 
 
-    x,y = np.linspace(-1,1,Nx),np.linspace(-1,1,Ny)
-    xx,yy = np.meshgrid(x,y)
-    X,Y = np.linspace(-1,1,nx),np.linspace(-1,1,ny)
-    XX,YY = np.meshgrid(X,Y)
+    # creates rectangular grid from evenly spaced numbers over a specified interval
+    xx,yy = np.meshgrid(np.linspace(-1,1,Nx),np.linspace(-1,1,Ny))
+    XX,YY = np.meshgrid(np.linspace(-1,1,nx),np.linspace(-1,1,ny))
     
-    datamode = 'train'
-    velname = input_file_name
-    velf = np.load(velname+'.npz')
-    vellist = velf['wavespeedlist']
+    vel_list = np.load(input_file_name+'.npz')['wavespeedlist']
 
-    # Define the amount of data to generate
-    n_trainsamples = vellist.shape[0]
-    n_timeslices = pimax*ncT
-    
+    # amount of data to generate
+    n_samples = vel_list.shape[0]
+    time_slices = pimax*ncT
+
     # variables for initial conditions
-    u_init = np.zeros([xx.shape[0],xx.shape[1],n_timeslices*n_trainsamples])
-    ut_init = np.zeros([xx.shape[0],xx.shape[1],n_timeslices*n_trainsamples])
+    u_init = np.zeros([Nx,Nx,time_slices*n_samples])
+    ut_init = np.zeros([Nx,Nx,time_slices*n_samples])
     
     # variables for coarse solutions in energy components form
-    Ucx = np.zeros([XX.shape[0],XX.shape[1],n_timeslices*n_trainsamples])
-    Ucy = np.zeros([XX.shape[0],XX.shape[1],n_timeslices*n_trainsamples])
-    Utc = np.zeros([XX.shape[0],XX.shape[1],n_timeslices*n_trainsamples])
+    Ucx = np.zeros([nx,nx,time_slices*n_samples])
+    Ucy = np.zeros([nx,nx,time_slices*n_samples])
+    Utc = np.zeros([nx,nx,time_slices*n_samples])
 
     # variables for fine solutions in energy components form
-    Ufx = np.zeros([xx.shape[0],xx.shape[1],n_timeslices*n_trainsamples])
-    Ufy = np.zeros([xx.shape[0],xx.shape[1],n_timeslices*n_trainsamples])
-    Utf = np.zeros([xx.shape[0],xx.shape[1],n_timeslices*n_trainsamples])
+    Ufx = np.zeros([Nx,Nx,time_slices*n_samples])
+    Ufy = np.zeros([Nx,Nx,time_slices*n_samples])
+    Utf = np.zeros([Nx,Nx,time_slices*n_samples])
 
     # variable for the sampled velocity models
-    velsamp = np.zeros([XX.shape[0],YY.shape[1],n_timeslices*n_trainsamples])
+    velsamp = np.zeros([nx,ny,time_slices*n_samples])
     
-    centers1 = np.random.rand(n_trainsamples,2)*1.-0.5
-    widths = 250+np.random.randn(n_trainsamples)*10      
+    centers1 = np.random.rand(n_samples,2)*1.-0.5
+    widths = 250+np.random.randn(n_samples)*10
     
     for j in range(5): #n_trainsamples?????????????????????????
-        print('sample', j)
-        u_init[:,:,j*n_timeslices],ut_init[:,:,j*n_timeslices] = initCond_ricker(xx,yy,widths[j],centers1[j,:])
-        vel = vellist[j,:,:]      
+        print("-"*20, 'sample', j, "-"*20)
+        u_init[:,:,j*time_slices],ut_init[:,:,j*time_slices] = initCond_ricker(xx,yy,widths[j],centers1[j,:])
+        vel = vel_list[j,:,:]
 
-        up,utp,velX = InitParareal(u_init[:,:,j*n_timeslices],ut_init[:,:,j*n_timeslices],
+        up,utp,velX = InitParareal(u_init[:,:,j*time_slices],ut_init[:,:,j*time_slices],
                                    vel,dx,dt,cT,dX,dT,T,pimax)
         
         # Parareal iteration 
@@ -91,8 +87,8 @@ def generate_wave_from_medium(input_file_name, output_file_appendix):
             # Parallel solution
             vx = up[:,:,:,parI]
             vtx = utp[:,:,:,parI]
-            print('iteration',parI)
-            
+            print('iteration:',parI)
+
             UcX,UtcX,UfX,UtfX = PComp.ParallelCompute(vx,vtx,vel,velX,dx,dX,dt,dT,cT)    
             udx,udy,utdt = WaveUtil.WaveEnergyComponentField(UcX, UtcX, velX, dX)
             UcX = resize(UcX,[Ny,Nx],order=4)
@@ -100,7 +96,7 @@ def generate_wave_from_medium(input_file_name, output_file_appendix):
             UcXdx,UcXdy,UtcXdt = WaveUtil.WaveEnergyComponentField(UcX, UtcX, vel, dx)
             UfXdx,UfXdy,UtfXdt = WaveUtil.WaveEnergyComponentField(UfX, UtfX, vel, dx)
             
-            ridx = np.arange(j*n_timeslices+parI*ncT,j*n_timeslices+(parI+1)*ncT)            
+            ridx = np.arange(j*time_slices+parI*ncT,j*time_slices+(parI+1)*ncT)
             Ucx[:,:,ridx] = udx
             Ucy[:,:,ridx] = udy
             Utc[:,:,ridx] = utdt
@@ -130,8 +126,9 @@ def generate_wave_from_medium(input_file_name, output_file_appendix):
                 up[:,:,j+1,parI+1] = UfX[:,:,j+1] + uX - vX
                 utp[:,:,j+1,parI+1] = UtfX[:,:,j+1] + utX - vtX
 
+
     print('Saving data.')
-    np.savez('./data/'+datamode+'data_name'+output_file_appendix+'.npz',vel=velsamp,
+    np.savez('./data/' + output_file_appendix + '.npz',vel=velsamp,
              Ucx=Ucx,Ucy=Ucy,Utc=Utc,Ufx=Ufx,Ufy=Ufy,Utf=Utf)
 
 
@@ -196,5 +193,5 @@ def initCond_ricker(xx, yy, width, center):
 
 if __name__ == "__main__":
 
-    generate_wave_from_medium(input_file_name = "bp310cropsM100",
-                              output_file_appendix = "12")
+    generate_wave_from_medium(input_file_name = "mabp4sig_size256cropsM100",
+                              output_file_appendix = "training_data_12")
