@@ -5,7 +5,6 @@ import WavePostprocess4input as WavePostprocess  #
 import WaveUtil
 import wave2 as wave2
 import wave2_spectral as w2s
-from scipy.io import loadmat
 import OPPmodel
 
 def generate_wave_from_medium(input_path, output_path):
@@ -38,9 +37,6 @@ def generate_wave_from_medium(input_path, output_path):
                          np.linspace(-1, 1, Ny))
     velf = np.load(input_path + '.npz')
     vellist = velf['wavespeedlist']
-    # vellist = np.zeros([10,Nx,Ny])
-    # datamat = loadmat('marm1nonsmooth.mat')
-    # for i in range(10): vellist[i,:,:] = resize(datamat['marm1smal'],[256,256])/4.
     n_samples = vellist.shape[0] # define the amount of data to generate
 
     # variables for initial conditions
@@ -80,7 +76,6 @@ def generate_wave_from_medium(input_path, output_path):
             # Parallel solution, illustrated in Fig. 4
             vx = up[:, :, :, i]
             vtx = utp[:, :, :, i]
-            print('iteration', i)
 
             #way to compute the solution, solve fine and coarse solution using velocity etc., for current solution/iteration
             UcX, UtcX, UfX, UtfX = PComp.ParallelCompute(vx, vtx, vel, velX, dx, dX, dt, dT, cT) #propagation of wave field for whole interval
@@ -130,6 +125,7 @@ def generate_wave_from_medium(input_path, output_path):
                 up[:, :, j + 1, i + 1] = UfX[:, :, j + 1] + uX - vX
                 utp[:, :, j + 1, i + 1] = UtfX[:, :, j + 1] + utX - vtX
 
+
     np.savez('./data/' + output_path + '.npz', vel=velsamp, Ucx=Ucx, Ucy=Ucy, Utc=Utc, Ufx=Ufx,
              Ufy=Ufy, Utf=Utf)
 
@@ -176,6 +172,7 @@ def initCond(xx, yy, width, center):
     Gaussian pulse wavefield
     u0(x,y)=e−(x2+y2)/σ2,∂tu0(x,y)=0, x,y∈δxZ2 ∩[−1,1)2, 1/σ2 ∼N(250,10).
     """
+
     u0 = np.exp(-width * ((xx - center[0]) ** 2 + (yy - center[1]) ** 2))
     ut0 = np.zeros([np.size(xx, axis=1), np.size(yy, axis=0)])
     return u0, ut0
@@ -185,6 +182,7 @@ def initCond_ricker(xx, yy, width, center):
     """
     Ricker pulse wavefield
     """
+
     u0 = np.exp(-width * ((xx - center[0]) ** 2 + (yy - center[1]) ** 2))
     u0 = (1 - 2 * width * ((xx - center[0]) ** 2 + (yy - center[1]) ** 2)) * u0
     u0 = u0 / np.max(np.abs(u0))

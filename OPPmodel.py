@@ -47,9 +47,7 @@ def ProcrustesShift(U,V,coarse_arg,datmode='tensor'):
 # SVD of streaming data
 def updateSVD(Uo,So,Vo,A,B):
     tol = 1e-15
-    Un = Uo
-    Sn = So
-    Vn = Vo
+
     if (Uo.size == 0 or So.size==0 or Vo.size==0):
         QA,RA = np.linalg.qr(A,mode='reduced')
         QB,RB = np.linalg.qr(B,mode='reduced')
@@ -62,13 +60,12 @@ def updateSVD(Uo,So,Vo,A,B):
         Vn = np.matmul(QB,vp[:,:ranknew])
         Sn = sp[:ranknew]
         
-        print('Coarse error:', np.linalg.norm(A-B,ord='fro'))
-        print('OPP error:', np.linalg.norm(A-np.matmul(Un,np.matmul(Vn.transpose(),B)),ord='fro'))
-        
+        print('Coarse error:', np.linalg.norm(A-B,ord='fro'),
+              '| OPP error:', np.linalg.norm(A-np.matmul(Un,np.matmul(Vn.transpose(),B)),ord='fro'))
+
     else:
         rankold = So.shape[0]
         Udim = Uo.shape[0]
-        #Vdim = Vo.shape[0]
         rownum = min(Udim,A.shape[1])
         
         UtA = np.matmul(Uo.transpose(),A)
