@@ -48,6 +48,7 @@ def periLaplacian2(v,dx):
          (np.roll(v,1,axis=0) - 2*v + np.roll(v,-1,axis=0))/(dx**2)
     return Lv
 
+'''
 def del2_iso9p(v,dx):
     """
     evaluate isotropic discrete Laplacian with 9-point stencil
@@ -108,3 +109,4 @@ def wave2_9p(u0,ut0,vel,dx,dt,Tf):
         ut = ut + 0.5*dt*np.multiply(c2,ddxou+ddxu)
     
     return u, ut
+'''

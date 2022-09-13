@@ -30,15 +30,14 @@ def generate_wave_from_medium(input_path, output_path):
     dX = dx * 4 #M=4
     dT = dX / 10
 
-
     # data setup
 
-    xx, yy = np.meshgrid(np.linspace(-1, 1, Nx),
+    grid_x, grid_y = np.meshgrid(np.linspace(-1, 1, Nx),
                          np.linspace(-1, 1, Ny))
 
     #velf = np.load(input_path + '.npz')
     #vellist = velf['wavespeedlist']
-    vellist = np.zeros([10,xx.shape[0],xx.shape[1]])
+    vellist = np.zeros([10,Nx,Ny])
     datamat = loadmat('marm1nonsmooth.mat')
     for i in range(10): vellist[i,:,:] = resize(datamat['marm1smal'],[256,256])/4.
 
@@ -66,17 +65,17 @@ def generate_wave_from_medium(input_path, output_path):
 
     for j in range(n_samples):
         print('-'*20, 'sample', j, '-'*20)
-        u_init[:, :, j * delta_t], ut_init[:, :, j * delta_t] = initCond_ricker(xx, yy, widths[j], centers1[j, :])
-        vel = vellist[j, :, :]
-        velX = resize(vel, [nx,ny], order=4)
 
-        ######################################################
+        #initial wave field
+        u_init[:, :, j * delta_t], ut_init[:, :, j * delta_t] = initCond_ricker(grid_x, grid_y, widths[j], centers1[j, :])
+        vel = vellist[j, :, :]
 
         up, utp, velX = InitParareal(u_init[:, :, j * delta_t], ut_init[:, :, j * delta_t],
                                      vel, dx, cT, dX, dT, T, pimax)
 
         # Parareal iteration
         for i in range(pimax - 1):
+
             #### SUBJECT TO CHANGE TO MULTIPROCESSING
             # Parallel solution
             vx = up[:, :, :, i]
