@@ -3,25 +3,30 @@ import numpy as np
 from tqdm import tqdm
 import torch
 import torch.nn as nn
-import unet as unet
+import unet
+import tiramisu
 import torch.optim as optim
 from model_utils import npdat2Tensor, save_model, load_model
 
-def train(epochs = 1, batchsize = 128, lr = 1e-4, nlayer = 3, wf = 1, fine_coarse_scale = 4, continue_training = False):
+def train(epochs = 1, batchsize = 8, lr = 1e-4, nlayer = 3, wf = 1, fine_coarse_scale = 4, continue_training = False):
 
-    #model configuration
-    model = unet.UNet(wf=wf, depth=nlayer, scale_factor=fine_coarse_scale).double()
+    # model configuration
+
+    #model = unet.UNet(wf=wf, depth=nlayer, scale_factor=fine_coarse_scale).double()
+    model = tiramisu.FCDenseNet().double()
     if continue_training: load_model('./NLModule_w1_3layer_data[22].pt',
                                      model)
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     model.to(device)
 
-    #training parameters
+    # training setup
+
     optimizer = optim.Adam(model.parameters(), lr=lr)
     loss_f = nn.MSELoss()
 
-    #set up training data
-    data_paths = ['../data/training_data_13.npz']
+    # training data setup
+
+    data_paths = ['../data/training_data_12.npz']
     train_loaders = []
     for path in data_paths:
         npz_PropS = np.load(path)
@@ -67,5 +72,5 @@ if __name__ == "__main__":
     start_time = time.time()
     train()
     end_time = time.time()
-    print('Training done ', (end_time - start_time))
+    print('Training done:', (end_time - start_time))
 

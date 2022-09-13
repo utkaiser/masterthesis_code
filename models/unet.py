@@ -12,7 +12,7 @@ class UNet(nn.Module):
         in_channels: number of channels in input
         n_classes: number of channels in output
         depth: number of levels
-        wf: channel multiplication factor each level (spatial extent of the filters)
+        wf: channel multiplication factor each level (spatial extent of the filters), receiptive field
     '''
 
     def __init__(self, in_channels=4, n_classes=3, depth=3, wf=0, scale_factor=4):
@@ -35,7 +35,7 @@ class UNet(nn.Module):
             self.up_path.append(
                 UNetUpBlock(prev_channels,in_channels* 2 ** (wf + i))
             )
-            prev_channels =in_channels* 2 ** (wf + i)
+            prev_channels = in_channels* 2 ** (wf + i)
 
         self.last = nn.ModuleList()
         for i in range(int(scale_factor/2)):
