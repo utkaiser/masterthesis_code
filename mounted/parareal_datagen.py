@@ -101,7 +101,7 @@ def generate_wave_from_medium(input_path, output_path):
             if i == 0:
                 P, S, Q = OPPmodel.ProcrustesShiftMap((UcXdx, UcXdy, UtcXdt), (UfXdx, UfXdy, UtfXdt), datmode='numpy')
             else:
-                P, S, Q = OPPmodel.ProcrustesShiftMap((UcXdx, UcXdy, UtcXdt), (UfXdx, UfXdy, UtfXdt), (P, S, Q),datmode='numpy')
+                P, S, Q = OPPmodel.ProcrustesShiftMap((UcXdx, UcXdy, UtcXdt), (UfXdx, UfXdy, UtfXdt), (P, S, Q), datmode='numpy')
 
             # Serial update, sequential step, compute my solution
             for j in range(ncT - 1):
@@ -191,5 +191,5 @@ def initCond_ricker(xx, yy, width, center):
 
 
 if __name__ == "__main__":
-    generate_wave_from_medium(input_path = "mabp4sig_size256cropsM100",
-                              output_path = "training_data_12")
+    generate_wave_from_medium(input_path = "../data/mabp4sig_size256cropsM100",
+                              output_path = "../data/training_data_12")

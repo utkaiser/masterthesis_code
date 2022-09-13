@@ -11,8 +11,10 @@ def createCropsAndSave(v_images, m, outputdir, num_times = 40):
     """
 
     wavespeed_list = []
-
+    i = 0
     for img in v_images:
+        print("img",i)
+        i += 1
         for j in range(num_times):
 
             scale = 0.08+0.04*np.random.rand() #chose this scaling because performed well
@@ -38,14 +40,17 @@ def createCropsAndSave(v_images, m, outputdir, num_times = 40):
 
 if __name__ == '__main__':
 
-    datamat = loadmat('data/marm1nonsmooth.mat') #velocity models Marmousi dataset
+    print("start running generatecroppedVmodel.py")
+
+    datamat = loadmat('../data/marm1nonsmooth.mat') #velocity models Marmousi dataset
     fullmarm = gaussian(datamat['marm1larg'],4) #to make smoother
-    databp = loadmat('data/bp2004.mat') #velocity models BP dataset
+    databp = loadmat('../data/bp2004.mat') #velocity models BP dataset
     fullbp = gaussian(databp['V'],4)/1000 #to make smoother (and different order of magnitude)
         
     createCropsAndSave([fullmarm,fullbp],
                        m=256,
-                       outputdir = 'mabp4sig_size256cropsM100.npz',
+                       outputdir = '../data/mabp4sig_size256cropsM100.npz',
                        num_times=50)
 
+    print("finish running generatecroppedVmodel.py")
 
