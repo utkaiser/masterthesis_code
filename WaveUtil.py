@@ -4,6 +4,7 @@ from scipy import fftpack
 
 def WaveEnergyField(u,ut,c,dx):
     # Compute wave energy field
+    #first line eq. 30 appendix, #Fig 2
 
     ux, uy = np.gradient(u,dx)
     absux = np.abs(ux)

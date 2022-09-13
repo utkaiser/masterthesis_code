@@ -4,6 +4,7 @@ import numpy as np
 
 def ProcrustesShiftMap(coarse_dat,fine_dat,opmap=(np.empty(0),np.empty(0),np.empty(0)),datmode='tensor'):
     # Compute Procustes shift map
+    # a stable (hieu and richard paper)#########
 
     Ucx,Ucy,Utc = coarse_dat
     Ufx,Ufy,Utf = fine_dat

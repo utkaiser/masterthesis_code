@@ -31,7 +31,7 @@ def wave2(u0,ut0,vel,dx,dt,Tf):
     
     for i in range(Nt):
         # Velocity Verlet
-        ddxou = spectral_del(u,dx)
+        ddxou = spectral_del(u,dx) #laplacian spectrally computed
         u = u + dt*ut + 0.5*dt**2*np.multiply(c2,ddxou)
         ddxu = spectral_del(u,dx)
         ut = ut + 0.5*dt*np.multiply(c2,ddxou+ddxu)

@@ -52,13 +52,14 @@ def createCropsAndSave(origimg, m, outputdir, num_times = 40):
 
 if __name__ == '__main__':
 
-    datamat = loadmat('../marm1nonsmooth.mat')
-    fullmarm = gaussian(datamat['marm1larg'],4)
-    databp = loadmat('bp2004.mat')
-    fullbp = gaussian(databp['V'],4)/1000
+    datamat = loadmat('../marm1nonsmooth.mat') #velocity models
+    fullmarm = gaussian(datamat['marm1larg'],4) #to make smoother
+    databp = loadmat('bp2004.mat') #velocity models different order of magnitude
+    fullbp = gaussian(databp['V'],4)/1000 #to make smoother
         
     createCropsAndSave([fullmarm,fullbp],
                        m=256,
                        outputdir = 'mabp4sig_size256cropsM100.npz',
                        num_times=50)
+
 
