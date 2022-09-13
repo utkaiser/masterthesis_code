@@ -14,21 +14,12 @@ Output:
     ut (2d array) solution at final time Tf
 '''
 
-# Define periodic Laplacian
-def periLaplacian2(v,dx):
+def velocity_verlet_time_integrator(u0,ut0,vel,dx,dt,Tf):
     """
-    evaluate discrete Laplacian with periodic boundary condition
-    """
-
-    Lv = (np.roll(v,1,axis=1) - 2*v + np.roll(v,-1,axis=1))/(dx**2) + \
-         (np.roll(v,1,axis=0) - 2*v + np.roll(v,-1,axis=0))/(dx**2)
-    return Lv
-
-# Wave solution propagator
-def wave2(u0,ut0,vel,dx,dt,Tf):
-    """
+    Wave solution propagator
     propagate wavefield using velocity Verlet in time and the second order
     discrete Laplacian in space
+    found eq. 10 in paper
     """
 
     Nt = round(abs(Tf/dt))
@@ -45,6 +36,17 @@ def wave2(u0,ut0,vel,dx,dt,Tf):
         ut = ut + 0.5*dt*np.multiply(c2,ddxou+ddxu)
     
     return u, ut
+
+
+def periLaplacian2(v,dx):
+    """
+    Define periodic Laplacian
+    evaluate discrete Laplacian with periodic boundary condition
+    """
+
+    Lv = (np.roll(v,1,axis=1) - 2*v + np.roll(v,-1,axis=1))/(dx**2) + \
+         (np.roll(v,1,axis=0) - 2*v + np.roll(v,-1,axis=0))/(dx**2)
+    return Lv
 
 def del2_iso9p(v,dx):
     """
