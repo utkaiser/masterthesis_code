@@ -2,7 +2,9 @@ import torch.nn as nn
 import torch
 
 class FCDenseNet(nn.Module):
-    #wf = wf scale_factor = fine_coarse_scale
+    '''
+    source: https://github.com/bfortuner/pytorch_tiramisu
+    '''
 
     def __init__(self, in_channels=4, down_blocks=(5,5,5,5,5),
                  up_blocks=(5,5,5,5,5), bottleneck_layers=1,
@@ -11,17 +13,14 @@ class FCDenseNet(nn.Module):
         self.down_blocks = down_blocks
         self.up_blocks = up_blocks
         skip_connection_channel_counts = []
-        ## First Convolution ##
 
+        # First Convolution
         self.add_module('firstconv', nn.Conv2d(in_channels=in_channels,
                   out_channels=out_chans_first_conv, kernel_size=3,
                   stride=1, padding=1, bias=True))
         cur_channels_count = out_chans_first_conv
 
-        #####################
-        # Downsampling path #
-        #####################
-
+        # Downsampling path
         self.denseBlocksDown = nn.ModuleList([])
         self.transDownBlocks = nn.ModuleList([])
         for i in range(len(down_blocks)):
@@ -31,19 +30,14 @@ class FCDenseNet(nn.Module):
             skip_connection_channel_counts.insert(0,cur_channels_count)
             self.transDownBlocks.append(TransitionDown(cur_channels_count))
 
-        #####################
-        #     Bottleneck    #
-        #####################
 
+        # Bottleneck
         self.add_module('bottleneck',Bottleneck(cur_channels_count,
                                      growth_rate, bottleneck_layers))
         prev_block_channels = growth_rate*bottleneck_layers
         cur_channels_count += prev_block_channels
 
-        #######################
-        #   Upsampling path   #
-        #######################
-
+        # Upsampling path
         self.transUpBlocks = nn.ModuleList([])
         self.denseBlocksUp = nn.ModuleList([])
         for i in range(len(up_blocks)-1):
@@ -56,8 +50,7 @@ class FCDenseNet(nn.Module):
             prev_block_channels = growth_rate*up_blocks[i]
             cur_channels_count += prev_block_channels
 
-        ## Final DenseBlock ##
-
+        #Final DenseBlock
         self.transUpBlocks.append(TransitionUp(
             prev_block_channels, prev_block_channels))
         cur_channels_count = prev_block_channels + skip_connection_channel_counts[-1]

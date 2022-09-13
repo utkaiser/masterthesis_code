@@ -8,14 +8,20 @@ import tiramisu
 import torch.optim as optim
 from model_utils import npdat2Tensor, save_model, load_model
 
-def train(epochs = 1, batchsize = 8, lr = 1e-4, nlayer = 3, wf = 1, fine_coarse_scale = 4, continue_training = False):
+def train(epochs = 1, batchsize = 8, lr = 1e-4, nlayer = 3, wf = 1,
+          fine_coarse_scale = 4, continue_training = False, model_name = "unet"):
 
     # model configuration
+    if model_name == "unet":
+        model = unet.UNet(wf=wf, depth=nlayer, scale_factor=fine_coarse_scale).double()
+        if continue_training: load_model(model_name+"", model)
+    elif model_name == "tiramisu":
+        model = tiramisu.FCDenseNet().double()
+        if continue_training: load_model(model_name+"", model)
+    else:
+        raise NotImplementedError("model with name " + model_name + " not implemented")
 
-    #model = unet.UNet(wf=wf, depth=nlayer, scale_factor=fine_coarse_scale).double()
-    model = tiramisu.FCDenseNet().double()
-    if continue_training: load_model('./NLModule_w1_3layer_data[22].pt',
-                                     model)
+
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     model.to(device)
 
@@ -65,8 +71,8 @@ def train(epochs = 1, batchsize = 8, lr = 1e-4, nlayer = 3, wf = 1, fine_coarse_
             if epoch % 1 == 0:
                 print('[%d] training data loss: %.5f | coarse loss: %.5f ' %
                       (epoch + 1, training_loss, id_loss))
-
-        save_model(model)
+        if epoch % 500 == 0: save_model(model)
+    save_model(model)
 
 if __name__ == "__main__":
     start_time = time.time()
