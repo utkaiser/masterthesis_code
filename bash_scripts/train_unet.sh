@@ -11,4 +11,4 @@
 
 pwd; hostname; date
 
-python3 ../models/train_unet.py
+python3 ../models/train.py unet

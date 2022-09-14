@@ -126,7 +126,7 @@ def generate_wave_from_medium(input_path, output_path):
                 utp[:, :, j + 1, i + 1] = UtfX[:, :, j + 1] + utX - vtX
 
 
-    np.savez('./data/' + output_path + '.npz', vel=velsamp, Ucx=Ucx, Ucy=Ucy, Utc=Utc, Ufx=Ufx,
+    np.savez(output_path + '.npz', vel=velsamp, Ucx=Ucx, Ucy=Ucy, Utc=Utc, Ufx=Ufx,
              Ufy=Ufy, Utf=Utf)
 
 
