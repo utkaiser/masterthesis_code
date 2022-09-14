@@ -9,7 +9,7 @@ import torch.optim as optim
 from model_utils import npdat2Tensor, save_model, load_model
 import sys
 
-def train(epochs = 850, batchsize = 1, lr = 1e-4, nlayer = 3, wf = 1,
+def train(epochs = 850, batchsize = 64, lr = 1e-4, nlayer = 3, wf = 1,
           fine_coarse_scale = 4, continue_training = False, model_name = "unet"):
 
     # model configuration
@@ -89,7 +89,7 @@ def train(epochs = 850, batchsize = 1, lr = 1e-4, nlayer = 3, wf = 1,
 if __name__ == "__main__":
 
     start_time = time.time()
-    model_name = "tiramisu"#sys.argv[1]
+    model_name = sys.argv[1]
     print("start training", model_name)
     train(model_name = model_name)
     end_time = time.time()
