@@ -1,6 +1,5 @@
 import time
 import numpy as np
-from tqdm import tqdm
 import torch
 import torch.nn as nn
 import unet
@@ -9,8 +8,10 @@ import torch.optim as optim
 from model_utils import npdat2Tensor, save_model, load_model
 import sys
 
-def train(epochs = 850, batchsize = 64, lr = 1e-4, nlayer = 3, wf = 1,
+def train(epochs = 850, lr = 1e-4, nlayer = 3, wf = 1,
           fine_coarse_scale = 4, continue_training = False, model_name = "unet"):
+
+    batchsize = 128 if model_name == "unet" else 1 #otherwise uses too much memory
 
     # model configuration
     if model_name == "unet":
@@ -31,6 +32,7 @@ def train(epochs = 850, batchsize = 64, lr = 1e-4, nlayer = 3, wf = 1,
     loss_f = nn.MSELoss()
 
     # training data setup
+    print("setting up data")
     data_paths = ['../data/training_data_12.npz']
     train_loaders = []
     for path in data_paths:
@@ -49,13 +51,12 @@ def train(epochs = 850, batchsize = 64, lr = 1e-4, nlayer = 3, wf = 1,
 
     #training loop
     for epoch in range(epochs):
-        print("-"*20, str(epoch), "-"*20)
 
         loss_list = []
         id_loss_list = []
 
         for train_loader in train_loaders:
-            for i, data in enumerate(tqdm(train_loader)):
+            for i, data in enumerate(train_loader):
 
                 inputs, labels = data[0].to(device), data[1].to(device)
                 optimizer.zero_grad()
@@ -77,10 +78,9 @@ def train(epochs = 850, batchsize = 64, lr = 1e-4, nlayer = 3, wf = 1,
                       (epoch + 1, mean_loss, mean_id_loss))
 
         with open('../data/loss_list_'+model_name+'.txt', 'a') as fd:
-            fd.write(f'\n{str(epoch)}')
             fd.write(f'\n{loss_list}')
 
-        if epoch % 100 == 0:
+        if epoch % 100 == 0: #saves first models as a test
             save_model(model, model_name)
             model.to(device)
 
@@ -93,4 +93,4 @@ if __name__ == "__main__":
     print("start training", model_name)
     train(model_name = model_name)
     end_time = time.time()
-    print('Training done:', (end_time - start_time))
+    print('training done:', (end_time - start_time))

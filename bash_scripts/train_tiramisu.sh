@@ -7,7 +7,7 @@
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=1
 #SBATCH --gres=gpu:1
-#SBATCH --mem-per-cpu=2000M
+#SBATCH --mem-per-cpu=20000M
 
 pwd; hostname; date
 
