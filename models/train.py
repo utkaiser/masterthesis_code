@@ -9,7 +9,7 @@ import torch.optim as optim
 from model_utils import npdat2Tensor, save_model, load_model
 import sys
 
-def train(epochs = 850, batchsize = 256, lr = 1e-4, nlayer = 3, wf = 1,
+def train(epochs = 850, batchsize = 1, lr = 1e-4, nlayer = 3, wf = 1,
           fine_coarse_scale = 4, continue_training = False, model_name = "unet"):
 
     # model configuration
@@ -48,7 +48,6 @@ def train(epochs = 850, batchsize = 256, lr = 1e-4, nlayer = 3, wf = 1,
 
 
     #training loop
-
     for epoch in range(epochs):
         print("-"*20, str(epoch), "-"*20)
 
@@ -57,8 +56,7 @@ def train(epochs = 850, batchsize = 256, lr = 1e-4, nlayer = 3, wf = 1,
 
         for train_loader in train_loaders:
             for i, data in enumerate(tqdm(train_loader)):
-                if i == 3:
-                    break
+
                 inputs, labels = data[0].to(device), data[1].to(device)
                 optimizer.zero_grad()
                 outputs = model(inputs)
@@ -75,14 +73,14 @@ def train(epochs = 850, batchsize = 256, lr = 1e-4, nlayer = 3, wf = 1,
             mean_loss = np.array(loss_list).mean()
             mean_id_loss = np.array(id_loss_list).mean()
             if epoch % 1 == 0:
-                print('[%d] training data loss: %.5f | coarse loss: %.5f ' %
+                print('epoch %d: loss: %.5f | coarse loss: %.5f ' %
                       (epoch + 1, mean_loss, mean_id_loss))
 
         with open('../data/loss_list_'+model_name+'.txt', 'a') as fd:
             fd.write(f'\n{str(epoch)}')
             fd.write(f'\n{loss_list}')
 
-        if epoch % 200 == 0:
+        if epoch % 100 == 0:
             save_model(model, model_name)
             model.to(device)
 
@@ -91,8 +89,8 @@ def train(epochs = 850, batchsize = 256, lr = 1e-4, nlayer = 3, wf = 1,
 if __name__ == "__main__":
 
     start_time = time.time()
-    model_name = "unet"#sys.argv[1]
+    model_name = "tiramisu"#sys.argv[1]
     print("start training", model_name)
-    train(model_name = model_name, epochs=1)
+    train(model_name = model_name)
     end_time = time.time()
     print('Training done:', (end_time - start_time))
