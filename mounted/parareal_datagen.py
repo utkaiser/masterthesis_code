@@ -1,7 +1,7 @@
 import numpy as np
 from skimage.transform import resize  # for coarsening
 import ParallelCompute as PComp
-import WavePostprocess4input as WavePostprocess  #
+import WavePostprocess4input as WavePostprocess
 import WaveUtil
 import wave2 as wave2
 import wave2_spectral as w2s
@@ -28,7 +28,7 @@ def generate_wave_from_medium(input_path, output_path):
     # Coarsening config
     dX = dx * 4 #coarse fine resolution ratio N_x / n_x; scaling
     dT = dX / 10 #discretization in time for course solver, specific number ratio
-    delta_t = pimax * ncT #number of communication timestep n_timeslices how many samples generated from iteration total number of samples running this code
+    n_timeslices = pimax * ncT #number of communication timestep n_timeslices how many samples generated from iteration total number of samples running this code
 
 
     # data setup
@@ -40,19 +40,19 @@ def generate_wave_from_medium(input_path, output_path):
     n_samples = vellist.shape[0] # define the amount of data to generate
 
     # variables for initial conditions
-    u_init = np.zeros([Nx, Nx, delta_t * n_samples])
-    ut_init = np.zeros([Nx, Nx, delta_t * n_samples])
+    u_init = np.zeros([Nx, Nx, n_timeslices * n_samples])
+    ut_init = np.zeros([Nx, Nx, n_timeslices * n_samples])
 
     # variables for coarse solutions in energy components form
-    Ucx = np.zeros([nx, ny, delta_t * n_samples])
-    Ucy = np.zeros([nx, ny, delta_t * n_samples])
-    Utc = np.zeros([nx, ny, delta_t * n_samples])
+    Ucx = np.zeros([nx, ny, n_timeslices * n_samples])
+    Ucy = np.zeros([nx, ny, n_timeslices * n_samples])
+    Utc = np.zeros([nx, ny, n_timeslices * n_samples])
     # variables for fine solutions in energy components form
-    Ufx = np.zeros([Nx, Ny, delta_t * n_samples])
-    Ufy = np.zeros([Nx, Ny, delta_t * n_samples])
-    Utf = np.zeros([Nx, Ny, delta_t * n_samples])
+    Ufx = np.zeros([Nx, Ny, n_timeslices * n_samples])
+    Ufy = np.zeros([Nx, Ny, n_timeslices * n_samples])
+    Utf = np.zeros([Nx, Ny, n_timeslices * n_samples])
     # variable for the sampled velocity models
-    velsamp = np.zeros([nx,ny, delta_t * n_samples])
+    velsamp = np.zeros([nx,ny, n_timeslices * n_samples])
 
     centers1 = np.random.rand(n_samples, 2) * 1. - 0.5
     widths = 250 + np.random.randn(n_samples) * 10
@@ -61,11 +61,11 @@ def generate_wave_from_medium(input_path, output_path):
         print('-'*20, 'sample', j, '-'*20)
 
         #initialization of  wave field
-        u_init[:, :, j * delta_t], ut_init[:, :, j * delta_t] = initCond(grid_x, grid_y, widths[j], centers1[j, :]) #p.20
+        u_init[:, :, j * n_timeslices], ut_init[:, :, j * n_timeslices] = initCond(grid_x, grid_y, widths[j], centers1[j, :]) #p.20
         vel = vellist[j, :, :]
 
         #integrate initial conditions once using coarse solver/ first guess of parareal scheme
-        up, utp, velX = InitParareal(u_init[:, :, j * delta_t], ut_init[:, :, j * delta_t],
+        up, utp, velX = InitParareal(u_init[:, :, j * n_timeslices], ut_init[:, :, j * n_timeslices],
                                      vel, dx, cT, dX, dT, T, pimax)
 
         # parareal iteration
@@ -86,7 +86,7 @@ def generate_wave_from_medium(input_path, output_path):
             UfXdx, UfXdy, UtfXdt = WaveUtil.WaveEnergyComponentField(UfX, UtfX, vel, dx)
 
             #saving solutions in tensor
-            ridx = np.arange(j * delta_t + i * ncT, j * delta_t + (i + 1) * ncT)
+            ridx = np.arange(j * n_timeslices + i * ncT, j * n_timeslices + (i + 1) * ncT)
             Ucx[:, :, ridx] = udx
             Ucy[:, :, ridx] = udy
             Utc[:, :, ridx] = utdt

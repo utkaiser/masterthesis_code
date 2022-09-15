@@ -2,7 +2,7 @@ import numpy as np
 import torch
 from models.model_utils import npdat2Tensor
 
-def fetch_data(data_paths, batchsize):
+def fetch_data(data_paths, batchsize, shuffle=True):
     print("setting up data")
 
     train_loaders = []
@@ -16,7 +16,7 @@ def fetch_data(data_paths, batchsize):
                                   npdat2Tensor(npz_PropS['Ufy']),
                                   npdat2Tensor(npz_PropS['Utf'])), dim=1)
         data_loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(inputdata, outputdata),
-                                                  batch_size=batchsize, shuffle=True, num_workers=1)
+                                                  batch_size=batchsize, shuffle=shuffle, num_workers=1)
         train_loaders.append(data_loader)
 
     return train_loaders
