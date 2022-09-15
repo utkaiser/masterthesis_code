@@ -33,11 +33,11 @@ def generate_wave_from_medium(input_path, output_path):
 
     # data setup
 
-    grid_x, grid_y = np.meshgrid(np.linspace(-1, 1, Nx),
-                         np.linspace(-1, 1, Ny))
+    grid_x, grid_y = np.meshgrid(np.linspace(-1, 1, Nx), np.linspace(-1, 1, Ny))
     velf = np.load(input_path + '.npz')
     vellist = velf['wavespeedlist']
     n_samples = vellist.shape[0] # define the amount of data to generate
+    print("amount of data to generate:", n_samples)
 
     # variables for initial conditions
     u_init = np.zeros([Nx, Nx, n_timeslices * n_samples])
@@ -60,7 +60,7 @@ def generate_wave_from_medium(input_path, output_path):
     for j in range(n_samples):
         print('-'*20, 'sample', j, '-'*20)
 
-        #initialization of  wave field
+        #initialization of wave field
         u_init[:, :, j * n_timeslices], ut_init[:, :, j * n_timeslices] = initCond(grid_x, grid_y, widths[j], centers1[j, :]) #p.20
         vel = vellist[j, :, :]
 
