@@ -15,7 +15,7 @@ class UNet(nn.Module):
         wf: channel multiplication factor each level (spatial extent of the filters), receiptive field
     '''
 
-    def __init__(self, in_channels=4, n_classes=3, depth=3, wf=0, scale_factor=4):
+    def __init__(self, in_channels=4, n_classes=3, depth=3, wf=1, scale_factor=4):
         super(UNet, self).__init__()
 
         prev_channels = in_channels

@@ -9,16 +9,8 @@ def ProcrustesShiftMap(coarse_dat,fine_dat,opmap=(np.empty(0),np.empty(0),np.emp
     Ucx,Ucy,Utc = coarse_dat
     Ufx,Ufy,Utf = fine_dat
     U,S,V = opmap
-    
-    if datmode == 'tensor':
-        Cdat = serial_tensor_stack(Ucx,Ucy,Utc)
-        Fdat = serial_tensor_stack(Ufx,Ufy,Utf)
-    elif datmode == 'numpy':
-        Cdat = serial_numpy_stack(Ucx,Ucy,Utc)
-        Fdat = serial_numpy_stack(Ufx,Ufy,Utf)
-    else:
-        raise ValueError("datmode not defined")
-
+    Cdat = serial_numpy_stack(Ucx,Ucy,Utc)
+    Fdat = serial_numpy_stack(Ufx,Ufy,Utf)
     return updateSVD(U,S,V,Fdat,Cdat)
 
 def ProcrustesShift(U,V,coarse_arg,datmode='tensor'):

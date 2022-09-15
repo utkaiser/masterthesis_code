@@ -61,7 +61,7 @@ def generate_wave_from_medium(input_path, output_path):
         print('-'*20, 'sample', j, '-'*20)
 
         #initialization of  wave field
-        u_init[:, :, j * delta_t], ut_init[:, :, j * delta_t] = initCond_ricker(grid_x, grid_y, widths[j], centers1[j, :]) #p.20
+        u_init[:, :, j * delta_t], ut_init[:, :, j * delta_t] = initCond(grid_x, grid_y, widths[j], centers1[j, :]) #p.20
         vel = vellist[j, :, :]
 
         #integrate initial conditions once using coarse solver/ first guess of parareal scheme

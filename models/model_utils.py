@@ -18,7 +18,8 @@ def save_model(model, modelname):
 
 
 def load_model(load_path, model):
-    torch.load('./'+load_path+'.pt')
+
+    torch.load(load_path)
     return model.load_state_dict(load(path.join(path.dirname(path.abspath(__file__)),
                                                 load_path), map_location='cpu'))
 

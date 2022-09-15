@@ -5,8 +5,9 @@ import torch.nn as nn
 import unet
 import tiramisu
 import torch.optim as optim
-from model_utils import npdat2Tensor, save_model, load_model
+from model_utils import save_model, load_model
 import sys
+from data.data_utils import fetch_data
 
 def train(epochs = 850, lr = 1e-4, nlayer = 3, wf = 1,
           fine_coarse_scale = 4, continue_training = False, model_name = "unet"):
@@ -32,21 +33,8 @@ def train(epochs = 850, lr = 1e-4, nlayer = 3, wf = 1,
     loss_f = nn.MSELoss()
 
     # training data setup
-    print("setting up data")
     data_paths = ['../data/training_data_12.npz']
-    train_loaders = []
-    for path in data_paths:
-        npz_PropS = np.load(path)
-        inputdata = torch.stack((npdat2Tensor(npz_PropS['Ucx']),
-                                 npdat2Tensor(npz_PropS['Ucy']),
-                                 npdat2Tensor(npz_PropS['Utc']),
-                                 npdat2Tensor(npz_PropS['vel'])), dim=1)
-        outputdata = torch.stack((npdat2Tensor(npz_PropS['Ufx']),
-                                  npdat2Tensor(npz_PropS['Ufy']),
-                                  npdat2Tensor(npz_PropS['Utf'])), dim=1)
-        data_loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(inputdata, outputdata),
-                                                   batch_size=batchsize, shuffle=True, num_workers=1)
-        train_loaders.append(data_loader)
+    train_loaders = fetch_data(data_paths, batchsize)
 
 
     #training loop
