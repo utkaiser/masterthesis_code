@@ -1,13 +1,14 @@
 import torch.nn as nn
 import torch
+import numpy as np
 
 class FCDenseNet(nn.Module):
     '''
     source: https://github.com/bfortuner/pytorch_tiramisu
     '''
 
-    def __init__(self, in_channels=4, down_blocks=(5,5,5),
-                 up_blocks=(5,5,5), bottleneck_layers=1,
+    def __init__(self, in_channels=4, down_blocks=(5,5),
+                 up_blocks=(5,5), bottleneck_layers=1,
                  growth_rate=16, out_chans_first_conv=48, n_classes=3):
         super().__init__()
         self.down_blocks = down_blocks
@@ -47,6 +48,7 @@ class FCDenseNet(nn.Module):
             self.denseBlocksUp.append(DenseBlock(
                 cur_channels_count, growth_rate, up_blocks[i],
                     upsample=True))
+
             prev_block_channels = growth_rate*up_blocks[i]
             cur_channels_count += prev_block_channels
 
@@ -63,7 +65,9 @@ class FCDenseNet(nn.Module):
         self.finalConv = nn.Conv2d(in_channels=cur_channels_count,
                out_channels=n_classes, kernel_size=1, stride=1,
                    padding=0, bias=True)
-        self.output_layer = nn.Upsample(size = 256)
+
+        self.rescale = nn.ModuleList([])
+        self.rescale.append(nn.Upsample(scale_factor=4, mode="bilinear"))
 
     def forward(self, x):
         out = self.firstconv(x)
@@ -75,13 +79,16 @@ class FCDenseNet(nn.Module):
             out = self.transDownBlocks[i](out)
 
         out = self.bottleneck(out)
+
         for i in range(len(self.up_blocks)):
             skip = skip_connections.pop()
             out = self.transUpBlocks[i](out, skip)
+            if i == len(self.up_blocks) - 1:
+                out = self.rescale[0](out)
             out = self.denseBlocksUp[i](out)
 
         out = self.finalConv(out)
-        return self.output_layer(out)
+        return out #self.output_layer(out)
 
 
 class DenseLayer(nn.Sequential):

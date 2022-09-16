@@ -1,7 +1,7 @@
 #!/bin/bash
 
-#SBATCH --job-name=train_tiramisu_1
-#SBATCH --output=train_tiramisu_1.out
+#SBATCH --job-name=train_tiramisu_2
+#SBATCH --output=train_tiramisu_2.out
 #SBATCH --nodes=1
 #SBATCH --time=24:00:00
 #SBATCH --ntasks=1

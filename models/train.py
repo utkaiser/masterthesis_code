@@ -3,16 +3,16 @@ import numpy as np
 import torch
 import torch.nn as nn
 import unet
-import tiramisu
+import tiramisu as tiramisu
 import torch.optim as optim
-from model_utils import save_model, load_model
+from model_utils import save_model, load_model, npdat2Tensor
+import datetime
 import sys
-from data.data_utils import fetch_data
 
 def train(epochs = 850, lr = 1e-4, nlayer = 3, wf = 1,
           fine_coarse_scale = 4, continue_training = False, model_name = "unet"):
 
-    batchsize = 128 if model_name == "unet" else 1 #otherwise uses too much memory
+    batchsize = 128 if model_name == "unet" else 32 #otherwise uses too much memory
 
     # model configuration
     if model_name == "unet":
@@ -62,7 +62,7 @@ def train(epochs = 850, lr = 1e-4, nlayer = 3, wf = 1,
             mean_loss = np.array(loss_list).mean()
             mean_id_loss = np.array(id_loss_list).mean()
             if epoch % 1 == 0:
-                print('epoch %d: loss: %.5f | coarse loss: %.5f ' %
+                print(datetime.datetime.now(), 'epoch %d: loss: %.5f | coarse loss: %.5f ' %
                       (epoch + 1, mean_loss, mean_id_loss))
 
         with open('../data/loss_list_'+model_name+'.txt', 'a') as fd:
@@ -74,10 +74,29 @@ def train(epochs = 850, lr = 1e-4, nlayer = 3, wf = 1,
 
     save_model(model, model_name)
 
+def fetch_data(data_paths, batchsize, shuffle=True):
+    print("setting up data")
+
+    train_loaders = []
+    for path in data_paths:
+        npz_PropS = np.load(path)
+        inputdata = torch.stack((npdat2Tensor(npz_PropS['Ucx']),
+                                 npdat2Tensor(npz_PropS['Ucy']),
+                                 npdat2Tensor(npz_PropS['Utc']),
+                                 npdat2Tensor(npz_PropS['vel'])), dim=1)
+        outputdata = torch.stack((npdat2Tensor(npz_PropS['Ufx']),
+                                  npdat2Tensor(npz_PropS['Ufy']),
+                                  npdat2Tensor(npz_PropS['Utf'])), dim=1)
+        data_loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(inputdata, outputdata),
+                                                  batch_size=batchsize, shuffle=shuffle, num_workers=1)
+        train_loaders.append(data_loader)
+
+    return train_loaders
+
 if __name__ == "__main__":
 
     start_time = time.time()
-    model_name = sys.argv[1]
+    model_name = "tiramisu"#sys.argv[1]
     print("start training", model_name)
     train(model_name = model_name)
     end_time = time.time()

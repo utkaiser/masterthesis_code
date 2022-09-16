@@ -192,4 +192,4 @@ def initCond_ricker(xx, yy, width, center):
 
 if __name__ == "__main__":
     generate_wave_from_medium(input_path = "../data/mabp4sig_size256cropsM100",
-                              output_path = "../data/training_data_12")
+                              output_path = "../data/training_data_12_2")
