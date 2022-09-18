@@ -38,8 +38,7 @@ def generate_wave_from_medium(input_path, output_path):
     grid_x, grid_y = np.meshgrid(np.linspace(-1, 1, Nx), np.linspace(-1, 1, Ny))
     velf = np.load(input_path)
     vellist = velf['wavespeedlist']
-    #n_samples = vellist.shape[0] # define the amount of data to generate
-    n_samples = 20
+    n_samples = vellist.shape[0] # define the amount of data to generate
     print("amount of data to generate:", n_samples)
 
     # variables for initial conditions
@@ -66,6 +65,8 @@ def generate_wave_from_medium(input_path, output_path):
         #initialization of wave field
         u_init[:, :, j * n_timeslices], ut_init[:, :, j * n_timeslices] = initCond(grid_x, grid_y, widths[j], centers1[j, :]) #p.20, 14
         vel = vellist[j, :, :]
+
+        print(vel.shape)
 
         #integrate initial conditions once using coarse solver/ first guess of parareal scheme
         up, utp, velX = InitParareal(u_init[:, :, j * n_timeslices], ut_init[:, :, j * n_timeslices],
@@ -194,5 +195,5 @@ def initCond_ricker(xx, yy, width, center):
 
 
 if __name__ == "__main__":
-    generate_wave_from_medium(input_path = "../data/mabp4sig_size256cropsM100_2.npz",
-                              output_path = "../data/training_data_12_2")
+    generate_wave_from_medium(input_path = "../data/vcrops_50_128.npz",
+                              output_path = "../data/training_data_12")

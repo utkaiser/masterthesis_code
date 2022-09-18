@@ -1,15 +1,13 @@
 import torch.nn as nn
 import torch
-import numpy as np
 
 class FCDenseNet(nn.Module):
     '''
     source: https://github.com/bfortuner/pytorch_tiramisu
     '''
 
-    def __init__(self, in_channels=4, down_blocks=(5,5),
-                 up_blocks=(5,5), bottleneck_layers=1,
-                 growth_rate=16, out_chans_first_conv=48, n_classes=3):
+    def __init__(self, in_channels=4, down_blocks=(5,5), up_blocks=(5,5), bottleneck_layers=1,
+                 growth_rate=16, out_chans_first_conv=48, n_classes=3, scale_factor = 2):
         super().__init__()
         self.down_blocks = down_blocks
         self.up_blocks = up_blocks
@@ -67,7 +65,7 @@ class FCDenseNet(nn.Module):
                    padding=0, bias=True)
 
         self.rescale = nn.ModuleList([])
-        self.rescale.append(nn.Upsample(scale_factor=2, mode="bilinear"))
+        self.rescale.append(nn.Upsample(scale_factor=scale_factor, mode="bilinear"))
 
     def forward(self, x):
         out = self.firstconv(x)
