@@ -5,7 +5,8 @@ import WavePostprocess4input as WavePostprocess
 import WaveUtil
 import wave2 as wave2
 import wave2_spectral as w2s
-import OPPmodel
+from models import OPPmodel
+
 
 def generate_wave_from_medium(input_path, output_path):
     """
@@ -19,24 +20,26 @@ def generate_wave_from_medium(input_path, output_path):
     # parameter setup
 
     T, cT = 0.64, 0.064 #T time, cT time snapshot T_com in paper
-    dx = 0.01  # 2.0/128.0 #discretization in spatial (fine disc, fine solver)
-    dt = dx / 20 #discretization in time (fine disc, fine solver)
+    f_delta_x = 2.0/128.0  # .01 #discretization in spatial (fine disc, fine solver)
+    f_delta_t = f_delta_x / 20 #discretization in time (fine disc, fine solver)
     pimax = 5 #max number of parareal iteration
-    ncT = round(T / cT) #number of snapshot =10 right now
-    Nx, Ny = 256, 256 #grid resolution fine
+    ncT = round(T / cT) #number of snapshot, =10 right now
+    Nx, Ny = 128, 128 #grid resolution fine -> therefore t_dagger^star = .1 (defined by f_delta_t*Nx)
     nx, ny = 64, 64 #grid resolution coarse
-    # Coarsening config
-    dX = dx * 4 #coarse fine resolution ratio N_x / n_x; scaling
-    dT = dX / 10 #discretization in time for course solver, specific number ratio
-    n_timeslices = pimax * ncT #number of communication timestep n_timeslices how many samples generated from iteration total number of samples running this code
+    sizing = Nx // nx
 
+    # Coarsening config
+    c_delta_x = f_delta_x * sizing #coarse fine resolution ratio N_x / n_x; scaling
+    c_delta_t = c_delta_x / 20 #discretization in time for course solver, specific number ratio
+    n_timeslices = pimax * ncT #number of communication timestep, how many samples generated from iteration total number of samples running this code
 
     # data setup
 
     grid_x, grid_y = np.meshgrid(np.linspace(-1, 1, Nx), np.linspace(-1, 1, Ny))
-    velf = np.load(input_path + '.npz')
+    velf = np.load(input_path)
     vellist = velf['wavespeedlist']
-    n_samples = vellist.shape[0] # define the amount of data to generate
+    #n_samples = vellist.shape[0] # define the amount of data to generate
+    n_samples = 20
     print("amount of data to generate:", n_samples)
 
     # variables for initial conditions
@@ -61,12 +64,12 @@ def generate_wave_from_medium(input_path, output_path):
         print('-'*20, 'sample', j, '-'*20)
 
         #initialization of wave field
-        u_init[:, :, j * n_timeslices], ut_init[:, :, j * n_timeslices] = initCond(grid_x, grid_y, widths[j], centers1[j, :]) #p.20
+        u_init[:, :, j * n_timeslices], ut_init[:, :, j * n_timeslices] = initCond(grid_x, grid_y, widths[j], centers1[j, :]) #p.20, 14
         vel = vellist[j, :, :]
 
         #integrate initial conditions once using coarse solver/ first guess of parareal scheme
         up, utp, velX = InitParareal(u_init[:, :, j * n_timeslices], ut_init[:, :, j * n_timeslices],
-                                     vel, dx, cT, dX, dT, T, pimax)
+                                     vel, f_delta_x, cT, c_delta_x, c_delta_t, T, pimax)
 
         # parareal iteration
         for i in range(pimax - 1):
@@ -78,12 +81,12 @@ def generate_wave_from_medium(input_path, output_path):
             vtx = utp[:, :, :, i]
 
             #way to compute the solution, solve fine and coarse solution using velocity etc., for current solution/iteration
-            UcX, UtcX, UfX, UtfX = PComp.ParallelCompute(vx, vtx, vel, velX, dx, dX, dt, dT, cT) #propagation of wave field for whole interval
-            udx, udy, utdt = WaveUtil.WaveEnergyComponentField(UcX, UtcX, velX, dX) #convert above into energy component
-            UcX = resize(UcX, [Ny, Nx], order=4)
-            UtcX = resize(UtcX, [Ny, Nx], order=4)
-            UcXdx, UcXdy, UtcXdt = WaveUtil.WaveEnergyComponentField(UcX, UtcX, vel, dx)
-            UfXdx, UfXdy, UtfXdt = WaveUtil.WaveEnergyComponentField(UfX, UtfX, vel, dx)
+            UcX, UtcX, UfX, UtfX = PComp.ParallelCompute(vx, vtx, vel, velX, f_delta_x, c_delta_x, f_delta_t, c_delta_t, cT) #propagation of wave field for whole interval
+            udx, udy, utdt = WaveUtil.WaveEnergyComponentField(UcX, UtcX, velX, c_delta_x) #convert above into energy component
+            UcX = resize(UcX, [Ny, Nx], order=sizing)
+            UtcX = resize(UtcX, [Ny, Nx], order=sizing)
+            UcXdx, UcXdy, UtcXdt = WaveUtil.WaveEnergyComponentField(UcX, UtcX, vel, f_delta_x)
+            UfXdx, UfXdy, UtfXdt = WaveUtil.WaveEnergyComponentField(UfX, UtfX, vel, f_delta_x)
 
             #saving solutions in tensor
             ridx = np.arange(j * n_timeslices + i * ncT, j * n_timeslices + (i + 1) * ncT)
@@ -106,19 +109,19 @@ def generate_wave_from_medium(input_path, output_path):
             # Serial update, sequential step, compute my solution
             for j in range(ncT - 1):
                 # another way to compute velocity verlet
-                w0 = resize(up[:, :, j, i + 1], [ny, nx], order=4)
-                wt0 = resize(utp[:, :, j, i + 1], [ny, nx], order=4)
+                w0 = resize(up[:, :, j, i + 1], [ny, nx], order=sizing)
+                wt0 = resize(utp[:, :, j, i + 1], [ny, nx], order=sizing)
 
                 #requirement of convergence of parareal scheme (convergence to exact/ reference wave solution)
-                wX, wtX = w2s.wave2(w0, wt0, velX, dX, dT, cT) #solver has to match with parareal compute PComp.ParallelCompute line 22
+                wX, wtX = w2s.wave2(w0, wt0, velX, c_delta_x, c_delta_t, cT) #solver has to match with parareal compute PComp.ParallelCompute line 22
 
                 #use computed correct P, S, Q to correct coarse solution
-                uX, utX = WavePostprocess.ApplyOPP2WaveSol(resize(wX, vel.shape, order=4),
-                                                           resize(wtX, vel.shape, order=4),
-                                                           vel, dx, (P, S, Q))
+                uX, utX = WavePostprocess.ApplyOPP2WaveSol(resize(wX, vel.shape, order=sizing),
+                                                           resize(wtX, vel.shape, order=sizing),
+                                                           vel, f_delta_x, (P, S, Q))
 
-                vX, vtX = WavePostprocess.ApplyOPP2WaveSol(resize(UcX[:, :, j + 1], vel.shape, order=4),
-                                                           resize(UtcX[:, :, j + 1], vel.shape, order=4), vel, dx,
+                vX, vtX = WavePostprocess.ApplyOPP2WaveSol(resize(UcX[:, :, j + 1], vel.shape, order=sizing),
+                                                           resize(UtcX[:, :, j + 1], vel.shape, order=sizing), vel, f_delta_x,
                                                            (P, S, Q))
 
                 # coupling between fine and coarse solution, add and substract parareal coupling, eq. 26
@@ -191,5 +194,5 @@ def initCond_ricker(xx, yy, width, center):
 
 
 if __name__ == "__main__":
-    generate_wave_from_medium(input_path = "../data/mabp4sig_size256cropsM100",
+    generate_wave_from_medium(input_path = "../data/mabp4sig_size256cropsM100_2.npz",
                               output_path = "../data/training_data_12_2")

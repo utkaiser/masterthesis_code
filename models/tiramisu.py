@@ -67,7 +67,7 @@ class FCDenseNet(nn.Module):
                    padding=0, bias=True)
 
         self.rescale = nn.ModuleList([])
-        self.rescale.append(nn.Upsample(scale_factor=4, mode="bilinear"))
+        self.rescale.append(nn.Upsample(scale_factor=2, mode="bilinear"))
 
     def forward(self, x):
         out = self.firstconv(x)

@@ -1,120 +1,57 @@
 import numpy as np
-#import matplotlib.pyplot as plt
-from skimage.transform import resize # for Coarsening 
+from skimage.transform import resize  # for coarsening
 import ParallelCompute as PComp
-import WavePostprocess4input as WavePostprocess #
+import WavePostprocess4input as WavePostprocess
 import WaveUtil
 import wave2 as wave2
 import wave2_spectral as w2s
-import sys
-from scipy.io import loadmat
+from models import OPPmodel
 
-import OPPmodel
+def generate_wave_from_medium(input_path, output_path):
+    """
+        generate data pair coarse and fine solutions.
+        We first take a velocity sample, then take an initial
+        wavefield sample. Then propagate the wavefield using
+        the Procrustes parareal scheme, during which the pair
+        coarse-fine solutions are computed.
+    """
 
-def InitParareal(u0,ut0,vel,dx,dt,cT,dX,dT,T,pimax):
-    """
-    Initial guess in parareal scheme
-    """
-    # Number of time slices - fine and coarse propagators communicate
-    ncT = round(T/cT)
-    Ny,Nx = vel.shape
-    mx = int(dX/dx)
-    nx = round(Nx/mx)
-    ny = round(Ny/mx)
-    
-    velX = resize(vel,[ny,nx],order=4)
-    
-    # Store solution at every time slice and parareal iteration
-    up = np.zeros([Ny,Nx,ncT,pimax])
-    utp = np.zeros([Ny,Nx,ncT,pimax])
-    
-    # Set initial condition
-    for i in range(pimax):
-        up[:,:,0,i] = u0
-        utp[:,:,0,i] = ut0
-    
-    UX = resize(u0,[ny,nx],order=4)
-    UtX = resize(ut0,[ny,nx],order=4)
-    
-    
-    # Initialize iteration with coarse solution
-    for j in range(ncT-1):
-        UX,UtX = wave2.wave2(UX,UtX,velX,dX,dT,cT)
-        up[:,:,j+1,0] = resize(UX,[Ny,Nx],order=4)
-        utp[:,:,j+1,0] = resize(UtX,[Ny,Nx],order=4)
-        
-    return up,utp,velX
-
-
-def initCond(xx,yy,width,center):
-    """
-    Gaussian pulse wavefield
-    """
-    u0 = np.exp(-width*((xx-center[0])**2 + (yy-center[1])**2))
-    ut0 = np.zeros([np.size(xx,axis=1),np.size(yy,axis=0)])
-    return u0,ut0
-    
-def initCond_ricker(xx,yy,width,center):
-    """
-    Ricker pulse wavefield
-    """
-    u0 = np.exp(-width*((xx-center[0])**2 + (yy-center[1])**2))
-    u0 = (1-2*width*((xx-center[0])**2 + (yy-center[1])**2)) *u0
-    u0 = u0 / np.max(np.abs(u0))
-    ut0 = np.zeros([np.size(xx,axis=1),np.size(yy,axis=0)])
-    return u0,ut0
-
-if __name__ == "__main__":    
-    """
-    generate data pair coarse and fine solutions.
-    We first take a velocity sample, then take an initial
-    wavefield sample. Then propagate the wavefield using 
-    the Procrustes parareal scheme, during which the pair
-    coarse-fine solutions are computed.     
-    """
     # Parameter setups
     T = 0.64
     cT = 0.064
-    dx = 0.01 #2.0/128.0
+    dx = 2.0/128.0
     dt = dx/20
-    #x = np.arange(-1,1,dx)
-    #y = np.arange(-1,1,dx)
     pimax = 5
-    
-    print(cT)
-    
+
     ncT = round(T/cT)
-    Ny = 256
-    Nx = 256
+    Ny = 128
+    Nx = 128
     nx = 64
     ny = 64
-    # Coarsening config
-    m = 4
-    dX = dx*m
+
+    #Coarsening config
+    scale_factor = 2
+    dX = dx*scale_factor
     dT = dX/10
-    
+
+    print(dx, dt, dX, dT)
+    print(2/128, 1/1280, 2/64, 1/160)
+
     x,y = np.linspace(-1,1,Nx),np.linspace(-1,1,Ny)
     xx,yy = np.meshgrid(x,y)
-    #X = np.arange(-1,1,dX)
-    #Y = np.arange(-1,1,dX)
     X,Y = np.linspace(-1,1,nx),np.linspace(-1,1,ny)
     XX,YY = np.meshgrid(X,Y)
     
-    vname = int(sys.argv[2])  # data number
+    vname = output_path
     datamode = 'train'
-    #np.random.seed = 7
-    velname = sys.argv[1]
-    velf = np.load(velname+'.npz')
+    velname = input_path
+    velf = np.load(velname)
     vellist = velf['wavespeedlist']
-    #vellist = np.zeros([10,xx.shape[0],xx.shape[1]])
-    #datamat = loadmat('marm1nonsmooth.mat')
-    #for i in range(10):
-    #    vellist[i,:,:] = resize(datamat['marm1smal'],[128,128])/4.
 
     # Define the amount of data to generate
     n_trainsamples = vellist.shape[0]
     n_timeslices = pimax*ncT
-    
+
     # variables for initial conditions
     u_init = np.zeros([xx.shape[0],xx.shape[1],n_timeslices*n_trainsamples])
     ut_init = np.zeros([xx.shape[0],xx.shape[1],n_timeslices*n_trainsamples])
@@ -140,7 +77,7 @@ if __name__ == "__main__":
     
     for j in range(n_trainsamples):
         print('sample', j)
-        u_init[:,:,j*n_timeslices],ut_init[:,:,j*n_timeslices] = initCond_ricker(xx,yy,widths[j],centers1[j,:])
+        u_init[:,:,j*n_timeslices],ut_init[:,:,j*n_timeslices] = initCond(xx,yy,widths[j],centers1[j,:])
         vel = vellist[j,:,:]      
         velX = resize(vel,XX.shape,order=4)
         
@@ -164,7 +101,7 @@ if __name__ == "__main__":
             UcXdx,UcXdy,UtcXdt = WaveUtil.WaveEnergyComponentField(UcX,UtcX,vel,dx)
             UfXdx,UfXdy,UtfXdt = WaveUtil.WaveEnergyComponentField(UfX,UtfX,vel,dx)
             
-            ridx = np.arange(j*n_timeslices+parI*ncT,j*n_timeslices+(parI+1)*ncT)            
+            ridx = np.arange(j*n_timeslices+parI*ncT,j*n_timeslices+(parI+1)*ncT)
             Ucx[:,:,ridx] = udx
             Ucy[:,:,ridx] = udy
             Utc[:,:,ridx] = utdt
@@ -200,5 +137,63 @@ if __name__ == "__main__":
     print('Saving data ...')
     np.savez('./data/'+datamode+'data_name'+str(vname)+'.npz',vel=velsamp,Ucx=Ucx,Ucy=Ucy,Utc=Utc,Ufx=Ufx,Ufy=Ufy,Utf=Utf)
     print('Saving done.')
+
+
+def InitParareal(u0, ut0, vel, dx, dt, cT, dX, dT, T, pimax):
+    """
+    Initial guess in parareal scheme
+    """
+    # Number of time slices - fine and coarse propagators communicate
+    ncT = round(T / cT)
+    Ny, Nx = vel.shape
+    mx = int(dX / dx)
+    nx = round(Nx / mx)
+    ny = round(Ny / mx)
+
+    velX = resize(vel, [ny, nx], order=4)
+
+    # Store solution at every time slice and parareal iteration
+    up = np.zeros([Ny, Nx, ncT, pimax])
+    utp = np.zeros([Ny, Nx, ncT, pimax])
+
+    # Set initial condition
+    for i in range(pimax):
+        up[:, :, 0, i] = u0
+        utp[:, :, 0, i] = ut0
+
+    UX = resize(u0, [ny, nx], order=4)
+    UtX = resize(ut0, [ny, nx], order=4)
+
+    # Initialize iteration with coarse solution
+    for j in range(ncT - 1):
+        UX, UtX = wave2.velocity_verlet_time_integrator(UX, UtX, velX, dX, dT, cT)
+        up[:, :, j + 1, 0] = resize(UX, [Ny, Nx], order=4)
+        utp[:, :, j + 1, 0] = resize(UtX, [Ny, Nx], order=4)
+
+    return up, utp, velX
+
+
+def initCond(xx, yy, width, center):
+    """
+    Gaussian pulse wavefield
+    """
+    u0 = np.exp(-width * ((xx - center[0]) ** 2 + (yy - center[1]) ** 2))
+    ut0 = np.zeros([np.size(xx, axis=1), np.size(yy, axis=0)])
+    return u0, ut0
+
+
+def initCond_ricker(xx, yy, width, center):
+    """
+    Ricker pulse wavefield
+    """
+    u0 = np.exp(-width * ((xx - center[0]) ** 2 + (yy - center[1]) ** 2))
+    u0 = (1 - 2 * width * ((xx - center[0]) ** 2 + (yy - center[1]) ** 2)) * u0
+    u0 = u0 / np.max(np.abs(u0))
+    ut0 = np.zeros([np.size(xx, axis=1), np.size(yy, axis=0)])
+    return u0, ut0
     
-    
+
+if __name__ == "__main__":
+    generate_wave_from_medium(input_path ="../data/mabp4sig_size128cropsM100_.npz",
+                              output_path = "../data/training_data_12_2")
+
