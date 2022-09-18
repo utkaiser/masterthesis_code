@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 import WaveUtil
-from models import OPPmodel
+import OPPmodel
 
 
 # Evaluate NN on Solution

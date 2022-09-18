@@ -5,10 +5,11 @@ import WavePostprocess4input as WavePostprocess
 import WaveUtil
 import wave2 as wave2
 import wave2_spectral as w2s
-from models import OPPmodel
+import OPPmodel
+import sys
 
 
-def generate_wave_from_medium(input_path, output_path):
+def generate_wave_from_medium(input_path, output_path, gen_data_manually = "no"):
     """
         generate data pair coarse and fine solutions.
         We first take a velocity sample, then take an initial
@@ -64,9 +65,10 @@ def generate_wave_from_medium(input_path, output_path):
 
         #initialization of wave field
         u_init[:, :, j * n_timeslices], ut_init[:, :, j * n_timeslices] = initCond(grid_x, grid_y, widths[j], centers1[j, :]) #p.20, 14
-        vel = vellist[j, :, :]
-
-        print(vel.shape)
+        if gen_data_manually in ["fig9", "waveguide", "inclusion"]:
+            vel = generate_data_manually(Nx, gen_data_manually)
+        else:
+            vel = vellist[j, :, :]
 
         #integrate initial conditions once using coarse solver/ first guess of parareal scheme
         up, utp, velX = InitParareal(u_init[:, :, j * n_timeslices], ut_init[:, :, j * n_timeslices],
@@ -193,7 +195,47 @@ def initCond_ricker(xx, yy, width, center):
     ut0 = np.zeros([np.size(xx, axis=1), np.size(yy, axis=0)])
     return u0, ut0
 
+def generate_data_manually(dim, func="fig9"):
+    def waveguide(x, _):
+        return .7 - .3 * np.cos(np.pi * x)
+
+    def inclusion(x, y):
+        # 0.7 + 0.05y + 0.1χ0.2<x<0.6,0.4<y<0.6
+        res = .7 + .05 * y
+        tmp = .1 if .2 < x < .6 and .4 < y < .6 else 0
+        return res + tmp
+
+    def fig9(x, y):
+        band = .35
+        if -band < y - x < band: return 1
+        return 0.2 # set that course error is similar to bp and marmousi
+
+    v_x = np.linspace(-1, 1, num=dim)
+    v_y = np.linspace(-1, 1, num=dim)
+    if func == "fig9":
+        z = np.array([fig9(i, j) for j in v_y for i in v_x])
+    elif func == "waveguide":
+        z = np.array([waveguide(i, j) for j in v_y for i in v_x])
+    else:
+        z = np.array([inclusion(i, j) for j in v_y for i in v_x])
+    return z.reshape(dim, dim)
+
 
 if __name__ == "__main__":
-    generate_wave_from_medium(input_path = "../data/vcrops_50_128.npz",
-                              output_path = "../data/training_data_12")
+    n = sys.argv[1]
+    if n == "1":
+        generate_wave_from_medium(input_path = "../data/vcrops_50_128.npz",
+                                  output_path = "../data/train_data_fig9_128",
+                                  gen_data_manually="fig9")
+    elif n == "2":
+        generate_wave_from_medium(input_path = "../data/vcrops_50_128.npz",
+                                  output_path = "../data/train_data_waveguide_128",
+                                  gen_data_manually="waveguide")
+    elif n == "3":
+        generate_wave_from_medium(input_path="../data/vcrops_50_128.npz",
+                                  output_path="../data/train_data_inclusion_128",
+                                  gen_data_manually="inclusion")
+
+    elif n == "4":
+        generate_wave_from_medium(input_path="../data/vcrops_50_128.npz",
+                                  output_path="../data/train_data_bp_m_128")

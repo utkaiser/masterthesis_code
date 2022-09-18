@@ -13,7 +13,7 @@ def inclusion(x,y):
 def fig9(x,y):
     band = .35
     if -band < y-x < band: return 1
-    return 0
+    return 0.1
 
 if __name__ == '__main__':
     dim = 128
@@ -21,6 +21,5 @@ if __name__ == '__main__':
     v_y = np.linspace(-1, 1, num=dim)
     z = np.array([fig9(i, j) for j in v_y for i in v_x])
     Z = np.array(z).reshape(dim, dim)
-
-    # plt.contourf(v_y, v_x, Z, 100)
-    # plt.show()
+    plt.contourf(v_y, v_x, Z, 100)
+    plt.show()

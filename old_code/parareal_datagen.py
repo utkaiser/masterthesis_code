@@ -5,7 +5,8 @@ import WavePostprocess4input as WavePostprocess
 import WaveUtil
 import wave2 as wave2
 import wave2_spectral as w2s
-from models import OPPmodel
+from mounted import OPPmodel
+
 
 def generate_wave_from_medium(input_path, output_path):
     """
@@ -112,9 +113,9 @@ def generate_wave_from_medium(input_path, output_path):
             velsamp[:,:,ridx] = np.repeat(velX[:,:,np.newaxis],ncT,axis=2)          
             
             if parI == 0:
-                P,S,Q = OPPmodel.ProcrustesShiftMap((UcXdx,UcXdy,UtcXdt),(UfXdx,UfXdy,UtfXdt),datmode='numpy')
+                P,S,Q = OPPmodel.ProcrustesShiftMap((UcXdx, UcXdy, UtcXdt), (UfXdx, UfXdy, UtfXdt), datmode='numpy')
             else:
-                P,S,Q = OPPmodel.ProcrustesShiftMap((UcXdx,UcXdy,UtcXdt),(UfXdx,UfXdy,UtfXdt),(P,S,Q),datmode='numpy')
+                P,S,Q = OPPmodel.ProcrustesShiftMap((UcXdx, UcXdy, UtcXdt), (UfXdx, UfXdy, UtfXdt), (P, S, Q), datmode='numpy')
             
             # Serial update     
             for j in range(ncT-1):
