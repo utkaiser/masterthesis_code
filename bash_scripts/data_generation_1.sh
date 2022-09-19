@@ -10,4 +10,4 @@
 
 pwd; hostname; date
 
-python3 ../mounted/parareal_datagen.py
+python3 ../mounted/parareal_datagen.py 1
