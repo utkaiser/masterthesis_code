@@ -7,11 +7,12 @@ import tiramisu as tiramisu
 import torch.optim as optim
 from model_utils import save_model, load_model, npdat2Tensor
 import datetime
+import sys
 
-def train(epochs = 850, lr = 1e-4, nlayer = 3, wf = 1,
-          fine_coarse_scale = 4, continue_training = False, model_name = "unet"):
+def train(epochs = 500, lr = 1e-4, nlayer = 3, wf = 1,
+          fine_coarse_scale = 2, continue_training = False, model_name = "unet"):
 
-    batchsize = 256 if model_name == "unet" else 256 #otherwise uses too much memory
+    batchsize = 128 if model_name == "unet" else 1 #otherwise uses too much memory
 
     # model configuration
     if model_name == "unet":
@@ -37,7 +38,7 @@ def train(epochs = 850, lr = 1e-4, nlayer = 3, wf = 1,
         '../data/train_data_waveguide_128.npz',
         '../data/train_data_inclusion_128.npz',
         '../data/train_data_fig9_128.npz'
-                  ]
+    ]
     train_loaders = fetch_data(data_paths, batchsize)
 
 
@@ -72,11 +73,12 @@ def train(epochs = 850, lr = 1e-4, nlayer = 3, wf = 1,
         with open('../data/loss_list_'+model_name+'.txt', 'a') as fd:
             fd.write(f'\n{loss_list}')
 
-        if epoch % 100 == 0: #saves first models as a test
+        if epoch % 50 == 0: #saves first models as a test
             save_model(model, model_name)
             model.to(device)
 
     save_model(model, model_name)
+
 
 def fetch_data(data_paths, batchsize, shuffle=True):
     print("setting up data")
@@ -98,8 +100,8 @@ def fetch_data(data_paths, batchsize, shuffle=True):
         train_loaders.append(data_loader)
 
     print("total number of data points:", total_n_datapoints * batchsize)
-
     return train_loaders
+
 
 if __name__ == "__main__":
 
