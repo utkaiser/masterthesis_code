@@ -21,7 +21,7 @@ def load_model(load_path, model):
 
     torch.load(load_path)
     return model.load_state_dict(load(path.join(path.dirname(path.abspath(__file__)),
-                                                load_path), map_location='cpu'))
+                                                load_path), map_location='cpu'), strict=False)
 
 
 def npdat2Tensor(nda):

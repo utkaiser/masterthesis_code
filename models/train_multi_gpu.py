@@ -12,7 +12,7 @@ import sys
 def train(epochs = 500, lr = 1e-4, nlayer = 3, wf = 1,
           fine_coarse_scale = 2, continue_training = False, model_name = "unet"):
 
-    batchsize = 128 if model_name == "unet" else 1 #otherwise uses too much memory
+    batchsize = 1 if model_name == "unet" else 32 #otherwise uses too much memory
 
     # model configuration
     if model_name == "unet":
@@ -34,10 +34,10 @@ def train(epochs = 500, lr = 1e-4, nlayer = 3, wf = 1,
 
     # training data setup
     data_paths = [
-        '../data/train_data_fig9_128.npz',
-        '../data/train_data_waveguide_128.npz',
-        '../data/train_data_inclusion_128.npz',
-        '../data/train_data_fig9_128.npz'
+        #'../data/train_data_fig9_128.npz',
+        # '../data/train_data_waveguide_128.npz',
+        # '../data/train_data_inclusion_128.npz',
+        '../data/train_data_bp_m_256.npz'
     ]
     train_loaders = fetch_data(data_paths, batchsize)
 
@@ -64,11 +64,11 @@ def train(epochs = 500, lr = 1e-4, nlayer = 3, wf = 1,
                     labels).item()
                 )
 
-            mean_loss = np.array(loss_list).mean()
-            mean_id_loss = np.array(id_loss_list).mean()
-            if epoch % 1 == 0:
-                print(datetime.datetime.now(), 'epoch %d: loss: %.5f | coarse loss: %.5f ' %
-                      (epoch + 1, mean_loss, mean_id_loss))
+        mean_loss = np.array(loss_list).mean()
+        mean_id_loss = np.array(id_loss_list).mean()
+        if epoch % 1 == 0:
+            print(datetime.datetime.now(), 'epoch %d: loss: %.5f | coarse loss: %.5f ' %
+                  (epoch + 1, mean_loss, mean_id_loss))
 
         with open('../data/loss_list_'+model_name+'.txt', 'a') as fd:
             fd.write(f'\n{loss_list}')
@@ -106,7 +106,7 @@ def fetch_data(data_paths, batchsize, shuffle=True):
 if __name__ == "__main__":
 
     start_time = time.time()
-    model_name = "tiramisu"#sys.argv[1]
+    model_name = "unet"#sys.argv[1]
     print("start training", model_name)
     train(model_name = model_name)
     end_time = time.time()

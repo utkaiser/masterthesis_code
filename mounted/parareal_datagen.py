@@ -7,6 +7,7 @@ import wave2 as wave2
 import wave2_spectral as w2s
 import OPPmodel
 import sys
+import matplotlib.pyplot as plt
 
 
 def generate_wave_from_medium(input_path, output_path, gen_data_manually = "no"):
@@ -17,29 +18,27 @@ def generate_wave_from_medium(input_path, output_path, gen_data_manually = "no")
         the Procrustes parareal scheme, during which the pair
         coarse-fine solutions are computed.
     """
-    print("in")
-    # parameter setup
 
-    T, cT = 0.64, 0.064 #T time, cT time snapshot T_com in paper
+    # parameter setup
+    T, cT = 2, .2 #T time, cT time snapshot T_com in paper
     f_delta_x = 2.0/128.0  # .01 #discretization in spatial (fine disc, fine solver)
     f_delta_t = f_delta_x / 20 #discretization in time (fine disc, fine solver)
     pimax = 5 #max number of parareal iteration
     ncT = round(T / cT) #number of snapshot, =10 right now
-    Nx, Ny = 128, 128 #grid resolution fine -> therefore t_dagger^star = .1 (defined by f_delta_t*Nx)
-    nx, ny = 64, 64 #grid resolution coarse
+    Nx, Ny = 256, 256 #grid resolution fine -> therefore t_dagger^star = .1 (defined by f_delta_t*Nx)
+    nx, ny = 128, 128 #grid resolution coarse
     sizing = Nx // nx
 
     # Coarsening config
     c_delta_x = f_delta_x * sizing #coarse fine resolution ratio N_x / n_x; scaling
-    c_delta_t = c_delta_x / 20 #discretization in time for course solver, specific number ratio
+    c_delta_t = c_delta_x / 10 #discretization in time for course solver, specific number ratio
     n_timeslices = pimax * ncT #number of communication timestep, how many samples generated from iteration total number of samples running this code
 
     # data setup
-
     grid_x, grid_y = np.meshgrid(np.linspace(-1, 1, Nx), np.linspace(-1, 1, Ny))
     velf = np.load(input_path)
     vellist = velf['wavespeedlist']
-    n_samples = vellist.shape[0] # define the amount of data to generate
+    n_samples = 10#vellist.shape[0] # define the amount of data to generate
     print("amount of data to generate:", n_samples)
 
     # variables for initial conditions
@@ -122,7 +121,6 @@ def generate_wave_from_medium(input_path, output_path, gen_data_manually = "no")
                 uX, utX = WavePostprocess.ApplyOPP2WaveSol(resize(wX, vel.shape, order=sizing),
                                                            resize(wtX, vel.shape, order=sizing),
                                                            vel, f_delta_x, (P, S, Q))
-
                 vX, vtX = WavePostprocess.ApplyOPP2WaveSol(resize(UcX[:, :, j + 1], vel.shape, order=sizing),
                                                            resize(UtcX[:, :, j + 1], vel.shape, order=sizing), vel, f_delta_x,
                                                            (P, S, Q))
@@ -130,7 +128,6 @@ def generate_wave_from_medium(input_path, output_path, gen_data_manually = "no")
                 # coupling between fine and coarse solution, add and substract parareal coupling, eq. 26
                 up[:, :, j + 1, i + 1] = UfX[:, :, j + 1] + uX - vX
                 utp[:, :, j + 1, i + 1] = UtfX[:, :, j + 1] + utX - vtX
-
 
     np.savez(output_path + '.npz', vel=velsamp, Ucx=Ucx, Ucy=Ucy, Utc=Utc, Ufx=Ufx,
              Ufy=Ufy, Utf=Utf)
@@ -179,7 +176,8 @@ def initCond(xx, yy, width, center):
     u0(x,y)=e−(x2+y2)/σ2,∂tu0(x,y)=0, x,y∈δxZ2 ∩[−1,1)2, 1/σ2 ∼N(250,10).
     """
 
-    u0 = np.exp(-width * ((xx - center[0]) ** 2 + (yy - center[1]) ** 2))
+    #u0 = np.exp(-width * ((xx - center[0]) ** 2 + (yy - center[1]) ** 2))
+    u0 = np.cos(8*np.pi*yy) * np.exp(-25*(xx**2)-250*(yy**2))
     ut0 = np.zeros([np.size(xx, axis=1), np.size(yy, axis=0)])
     return u0, ut0
 
@@ -200,7 +198,6 @@ def generate_data_manually(dim, func="fig9"):
         return .7 - .3 * np.cos(np.pi * x)
 
     def inclusion(x, y):
-        # 0.7 + 0.05y + 0.1χ0.2<x<0.6,0.4<y<0.6
         res = .7 + .05 * y
         tmp = .1 if .2 < x < .6 and .4 < y < .6 else 0
         return res + tmp
@@ -208,7 +205,7 @@ def generate_data_manually(dim, func="fig9"):
     def fig9(x, y):
         band = .35
         if -band < y - x < band: return 1
-        return 0.2 # set that course error is similar to bp and marmousi
+        return 0.5 # set that course error is similar to bp and marmousi
 
     v_x = np.linspace(-1, 1, num=dim)
     v_y = np.linspace(-1, 1, num=dim)
@@ -218,25 +215,28 @@ def generate_data_manually(dim, func="fig9"):
         z = np.array([waveguide(i, j) for j in v_y for i in v_x])
     else:
         z = np.array([inclusion(i, j) for j in v_y for i in v_x])
-    return z.reshape(dim, dim)
+    z = z.reshape(dim, dim)
+    z = np.flip(z, 0)
+    return z
+
 
 
 if __name__ == "__main__":
-    n = "3"#sys.argv[1]
+    n = "1"#sys.argv[1]
     print("start training for", n)
     if n == "1":
-        generate_wave_from_medium(input_path = "../data/vcrops_50_128.npz",
-                                  output_path = "../data/train_data_fig9_128",
+        generate_wave_from_medium(input_path = "data/vcrops_50_256.npz",
+                                  output_path = "data/train_data_fig9_256_change",
                                   gen_data_manually="fig9")
     elif n == "2":
         generate_wave_from_medium(input_path = "../data/vcrops_50_128.npz",
                                   output_path = "../data/train_data_waveguide_128",
                                   gen_data_manually="waveguide")
     elif n == "3":
-        generate_wave_from_medium(input_path="../data/vcrops_50_128.npz",
-                                  output_path="../data/train_data_inclusion_128",
+        generate_wave_from_medium(input_path="data/vcrops_50_128.npz",
+                                  output_path="data/train_data_inclusion_128",
                                   gen_data_manually="inclusion")
 
     elif n == "4":
-        generate_wave_from_medium(input_path="../data/vcrops_50_128.npz",
-                                  output_path="../data/train_data_bp_m_128")
+        generate_wave_from_medium(input_path="data/vcrops_50_256.npz",
+                                  output_path="data/train_data_bp_m_256")

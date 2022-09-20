@@ -40,21 +40,17 @@ def createCropsAndSave(v_images, m, outputdir, num_times = 40):
 
 if __name__ == '__main__':
 
-    # print("start running generatecroppedVmodel.py")
-    #
-    # datamat = loadmat('../data/marm1nonsmooth.mat') #velocity models Marmousi dataset
-    # fullmarm = gaussian(datamat['marm1larg'],4) #to make smoother
-    # databp = loadmat('../data/bp2004.mat') #velocity models BP dataset
-    # fullbp = gaussian(databp['V'],4)/1000 #to make smoother (and different order of magnitude)
-    #
-    # createCropsAndSave([fullmarm,fullbp],
-    #                    m=128,
-    #                    outputdir = '../data/vcrops_50_128.npz',
-    #                    num_times=50)
-    #
-    # print("finish running generatecroppedVmodel.py")
+    print("start running generatecroppedVmodel.py")
 
-    datamat = loadmat('../data/myplot.mat')
-    fullmarm = gaussian(datamat, 4)
-    np.savez('../data/myplot_128.npz', wavespeedlist=fullmarm)
+    datamat = loadmat('../data/marm1nonsmooth.mat') #velocity models Marmousi dataset
+    fullmarm = gaussian(datamat['marm1larg'],4) #to make smoother
+    databp = loadmat('../data/bp2004.mat') #velocity models BP dataset
+    fullbp = gaussian(databp['V'],4)/1000 #to make smoother (and different order of magnitude)
+
+    createCropsAndSave([fullmarm,fullbp],
+                       m=256,
+                       outputdir = '../data/vcrops_50_256.npz',
+                       num_times=50)
+
+    print("finish running generatecroppedVmodel.py")
 

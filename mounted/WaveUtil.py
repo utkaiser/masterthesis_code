@@ -5,7 +5,7 @@ from scipy import fftpack
 def WaveEnergyField(u,ut,c,dx):
     # Compute wave energy field
     #first line eq. 30 appendix, #Fig 2
-    #pseudo-inverse of Λ -> Λ^dagger
+    #pseudo-inverse of Λ -> Λ^dagger ???????
 
     ux, uy = np.gradient(u,dx)
     absux = np.abs(ux)
