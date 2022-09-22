@@ -16,14 +16,14 @@ def fig9(x,y):
     return 0.5
 
 def other(x,y):
-    return np.exp(-300 * ((x - 0) ** 2 + y - 0) ** 2)
+    return np.cos(8*np.pi*y) * np.exp(-25*(x**2)-250*(y**2))
 
 if __name__ == '__main__':
     dim = 128
     x = np.linspace(-1, 1, num=dim)
     y = np.linspace(-1, 1, num=dim)
     #X, Y = np.meshgrid(x, y)
-    Z = np.array([fig9(i,j) for j in y for i in x])
+    Z = np.array([other(i,j) for j in y for i in x])
     Z = Z.reshape(dim,dim)
     plt.contourf(y, x, Z, 100)
     plt.colorbar()

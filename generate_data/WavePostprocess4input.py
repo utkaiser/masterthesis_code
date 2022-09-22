@@ -1,7 +1,7 @@
 import numpy as np
 import torch
-import WaveUtil
-import OPPmodel
+import generate_data.WaveUtil as WaveUtil
+import generate_data.OPPmodel as OPPmodel
 
 def ApplyNet2WaveSol(w0,wt0,w,wt,c,dx,net):
     # Evaluate NN on Solution

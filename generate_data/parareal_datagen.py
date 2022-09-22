@@ -25,20 +25,22 @@ def generate_wave_from_medium(input_path, output_path, gen_data_manually = "no")
     f_delta_t = f_delta_x / 20 #discretization in time (fine disc, fine solver)
     pimax = 5 #max number of parareal iteration
     ncT = round(T / cT) #number of snapshot, =10 right now
-    Nx, Ny = 256, 256 #grid resolution fine -> therefore t_dagger^star = .1 (defined by f_delta_t*Nx)
-    nx, ny = 128, 128 #grid resolution coarse
+    Nx, Ny = 256, 256 #grid resolution fine -> therefore t_dagger^star = .2 (defined by f_delta_t*Nx)
+    nx, ny = 64, 64 #grid resolution coarse
     sizing = Nx // nx
 
     # Coarsening config
     c_delta_x = f_delta_x * sizing #coarse fine resolution ratio N_x / n_x; scaling
-    c_delta_t = c_delta_x / 10 #discretization in time for course solver, specific number ratio
+    c_delta_t = c_delta_x / 5  #discretization in time for course solver, specific number ratio
     n_timeslices = pimax * ncT #number of communication timestep, how many samples generated from iteration total number of samples running this code
+
+    print(f_delta_x,f_delta_t,c_delta_x,c_delta_t)
 
     # data setup
     grid_x, grid_y = np.meshgrid(np.linspace(-1, 1, Nx), np.linspace(-1, 1, Ny))
     velf = np.load(input_path)
     vellist = velf['wavespeedlist']
-    n_samples = 10#vellist.shape[0] # define the amount of data to generate
+    n_samples = 10 #vellist.shape[0] # define the amount of data to generate
     print("amount of data to generate:", n_samples)
 
     # variables for initial conditions
@@ -63,7 +65,8 @@ def generate_wave_from_medium(input_path, output_path, gen_data_manually = "no")
         print('-'*20, 'sample', j, '-'*20)
 
         #initialization of wave field
-        u_init[:, :, j * n_timeslices], ut_init[:, :, j * n_timeslices] = initCond(grid_x, grid_y, widths[j], centers1[j, :]) #p.20, 14
+        p,r = initCond(grid_x, grid_y, widths[j], centers1[j, :])
+        u_init[:, :, j * n_timeslices], ut_init[:, :, j * n_timeslices] = p, r #p.20, 14
         if gen_data_manually in ["fig9", "waveguide", "inclusion"]:
             vel = generate_data_manually(Nx, gen_data_manually)
         else:
@@ -71,8 +74,9 @@ def generate_wave_from_medium(input_path, output_path, gen_data_manually = "no")
 
         #integrate initial conditions once using coarse solver/ first guess of parareal scheme
         up, utp, velX = InitParareal(u_init[:, :, j * n_timeslices], ut_init[:, :, j * n_timeslices],
-                                     vel, f_delta_x, cT, c_delta_x, c_delta_t, T, pimax)
+                                     vel, f_delta_x, cT, c_delta_x, c_delta_t, T, pimax) #c_delta_t, T, pimax)##############
 
+        print("-"*20,"passed init")
         # parareal iteration
         for i in range(pimax - 1):
 
@@ -83,10 +87,10 @@ def generate_wave_from_medium(input_path, output_path, gen_data_manually = "no")
             vtx = utp[:, :, :, i]
 
             #way to compute the solution, solve fine and coarse solution using velocity etc., for current solution/iteration
-            UcX, UtcX, UfX, UtfX = PComp.ParallelCompute(vx, vtx, vel, velX, f_delta_x, c_delta_x, f_delta_t, c_delta_t, cT) #propagation of wave field for whole interval
+            UcX, UtcX, UfX, UtfX = PComp.ParallelCompute(vx, vtx, vel, velX, f_delta_x, c_delta_x, f_delta_t, c_delta_t, cT,i) #propagation of wave field for whole interval
             udx, udy, utdt = WaveUtil.WaveEnergyComponentField(UcX, UtcX, velX, c_delta_x) #convert above into energy component
-            UcX = resize(UcX, [Ny, Nx], order=sizing)
-            UtcX = resize(UtcX, [Ny, Nx], order=sizing)
+            UcX = resize(UcX, [Ny, Nx], order=4)
+            UtcX = resize(UtcX, [Ny, Nx], order=4)
             UcXdx, UcXdy, UtcXdt = WaveUtil.WaveEnergyComponentField(UcX, UtcX, vel, f_delta_x)
             UfXdx, UfXdy, UtfXdt = WaveUtil.WaveEnergyComponentField(UfX, UtfX, vel, f_delta_x)
 
@@ -111,21 +115,22 @@ def generate_wave_from_medium(input_path, output_path, gen_data_manually = "no")
             # Serial update, sequential step, compute my solution
             for j in range(ncT - 1):
                 # another way to compute velocity verlet
-                w0 = resize(up[:, :, j, i + 1], [ny, nx], order=sizing)
-                wt0 = resize(utp[:, :, j, i + 1], [ny, nx], order=sizing)
+                w0 = resize(up[:, :, j, i + 1], [ny, nx], order=4)
+                wt0 = resize(utp[:, :, j, i + 1], [ny, nx], order=4)
 
                 #requirement of convergence of parareal scheme (convergence to exact/ reference wave solution)
                 wX, wtX = w2s.wave2(w0, wt0, velX, c_delta_x, c_delta_t, cT) #solver has to match with parareal compute PComp.ParallelCompute line 22
 
                 #use computed correct P, S, Q to correct coarse solution
-                uX, utX = WavePostprocess.ApplyOPP2WaveSol(resize(wX, vel.shape, order=sizing),
-                                                           resize(wtX, vel.shape, order=sizing),
+                uX, utX = WavePostprocess.ApplyOPP2WaveSol(resize(wX, vel.shape, order=4),
+                                                           resize(wtX, vel.shape, order=4),
                                                            vel, f_delta_x, (P, S, Q))
-                vX, vtX = WavePostprocess.ApplyOPP2WaveSol(resize(UcX[:, :, j + 1], vel.shape, order=sizing),
-                                                           resize(UtcX[:, :, j + 1], vel.shape, order=sizing), vel, f_delta_x,
+                vX, vtX = WavePostprocess.ApplyOPP2WaveSol(resize(UcX[:, :, j + 1], vel.shape, order=4),
+                                                           resize(UtcX[:, :, j + 1], vel.shape, order=4), vel, f_delta_x,
                                                            (P, S, Q))
 
                 # coupling between fine and coarse solution, add and substract parareal coupling, eq. 26
+
                 up[:, :, j + 1, i + 1] = UfX[:, :, j + 1] + uX - vX
                 utp[:, :, j + 1, i + 1] = UtfX[:, :, j + 1] + utX - vtX
 
@@ -225,8 +230,8 @@ if __name__ == "__main__":
     n = "1"#sys.argv[1]
     print("start training for", n)
     if n == "1":
-        generate_wave_from_medium(input_path = "data/vcrops_50_256.npz",
-                                  output_path = "data/train_data_fig9_256_change",
+        generate_wave_from_medium(input_path = "../data/vcrops_50_256.npz",
+                                  output_path = "../data/train_data_fig9_256_test",
                                   gen_data_manually="fig9")
     elif n == "2":
         generate_wave_from_medium(input_path = "../data/vcrops_50_128.npz",

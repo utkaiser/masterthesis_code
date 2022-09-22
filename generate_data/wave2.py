@@ -27,8 +27,8 @@ def velocity_verlet_time_integrator(u0,ut0,vel,dx,dt,Tf):
     
     u = u0
     ut = ut0
-    
     for i in range(Nt):
+
         # Velocity Verlet
         ddxou = periLaplacian2(u,dx)
         u = u + dt*ut + 0.5*dt**2*np.multiply(c2,ddxou)

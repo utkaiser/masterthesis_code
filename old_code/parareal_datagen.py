@@ -5,7 +5,7 @@ import WavePostprocess4input as WavePostprocess
 import WaveUtil
 import wave2 as wave2
 import wave2_spectral as w2s
-from mounted import OPPmodel
+from generate_data import OPPmodel
 
 
 def generate_wave_from_medium(input_path, output_path):
