@@ -1,7 +1,7 @@
 #!/bin/bash
 
-#SBATCH --job-name=data_generation_3
-#SBATCH --output=data_generation_3.out
+#SBATCH --job-name=data_generation
+#SBATCH --output=data_generation.out
 #SBATCH --nodes=1
 #SBATCH --time=24:00:00
 #SBATCH --ntasks=1
@@ -10,4 +10,4 @@
 
 pwd; hostname; date
 
-python3 ../mounted/parareal_datagen.py 3
+python3 ../generate_data/parareal_datagen.py

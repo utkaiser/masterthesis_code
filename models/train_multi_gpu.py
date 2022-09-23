@@ -8,6 +8,9 @@ import torch.optim as optim
 from model_utils import save_model, load_model, npdat2Tensor
 import datetime
 import sys
+import matplotlib.pyplot as plt
+from generate_data.WaveUtil import WaveSol_from_EnergyComponent
+from skimage.transform import resize
 
 def train(epochs = 500, lr = 1e-4, nlayer = 3, wf = 1,
           fine_coarse_scale = 2, continue_training = False, model_name = "unet"):
@@ -30,14 +33,14 @@ def train(epochs = 500, lr = 1e-4, nlayer = 3, wf = 1,
 
     # training setup
     optimizer = optim.Adam(model.parameters(), lr=lr)
-    loss_f = nn.MSELoss()
+    loss_f = nn.SmoothL1Loss() #before: MSE loss
 
     # training data setup
     data_paths = [
         #'../data/train_data_fig9_128.npz',
         # '../data/train_data_waveguide_128.npz',
         # '../data/train_data_inclusion_128.npz',
-        '../data/train_data_bp_m_256.npz'
+        '../data/train_data_bp_m_64_128.npz'
     ]
     train_loaders = fetch_data(data_paths, batchsize)
 
@@ -57,6 +60,29 @@ def train(epochs = 500, lr = 1e-4, nlayer = 3, wf = 1,
                 loss = loss_f(outputs, labels)
                 loss.backward()
                 optimizer.step()
+
+                if loss.item() > 1:
+                    f, ax = plt.subplots(1, 3)
+                    f.set_figheight(5)
+                    f.set_figwidth(10)
+                    d = inputs[0][3, :, :].detach().numpy()
+
+                    ax[0].imshow(d)
+                    ax[0].set_title(loss.item())
+
+                    dx = 2.0 / 128.0
+                    a, b, c = inputs[0][0, :, :].detach().numpy(), inputs[0][1, :, :].detach().numpy(), inputs[0][2, :,:].detach().numpy()
+                    res1 = WaveSol_from_EnergyComponent(a, b, c, d, dx, 0)  # capital lambda dagger
+                    ax[1].imshow(res1[0]*dx*dx)
+
+                    a, b, c = labels[0][0, :, :].detach().numpy(), labels[0][1, :, :].detach().numpy(), labels[0][2, :,:].detach().numpy()
+                    res2 = WaveSol_from_EnergyComponent(a, b, c, resize(d, (128, 128)), dx, 0)  # capital lambda dagger
+                    ax[2].imshow(res2[0]*dx*dx)
+                    f.show()
+
+
+
+
                 loss_list.append(loss.item())
 
                 id_loss_list.append(loss_f(
@@ -106,7 +132,7 @@ def fetch_data(data_paths, batchsize, shuffle=True):
 if __name__ == "__main__":
 
     start_time = time.time()
-    model_name = "unet"#sys.argv[1]
+    model_name = "unet" #sys.argv[1]
     print("start training", model_name)
     train(model_name = model_name)
     end_time = time.time()

@@ -26,5 +26,4 @@ def load_model(load_path, model):
 
 def npdat2Tensor(nda):
     ndt = np.transpose(nda,(2,0,1))
-    ndt = torch.from_numpy(ndt)
-    return ndt
+    return torch.from_numpy(ndt)
