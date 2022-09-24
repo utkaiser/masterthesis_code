@@ -20,7 +20,7 @@ def generate_wave_from_medium(input_path, output_path, gen_data_manually = "no")
     """
 
     # parameter setup
-    T, cT = 1, .1 #T time, cT time snapshot T_com in paper
+    T, cT = 2, .2 #T time, cT time snapshot T_com in paper
     f_delta_x = 2.0/128.0  # .01 #discretization in spatial (fine disc, fine solver)
     f_delta_t = f_delta_x / 20 #discretization in time (fine disc, fine solver)
     pimax = 5 #max number of parareal iteration
@@ -41,7 +41,7 @@ def generate_wave_from_medium(input_path, output_path, gen_data_manually = "no")
     grid_x, grid_y = np.meshgrid(np.linspace(-1, 1, Nx), np.linspace(-1, 1, Ny))
     velf = np.load(input_path)
     vellist = velf['wavespeedlist']
-    n_samples = 10#vellist.shape[0] # define the amount of data to generate
+    n_samples = vellist.shape[0] # define the amount of data to generate
     print("amount of data to generate:", n_samples)
 
     # variables for initial conditions
@@ -79,7 +79,7 @@ def generate_wave_from_medium(input_path, output_path, gen_data_manually = "no")
                                      vel, f_delta_x, cT, c_delta_x, c_delta_t, T, pimax)
 
         # parareal iteration
-        for i in range(pimax):
+        for i in range(pimax-1):
 
             #approximation / preparation of parareal scheme
             #### SUBJECT TO CHANGE TO MULTIPROCESSING #speeding up algorithm
@@ -102,7 +102,7 @@ def generate_wave_from_medium(input_path, output_path, gen_data_manually = "no")
             #     if el in ppp:
             #         ppp.remove(el)
 
-            #print("-"*60, ridx)
+            #print("-"*60, ridx, velX)
 
             Ucx[:, :, ridx] = udx
             Ucy[:, :, ridx] = udy
@@ -143,6 +143,7 @@ def generate_wave_from_medium(input_path, output_path, gen_data_manually = "no")
 
     np.savez(output_path, vel=velsamp, Ucx=Ucx, Ucy=Ucy, Utc=Utc, Ufx=Ufx,
              Ufy=Ufy, Utf=Utf)
+
 
 def InitParareal(u0, ut0, vel, dx, cT, dX, dT, T, pimax):
     """
@@ -212,10 +213,8 @@ def generate_data_manually(dim, func="fig9"):
         tmp = .1 if .2 < x < .6 and .4 < y < .6 else 0
         return res + tmp
 
-    def fig9(x, y):
-        band = .35
-        if -band < y - x < band: return 1
-        return 0.5 # set that course error is similar to bp and marmousi
+    def fig9(xx, yy):
+        return 1. + 0.0 * yy - 0.5 * (np.abs(yy + xx - 0.) > 0.4) + 0. * (np.abs(xx - 0.4) < 0.2) * (np.abs(yy - 0.5) < 0.1)
 
     v_x = np.linspace(-1, 1, num=dim)
     v_y = np.linspace(-1, 1, num=dim)
@@ -231,11 +230,11 @@ def generate_data_manually(dim, func="fig9"):
 
 
 if __name__ == "__main__":
-    n = "4" #sys.argv[1]
+    n = "1" #sys.argv[1]
     print("start training for", n)
     if n == "1":
         generate_wave_from_medium(input_path = "../data/vcrops_50_128.npz",
-                                  output_path = "../data/train_data_fig9_256_test",
+                                  output_path = "../data/train_data_fig9_128",
                                   gen_data_manually="fig9")
     elif n == "2":
         generate_wave_from_medium(input_path = "../data/vcrops_50_128.npz",
