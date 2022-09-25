@@ -12,7 +12,7 @@ import sys
 # from generate_data.WaveUtil import WaveSol_from_EnergyComponent
 # from skimage.transform import resize
 
-def train(epochs = 800, lr = .005, nlayer = 3, wf = 1,
+def train(epochs = 850, lr = .005, nlayer = 3, wf = 1,
           fine_coarse_scale = 2, continue_training = False, model_name = "unet"):
 
     batchsize = 256 if model_name == "unet" else 32 #otherwise uses too much memory
@@ -37,13 +37,12 @@ def train(epochs = 800, lr = .005, nlayer = 3, wf = 1,
 
     # training data setup
     data_paths = [
-        #'../data/train_data_fig9_128.npz',
+        '../data/traindata_name14.npz',
         # '../data/train_data_waveguide_128.npz',
         # '../data/train_data_inclusion_128.npz',
-        '../data/train_data_fig9_128.npz'
+        #'../data/train_data_fig9_128.npz'
     ]
     train_loaders = fetch_data(data_paths, batchsize)
-
 
     #training loop
     for epoch in range(epochs):
@@ -130,7 +129,7 @@ def fetch_data(data_paths, batchsize, shuffle=True):
 if __name__ == "__main__":
 
     start_time = time.time()
-    model_name = "unet" #sys.argv[1]
+    model_name = "tiramisu" #sys.argv[1]
     print("start training", model_name)
     train(model_name = model_name)
     end_time = time.time()

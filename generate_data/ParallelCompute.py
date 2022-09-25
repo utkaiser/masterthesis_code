@@ -24,7 +24,7 @@ def ParallelCompute(v,vt,vel,velX,dx,dX,dt,dT,cT):
         )
 
         uc[:, :, j + 1], utc[:, :, j + 1] = ucx, utcx  # resize(ucx,[Ny,Nx],order=4), resize(utcx,[Ny,Nx],order=4)
-        a, b = w2s.wave2(v[:, :, j], vt[:, :, j], vel, dx, dt, cT)
+        a, b = wave2.velocity_verlet_time_integrator(v[:, :, j], vt[:, :, j], vel, dx, dt, cT)
         uf[:, :, j + 1], utf[:, :, j + 1] = a, b
 
         # f, ax = plt.subplots(1, 2)

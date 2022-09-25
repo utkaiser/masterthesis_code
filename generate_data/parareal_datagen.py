@@ -230,7 +230,7 @@ def generate_data_manually(dim, func="fig9"):
 
 
 if __name__ == "__main__":
-    n = "1" #sys.argv[1]
+    n = "4" #sys.argv[1]
     print("start training for", n)
     if n == "1":
         generate_wave_from_medium(input_path = "../data/vcrops_50_128.npz",
