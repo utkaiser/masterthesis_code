@@ -6,9 +6,9 @@ import WaveUtil
 import wave2 as wave2
 import wave2_spectral as w2s
 import OPPmodel
-import sys
+# import sys
 import matplotlib.pyplot as plt
-import torch
+# import torch
 
 def generate_wave_from_medium(input_path, output_path, gen_data_manually = "no"):
     """
@@ -34,13 +34,14 @@ def generate_wave_from_medium(input_path, output_path, gen_data_manually = "no")
     c_delta_t = c_delta_x / 10  #discretization in time for course solver, specific number ratio
     n_timeslices = pimax * ncT #number of communication timestep, how many samples generated from iteration total number of samples running this code
 
-    # print(2/128, 1/1280, 2/64, 1/320)
+    # print(2/128, 1/1280, 2/64, 1/160)
     # print(f_delta_x, f_delta_t, c_delta_x, c_delta_t)
 
     # data setup
     grid_x, grid_y = np.meshgrid(np.linspace(-1, 1, Nx), np.linspace(-1, 1, Ny))
     velf = np.load(input_path)
-    vellist = velf['wavespeedlist']
+    vellist = velf['wavespeedlist'][100:200]
+
     n_samples = vellist.shape[0] # define the amount of data to generate
     print("amount of data to generate:", n_samples)
 
@@ -62,8 +63,6 @@ def generate_wave_from_medium(input_path, output_path, gen_data_manually = "no")
     centers1 = np.random.rand(n_samples, 2) * 1. - 0.5
     widths = 250 + np.random.randn(n_samples) * 10
 
-    #ppp = [i for i in range(1,501)]
-
     for j in range(n_samples):
         print('-'*20, 'sample', j, '-'*20)
 
@@ -73,14 +72,15 @@ def generate_wave_from_medium(input_path, output_path, gen_data_manually = "no")
             vel = generate_data_manually(Nx, gen_data_manually)
         else:
             vel = vellist[j, :, :]
-
+            print(max([max(i) for i in vel]))
+            #TODO: visualize fine and coarse when values explode
         #integrate initial conditions once using coarse solver/ first guess of parareal scheme
         up, utp, velX = InitParareal(u_init[:, :, j * n_timeslices], ut_init[:, :, j * n_timeslices],
                                      vel, f_delta_x, cT, c_delta_x, c_delta_t, T, pimax)
 
         # parareal iteration
         for i in range(pimax-1):
-
+            print("it", i)
             #approximation / preparation of parareal scheme
             #### SUBJECT TO CHANGE TO MULTIPROCESSING #speeding up algorithm
             # Parallel solution, illustrated in Fig. 4
@@ -97,12 +97,6 @@ def generate_wave_from_medium(input_path, output_path, gen_data_manually = "no")
 
             #saving solutions in tensor
             ridx = np.arange(j * n_timeslices + i * ncT, j * n_timeslices + (i + 1) * ncT)
-
-            # for el in ridx:
-            #     if el in ppp:
-            #         ppp.remove(el)
-
-            #print("-"*60, ridx, velX)
 
             Ucx[:, :, ridx] = udx
             Ucy[:, :, ridx] = udy
@@ -230,21 +224,8 @@ def generate_data_manually(dim, func="fig9"):
 
 
 if __name__ == "__main__":
-    n = "4" #sys.argv[1]
-    print("start training for", n)
-    if n == "1":
-        generate_wave_from_medium(input_path = "../data/vcrops_50_128.npz",
-                                  output_path = "../data/train_data_fig9_128",
-                                  gen_data_manually="fig9")
-    elif n == "2":
-        generate_wave_from_medium(input_path = "../data/vcrops_50_128.npz",
-                                  output_path = "../data/train_data_waveguide_128",
-                                  gen_data_manually="waveguide")
-    elif n == "3":
-        generate_wave_from_medium(input_path="../data/vcrops_50_128.npz",
-                                  output_path="../data/train_data_inclusion_128",
-                                  gen_data_manually="inclusion")
+    #n = "4" #sys.argv[1]
+    #print("start training for", n)
 
-    elif n == "4":
-        generate_wave_from_medium(input_path="../data/vcrops_50_128.npz",
-                                  output_path="../data/train_data_bp_m_64_128_test.npz")
+    generate_wave_from_medium(input_path="../data/vcrops_100_128.npz",
+                              output_path="../data/bp_m_10000_128.npz")

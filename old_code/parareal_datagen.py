@@ -18,8 +18,8 @@ def generate_wave_from_medium(input_path, output_path):
     """
 
     # Parameter setups
-    T = 0.64
-    cT = 0.064
+    T = 2
+    cT = 0.2
     dx = 2.0/128.0
     dt = dx/20
     pimax = 5
@@ -47,7 +47,7 @@ def generate_wave_from_medium(input_path, output_path):
     datamode = 'train'
     velname = input_path
     velf = np.load(velname)
-    vellist = velf['wavespeedlist']
+    vellist = velf['wavespeedlist'][100:200]
 
     # Define the amount of data to generate
     n_trainsamples = vellist.shape[0]
@@ -167,7 +167,7 @@ def InitParareal(u0, ut0, vel, dx, dt, cT, dX, dT, T, pimax):
 
     # Initialize iteration with coarse solution
     for j in range(ncT - 1):
-        UX, UtX = wave2.velocity_verlet_time_integrator(UX, UtX, velX, dX, dT, cT)
+        UX, UtX = wave2.wave2(UX, UtX, velX, dX, dT, cT)
         up[:, :, j + 1, 0] = resize(UX, [Ny, Nx], order=4)
         utp[:, :, j + 1, 0] = resize(UtX, [Ny, Nx], order=4)
 
@@ -195,6 +195,6 @@ def initCond_ricker(xx, yy, width, center):
     
 
 if __name__ == "__main__":
-    generate_wave_from_medium(input_path ="../data/mabp4sig_size128cropsM100_.npz",
+    generate_wave_from_medium(input_path ="../data/vcrops_100_128.npz",
                               output_path = "../data/training_data_12_2")
 

@@ -24,9 +24,9 @@ def velocity_verlet_time_integrator(u0,ut0,vel,dx,dt,Tf):
 
     Nt = round(abs(Tf/dt))
     c2 = np.multiply(vel,vel)
-    
     u = u0
     ut = ut0
+
     for i in range(Nt):
 
         # Velocity Verlet

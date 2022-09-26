@@ -82,9 +82,9 @@ def updateSVD(Uo,So,Vo,A,B):
         Sn = sp[:ranknew]
         Vn = np.matmul(np.concatenate((Vo,QB),axis=1),vp[:,:ranknew])
         
-        print('Coarse error:', np.linalg.norm(A-B,ord='fro'))
-        print('OPP error:', np.linalg.norm(A-np.matmul(Un,np.matmul(Vn.transpose(),B)),ord='fro'))
-    
+        print('Coarse error:', np.linalg.norm(A-B,ord='fro'),
+              '| OPP error:', np.linalg.norm(A-np.matmul(Un,np.matmul(Vn.transpose(),B)),ord='fro'))
+
     return Un,Sn,Vn
 
 def serial_numpy_stack(ux,uy,utc):
