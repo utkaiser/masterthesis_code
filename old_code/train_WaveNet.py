@@ -33,7 +33,7 @@ if __name__ == "__main__":
     elif netmod =='NL':
         net = unetLin.UNet(wf=wf,depth=nlayer,acti_func='relu')
                     #finescale_factor=fine_coarse_scale)
-        optimizer = torch.optim.Adam(net.parameters(), lr=learning_rate)
+        optimizer = torch.optim.AdamW(net.parameters(), lr=learning_rate)
     net = net.double()
 
     model_parameters = filter(lambda p: p.requires_grad, net.parameters())

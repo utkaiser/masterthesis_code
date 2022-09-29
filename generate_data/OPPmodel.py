@@ -1,8 +1,10 @@
 import numpy as np
+import matplotlib.pyplot as plt
+#import generate_data.WaveUtil as wutil
 
 # Procrustean approach to shift coarse to fine solution
 
-def ProcrustesShiftMap(coarse_dat,fine_dat,opmap=(np.empty(0),np.empty(0),np.empty(0)),datmode='tensor'):
+def ProcrustesShiftMap(it, coarse_dat,fine_dat,opmap=(np.empty(0),np.empty(0),np.empty(0)), vel = None, datmode='tensor'):
     # Compute Procustes shift map
     # a stable (hieu and richard paper)#########
 
@@ -11,6 +13,36 @@ def ProcrustesShiftMap(coarse_dat,fine_dat,opmap=(np.empty(0),np.empty(0),np.emp
     U,S,V = opmap
     Cdat = serial_numpy_stack(Ucx,Ucy,Utc)
     Fdat = serial_numpy_stack(Ufx,Ufy,Utf)
+
+    # f, ax = plt.subplots(2, 1)
+    # f, ax = plt.subplots(2,10)
+    # f.set_figheight(10)
+    # f.set_figwidth(20)
+    # f.suptitle(str(it) + " " + str(np.linalg.norm(Cdat-Fdat,ord='fro')))
+    # dx = 2.0/128.0
+    #print(str(it), (np.square(Ucx[:, :, 3] - Ucx[:,:,4])).mean(axis=None))
+    # for i in range(10):
+    #     uc, utc = wutil.WaveSol_from_EnergyComponent(Ucx[:,:,i], Ucy[:,:,i], Utc[:,:,i], vel, 4.0/128.0, 0)
+    #     wc = wutil.WaveEnergyField(uc, utc, vel, 4.0/128.0)
+    #     if i == 5:
+    #         ax1 = f.add_subplot(2,1,1)
+    #         pos1 = ax1.imshow(wc*dx*dx)
+    #         plt.colorbar(pos1)
+    #         ax2 = f.add_subplot(2, 1, 2)
+    #         pos2 = ax2.imshow(tmp_wc*dx*dx)
+    #         plt.colorbar(pos2)
+    #         print(wc - tmp_wc)
+    #     tmp_wc = wc
+    #
+    #     uf, utf = wutil.WaveSol_from_EnergyComponent(Ufx[:,:,i], Ufy[:,:,i], Utf[:,:,i], vel, 2.0 / 128.0, 0)
+    #     wf = wutil.WaveEnergyField(uf, utf, vel, 2.0 / 128.0)
+
+        # ax[0, i].imshow(wc)
+        # ax[1, i].imshow(wf)
+
+
+    #plt.show()
+
     return updateSVD(U,S,V,Fdat,Cdat)
 
 def ProcrustesShift(U,V,coarse_arg,datmode='tensor'):

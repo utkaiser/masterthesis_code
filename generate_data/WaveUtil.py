@@ -38,7 +38,7 @@ def grad2func(vx,vy,dx,sumv):
     
     hatx = fftpack.fft2(vx)
     haty = fftpack.fft2(vy)
-    
+
     ny,nx = vx.shape
     
     xii = 2*np.pi/(dx*nx)*fftpack.fftshift(np.linspace(-round(nx/2),round(nx/2-1),nx))

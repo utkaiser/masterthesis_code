@@ -49,8 +49,8 @@ if __name__ == '__main__':
 
     createCropsAndSave([fullmarm,fullbp],
                        m=256,
-                       outputdir = '../data/vcrops_50_256.npz',
-                       num_times=50)
+                       outputdir = '../data/vcrops_100_256.npz',
+                       num_times=100)
 
     print("finish running generatecroppedVmodel.py")
 

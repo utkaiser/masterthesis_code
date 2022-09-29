@@ -7,7 +7,7 @@ import wave2 as wave2
 import wave2_spectral as w2s
 import OPPmodel
 # import sys
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 # import torch
 
 def generate_wave_from_medium(input_path, output_path, gen_data_manually = "no"):
@@ -40,7 +40,7 @@ def generate_wave_from_medium(input_path, output_path, gen_data_manually = "no")
     # data setup
     grid_x, grid_y = np.meshgrid(np.linspace(-1, 1, Nx), np.linspace(-1, 1, Ny))
     velf = np.load(input_path)
-    vellist = velf['wavespeedlist'][100:200]
+    vellist = velf['wavespeedlist'][100:]
 
     n_samples = vellist.shape[0] # define the amount of data to generate
     print("amount of data to generate:", n_samples)
@@ -72,15 +72,13 @@ def generate_wave_from_medium(input_path, output_path, gen_data_manually = "no")
             vel = generate_data_manually(Nx, gen_data_manually)
         else:
             vel = vellist[j, :, :]
-            print(max([max(i) for i in vel]))
-            #TODO: visualize fine and coarse when values explode
+
         #integrate initial conditions once using coarse solver/ first guess of parareal scheme
         up, utp, velX = InitParareal(u_init[:, :, j * n_timeslices], ut_init[:, :, j * n_timeslices],
                                      vel, f_delta_x, cT, c_delta_x, c_delta_t, T, pimax)
 
         # parareal iteration
         for i in range(pimax-1):
-            print("it", i)
             #approximation / preparation of parareal scheme
             #### SUBJECT TO CHANGE TO MULTIPROCESSING #speeding up algorithm
             # Parallel solution, illustrated in Fig. 4
@@ -110,9 +108,9 @@ def generate_wave_from_medium(input_path, output_path, gen_data_manually = "no")
 
             #idea: compute matrix correction to correct my solution later
             if i == 0:
-                P, S, Q = OPPmodel.ProcrustesShiftMap((UcXdx, UcXdy, UtcXdt), (UfXdx, UfXdy, UtfXdt), datmode='numpy')
+                P, S, Q = OPPmodel.ProcrustesShiftMap(i, coarse_dat=(UcXdx, UcXdy, UtcXdt), fine_dat=(UfXdx, UfXdy, UtfXdt), vel=vel, datmode='numpy')
             else:
-                P, S, Q = OPPmodel.ProcrustesShiftMap((UcXdx, UcXdy, UtcXdt), (UfXdx, UfXdy, UtfXdt), (P, S, Q), datmode='numpy')
+                P, S, Q = OPPmodel.ProcrustesShiftMap(i, coarse_dat=(UcXdx, UcXdy, UtcXdt), fine_dat=(UfXdx, UfXdy, UtfXdt), opmap=(P, S, Q), vel=vel, datmode='numpy')
 
             # Serial update, sequential step, compute my solution
             for j in range(ncT - 1):
@@ -121,7 +119,7 @@ def generate_wave_from_medium(input_path, output_path, gen_data_manually = "no")
                 wt0 = resize(utp[:, :, j, i + 1], [ny, nx], order=4)
 
                 #requirement of convergence of parareal scheme (convergence to exact/ reference wave solution)
-                wX, wtX = w2s.wave2(w0, wt0, velX, c_delta_x, c_delta_t, cT) #solver has to match with parareal compute PComp.ParallelCompute
+                wX, wtX = w2s.wave2s(w0, wt0, velX, c_delta_x, c_delta_t, cT) #solver has to match with parareal compute PComp.ParallelCompute
 
                 #use computed correct P, S, Q to correct coarse solution
                 uX, utX = WavePostprocess.ApplyOPP2WaveSol(resize(wX, vel.shape, order=4),
