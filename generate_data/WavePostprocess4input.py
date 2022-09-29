@@ -2,34 +2,36 @@ import numpy as np
 import torch
 import WaveUtil as WaveUtil
 import OPPmodel as OPPmodel
+from models.model_utils import npdat2Tensor
 from skimage.transform import resize
 
 def ApplyNet2WaveSol(w0,wt0,w,wt,c,dx,net):
     # Evaluate NN on Solution
-    
-    wx,wy,wtc = WaveUtil.WaveEnergyComponentField(np.expand_dims(w, axis=2), np.expand_dims(wt, axis=2), resize(c, [64, 64], order=4), dx)
 
-    wx = torch.from_numpy(np.transpose(wx,(2,0,1)))
-    wy = torch.from_numpy(np.transpose(wy,(2,0,1)))
-    wtc = torch.from_numpy(np.transpose(wtc,(2,0,1)))
+    wx,wy,wtc = WaveUtil.WaveEnergyComponentField(np.expand_dims(w,axis=2),np.expand_dims(wt,axis=2),resize(c, [64, 64], order=4),dx)
+    # wx = torch.from_numpy(np.transpose(wx,(2,0,1)))
+    # wy = torch.from_numpy(np.transpose(wy,(2,0,1)))
+    # wtc = torch.from_numpy(np.transpose(wtc,(2,0,1)))
 
-    c_tmp = np.expand_dims(resize(c, [64, 64], order=4),2)
-    c_tmp = torch.from_numpy(np.transpose(c_tmp,(2,0,1)))
+    #c_tmp = np.expand_dims(resize(c, [64, 64], order=4),2)
+    #c_tmp = torch.from_numpy(np.transpose(c_tmp,(2,0,1)))
     #inputs = torch.stack((w0x,w0y,wt0c,wx,wy,wtc),dim=1)
-    inputs = torch.stack((wx, wy, wtc, c_tmp), dim=1)
+    inputs = torch.stack((npdat2Tensor(wx),
+                          npdat2Tensor(wy),
+                          npdat2Tensor(wtc),
+                          npdat2Tensor(np.expand_dims(resize(c, [64, 64], order=4),axis=2))), dim=1)
 
     outputs = net(inputs)
-    
-    vx = outputs[0,0,:,:]
-    vy = outputs[0,1,:,:]
-    vtc = outputs[0,2,:,:]
-    
+
+    vx = outputs[0, 0, :, :]
+    vy = outputs[0, 1, :, :]
+    vtc = outputs[0, 2, :, :]
+
     sumv = np.sum(w0)
 
-    u,ut = WaveUtil.WaveSol_from_EnergyComponent(vx.detach().numpy(), vy.detach().numpy(),
-                                                 vtc.detach().numpy(), c, dx, sumv)
+    u, ut = WaveUtil.WaveSol_from_EnergyComponent(vx.detach().numpy(), vy.detach().numpy(),
+                                                  vtc.detach().numpy(), c, dx, sumv)
 
-    #u, ut = resize(u, [128,128], order=4), resize(ut, [128,128], order=4)
     return u, ut
 
 

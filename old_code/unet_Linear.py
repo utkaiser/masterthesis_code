@@ -5,7 +5,7 @@ from torch import nn
 
 class UNet(nn.Module):
 
-    def __init__(self, in_channels=4, n_classes=3, depth=3, wf=0, acti_func='relu', scale_factor=2):
+    def __init__(self, in_channels=4, n_classes=3, depth=3, wf=0, acti_func='relu', scale_factor=4):
         '''
             simple UNet Neural Network implementation
 
@@ -46,8 +46,9 @@ class UNet(nn.Module):
     def forward(self, x):
         blocks = []
         for i, down in enumerate(self.down_path):
+            x = down(x)
             if i%2 == 0:
-                blocks.append(down(x))
+                blocks.append(x)
 
         for i, up in enumerate(self.up_path):
             x = up(x, blocks[-i-2])

@@ -11,7 +11,7 @@ def save_model(model, modelname):
     from os import path
     model.to(torch.device("cpu"))
     for i in range(100):
-        saving_path = path.join(path.dirname(path.abspath(__file__)),'saved_model_' +modelname+ str(i) + '.pt')
+        saving_path = path.join(path.dirname(path.dirname(path.abspath(__file__))),'results/run_1/saved_model_' +modelname+ str(i) + '.pt')
         if not path.isfile(saving_path):
             return save(model.state_dict(), saving_path)
     raise MemoryError("memory exceeded")

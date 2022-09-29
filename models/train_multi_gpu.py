@@ -4,6 +4,7 @@ import torch
 import torch.nn as nn
 import unet
 import tiramisu
+import u_transformer
 import torch.optim as optim
 from model_utils import save_model, load_model, npdat2Tensor
 import datetime
@@ -15,7 +16,7 @@ import sys
 def train(epochs = 850, lr = .01, nlayer = 3, wf = 1,
           fine_coarse_scale = 2, continue_training = False, model_name = "unet"):
 
-    batchsize = 1 if model_name == "unet" else 32 #otherwise uses too much memory
+    batchsize = 32
 
     # model configuration
     if model_name == "unet":
@@ -24,17 +25,21 @@ def train(epochs = 850, lr = .01, nlayer = 3, wf = 1,
     elif model_name == "tiramisu":
         model = tiramisu.FCDenseNet().double()
         if continue_training: load_model(model_name+"_1", model)
+    elif model_name == "u_trans":
+        model = u_transformer.U_Transformer(in_channels=4, classes=3).double()
+        if continue_training: load_model(model_name + "_1", model)
     else:
         raise NotImplementedError("model with name " + model_name + " not implemented")
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print("gpu available:", torch.cuda.is_available(), "| n of gpus:", torch.cuda.device_count())
     #model = nn.DataParallel(model).to(device) #parallel computing model
+    model.to(device)
 
     # training setup
     optimizer = optim.Adam(model.parameters(), lr=lr)
     loss_f = nn.SmoothL1Loss() #before: MSE loss
-    scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.9)
+    scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.991)
 
     # training data setup
     data_paths = [
@@ -46,6 +51,7 @@ def train(epochs = 850, lr = .01, nlayer = 3, wf = 1,
     #train_loaders = fetch_data(data_paths, batchsize)
 
     #training loop
+
     for epoch in range(epochs):
 
         loss_list = []
@@ -109,10 +115,10 @@ def train(epochs = 850, lr = .01, nlayer = 3, wf = 1,
         mean_loss = np.array(loss_list).mean()
         mean_id_loss = np.array(id_loss_list).mean()
         if epoch % 1 == 0:
-            print(datetime.datetime.now(), 'epoch %d: loss: %.5f | coarse loss: %.5f , lr %d' %
+            print(datetime.datetime.now(), 'epoch %d: loss: %.5f | coarse loss: %.5f , lr %.5f' %
                   (epoch + 1, mean_loss, mean_id_loss, optimizer.param_groups[0]["lr"]))
 
-        with open('../data/loss_list_'+model_name+'.txt', 'a') as fd:
+        with open('../results/run_1/loss_list_'+model_name+'.txt', 'a') as fd:
             fd.write(f'\n{loss_list}')
 
         if epoch % 50 == 0: #saves first models as a test
@@ -148,7 +154,7 @@ def fetch_data(data_paths, batchsize, shuffle=True):
 if __name__ == "__main__":
 
     start_time = time.time()
-    model_name = "unet" #sys.argv[1]
+    model_name = "u_trans" #sys.argv[1]
     print("start training", model_name)
     train(model_name = model_name)
     end_time = time.time()
