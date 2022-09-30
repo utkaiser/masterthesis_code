@@ -8,15 +8,15 @@ import u_transformer
 import torch.optim as optim
 from model_utils import save_model, load_model, npdat2Tensor
 import datetime
+from model_utils import fetch_data
 import sys
 # import matplotlib.pyplot as plt
 # from generate_data.WaveUtil import WaveSol_from_EnergyComponent
 # from skimage.transform import resize
 
 def train(epochs = 850, lr = .01, nlayer = 3, wf = 1,
-          fine_coarse_scale = 2, continue_training = False, model_name = "unet"):
-
-    batchsize = 32
+          fine_coarse_scale = 2, continue_training = False,
+          model_name = "unet", batchsize = 32, gamma = 0.991):
 
     # model configuration
     if model_name == "unet":
@@ -39,43 +39,25 @@ def train(epochs = 850, lr = .01, nlayer = 3, wf = 1,
     # training setup
     optimizer = optim.Adam(model.parameters(), lr=lr)
     loss_f = nn.SmoothL1Loss() #before: MSE loss
-    scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.991)
+    scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=gamma)
 
     # training data setup
     data_paths = [
         # '../data/bp_m_10000_128.npz',
         # '../data/train_data_waveguide_128.npz',
         # '../data/train_data_inclusion_128.npz',
-        #'../data/train_data_fig9_128.npz'
+         '../data/traindata_name14.npz'
     ]
-    #train_loaders = fetch_data(data_paths, batchsize)
+    train_loaders = fetch_data(data_paths, batchsize)
 
     #training loop
-
     for epoch in range(epochs):
 
         loss_list = []
         id_loss_list = []
 
-        for i in [14]:
-            npz_PropS = np.load('../data/traindata_name' + str(i) + '.npz')
-
-            inputdata = torch.stack((npdat2Tensor(npz_PropS['Ucx']),
-                                     npdat2Tensor(npz_PropS['Ucy']),
-                                     npdat2Tensor(npz_PropS['Utc']),
-                                     npdat2Tensor(npz_PropS['vel'])),
-                                    dim=1)
-
-            outputdata = torch.stack((npdat2Tensor(npz_PropS['Ufx']),
-                                      npdat2Tensor(npz_PropS['Ufy']),
-                                      npdat2Tensor(npz_PropS['Utf'])),
-                                     dim=1)
-
-            wavedataset = torch.utils.data.TensorDataset(inputdata, outputdata)
-            trainLoader = torch.utils.data.DataLoader(wavedataset, batch_size=batchsize, shuffle=True, num_workers=1)
-
-        #for train_loader in train_loaders:
-            for i, data in enumerate(trainLoader):
+        for train_loader in train_loaders:
+            for i, data in enumerate(train_loader):
                 inputs, labels = data[0].to(device), data[1].to(device) #parallel computing data
                 optimizer.zero_grad()
                 outputs = model(inputs)
@@ -126,29 +108,6 @@ def train(epochs = 850, lr = .01, nlayer = 3, wf = 1,
             model.to(device)
 
     save_model(model, model_name)
-
-
-def fetch_data(data_paths, batchsize, shuffle=True):
-    print("setting up data")
-
-    total_n_datapoints = 0
-    train_loaders = []
-    for path in data_paths:
-        npz_PropS = np.load(path)
-        inputdata = torch.stack((npdat2Tensor(npz_PropS['Ucx']),
-                                 npdat2Tensor(npz_PropS['Ucy']),
-                                 npdat2Tensor(npz_PropS['Utc']),
-                                 npdat2Tensor(npz_PropS['vel'])), dim=1)
-        outputdata = torch.stack((npdat2Tensor(npz_PropS['Ufx']),
-                                  npdat2Tensor(npz_PropS['Ufy']),
-                                  npdat2Tensor(npz_PropS['Utf'])), dim=1)
-        data_loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(inputdata, outputdata),
-                                                  batch_size=batchsize, shuffle=shuffle, num_workers=1)
-        total_n_datapoints += len(data_loader)
-        train_loaders.append(data_loader)
-
-    print("total number of data points:", total_n_datapoints * batchsize)
-    return train_loaders
 
 
 if __name__ == "__main__":

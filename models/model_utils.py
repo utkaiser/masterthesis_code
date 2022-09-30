@@ -27,3 +27,26 @@ def load_model(load_path, model):
 def npdat2Tensor(nda):
     ndt = np.transpose(nda,(2,0,1))
     return torch.from_numpy(ndt)
+
+
+def fetch_data(data_paths, batchsize, shuffle=True):
+    print("setting up data")
+
+    total_n_datapoints = 0
+    train_loaders = []
+    for path in data_paths:
+        npz_PropS = np.load(path)
+        inputdata = torch.stack((npdat2Tensor(npz_PropS['Ucx']),
+                                 npdat2Tensor(npz_PropS['Ucy']),
+                                 npdat2Tensor(npz_PropS['Utc']),
+                                 npdat2Tensor(npz_PropS['vel'])), dim=1)
+        outputdata = torch.stack((npdat2Tensor(npz_PropS['Ufx']),
+                                  npdat2Tensor(npz_PropS['Ufy']),
+                                  npdat2Tensor(npz_PropS['Utf'])), dim=1)
+        data_loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(inputdata, outputdata),
+                                                  batch_size=batchsize, shuffle=shuffle, num_workers=1)
+        total_n_datapoints += len(data_loader)
+        train_loaders.append(data_loader)
+
+    print("total number of data points:", total_n_datapoints * batchsize)
+    return train_loaders
