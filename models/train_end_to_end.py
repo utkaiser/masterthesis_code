@@ -4,8 +4,11 @@ from model_utils import fetch_data
 from unet_end_to_end import restriction_nn
 import torch.optim as optim
 import torch.nn as nn
+import datetime
+from model_utils import save_model
+import torch
 
-def propagate_end_to_end():
+def propagate_end_to_end(model_name = "unet"):
 
     ### parameter setup ###
     Tf = 2.0
@@ -19,8 +22,6 @@ def propagate_end_to_end():
     x = np.arange(-1, 1, dx)
     y = np.arange(-1, 1, dx)
     xx, yy = np.meshgrid(x, y)
-    np.random.seed = 21
-    center = np.array([-0.8,-0.8])
 
     #training params
     batch_size = 32
@@ -32,53 +33,104 @@ def propagate_end_to_end():
     wf = 1
     continue_training = False
 
+    ### models ###
+    model = restriction_nn()
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print("gpu available:", torch.cuda.is_available(), "| n of gpus:", torch.cuda.device_count())
+    model.to(device)
+    optimizer = optim.Adam(model.parameters(), lr=lr)
+    loss_f = nn.SmoothL1Loss()
+    #scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=gamma)
+
+
+    ########### approach 1: easy velocity ##################
+
     ### data ###
-    '''
-    x: delta t star, dx, prev fine solution
-    -> downsamply (NN1) -> coarse solution propagates -> upsample (NN2)
-    y: fine solution
-    '''
+    np.random.seed = 21  # TODO: randomize
+    center = np.array([-0.8, -0.8])
+    vel = 1. + 0.0 * yy - 0.5 * (np.abs(yy + xx - 0.) > 0.4) + 0. * (np.abs(xx - 0.4) < 0.2) * (np.abs(yy - 0.5) < 0.1)
+    u0 = u_prev = np.exp(-250.0 * (0.2 * (xx - center[0]) ** 2 + (yy - center[1]) ** 2)) * np.cos(
+        8 * np.pi * (yy - center[1]))
+    ut_prev = np.zeros([np.size(xx, axis=1), np.size(yy, axis=0)])
 
-    #TODO: find solution if dataloader is used
+    ### training ###
+    for epoch in range(n_epochs):
+        loss_list = []
+        for j in range(1,mt):
 
-    vel = 1. + 0.0*yy - 0.5*(np.abs(yy+xx-0.)>0.4) + 0.*(np.abs(xx-0.4)<0.2)*(np.abs(yy-0.5)<0.1)
-    u0 = np.exp(-250.0 * (0.2 * (xx - center[0]) ** 2 + (yy - center[1]) ** 2)) * np.cos(8 * np.pi * (yy - center[1]))
-    ut0 = np.zeros([np.size(xx, axis=1), np.size(yy, axis=0)])
-    u = np.zeros([xx.shape[0], xx.shape[1], mt])
-    ut = np.zeros([xx.shape[0], xx.shape[1], mt])
-    u[:, :, 0] = u0
-    ut[:, :, 0] = ut0
+            labels = w2.velocity_verlet_time_integrator(
+                u_prev,
+                ut_prev,
+                vel,
+                dx,dt,cT
+            )
+
+            outputs = model(u_prev,
+                            ut_prev,
+                            vel,
+                            cT, dx*m, dt*rt, u0, dx)
+
+            optimizer.zero_grad()
+            loss = loss_f(outputs, labels) #fine solution as target
+            loss_list.append(loss.item())
+            loss.backward()
+            optimizer.step()
+
+            u_prev, ut_prev = labels # fine solution as input for next iteration
+
+        if epoch % 1 == 0:
+            print(datetime.datetime.now(), 'epoch %d: loss: %.5f' % (epoch + 1, np.array(loss_list).mean()))
+
+        if epoch % 50 == 0:  # saves first models as a test
+            save_model(model, model_name)
+            model.to(device)
+
+    save_model(model, model_name)
+
+
+
+
+    #### approach 2: dataloader complex velocities ####
+
     # train_loaders = fetch_data('../data/traindata_name14.npz',
     #                   batchsize=batch_size,
     #                   shuffle=True)
 
-
-    ### models ###
-
-    model = restriction_nn()
-    optimizer = optim.Adam(model.parameters(), lr=lr)
-    loss_f = nn.SmoothL1Loss()  # before: MSE loss
-    scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=gamma)
+    ### data ###
 
 
+    ### training ###
+    for epoch in range(n_epochs):
+        loss_list = []
+        for j in range(1, mt):
+            labels = w2.velocity_verlet_time_integrator(
+                u_prev,
+                ut_prev,
+                vel,
+                dx, dt, cT
+            )
 
+            outputs = model(u_prev,
+                            ut_prev,
+                            vel,
+                            cT, dx * m, dt * rt, u0, dx)
 
+            optimizer.zero_grad()
+            loss = loss_f(outputs, labels)  # fine solution as target
+            loss_list.append(loss.item())
+            loss.backward()
+            optimizer.step()
 
-    for j in range(1,mt):
-        uc,utc = w2.velocity_verlet_time_integrator(resize(u[:,:,j-1],[ny,nx],order=4),
-                             resize(ut[:,:,j-1],[ny,nx],order=4),
-                             resize(vel,[ny,nx],order=4),dx*m,dt*rt,cT)
+            u_prev, ut_prev = labels  # fine solution as input for next iteration
 
+        if epoch % 1 == 0:
+            print(datetime.datetime.now(), 'epoch %d: loss: %.5f' % (epoch + 1, np.array(loss_list).mean()))
 
+        if epoch % 50 == 0:  # saves first models as a test
+            save_model(model, model_name)
+            model.to(device)
 
-
-        u[:,:,j],utnn2[:,:,j] = wp.ApplyNet2WaveSol(u0,ut0,uc,utc,vel,dx,tir_model)
-
-
-
-
-
-
+    save_model(model, model_name)
 
 
 

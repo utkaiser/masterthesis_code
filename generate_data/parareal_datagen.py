@@ -10,7 +10,7 @@ import OPPmodel
 # import matplotlib.pyplot as plt
 # import torch
 
-def generate_wave_from_medium(input_path, output_path, gen_data_manually = "no"):
+def generate_wave_from_medium(input_path, output_path):
     """
         generate data pair coarse and fine solutions.
         We first take a velocity sample, then take an initial
@@ -34,13 +34,10 @@ def generate_wave_from_medium(input_path, output_path, gen_data_manually = "no")
     c_delta_t = c_delta_x / 10  #discretization in time for course solver, specific number ratio
     n_timeslices = pimax * ncT #number of communication timestep, how many samples generated from iteration total number of samples running this code
 
-    # print(2/128, 1/1280, 2/64, 1/160)
-    # print(f_delta_x, f_delta_t, c_delta_x, c_delta_t)
-
     # data setup
     grid_x, grid_y = np.meshgrid(np.linspace(-1, 1, Nx), np.linspace(-1, 1, Ny))
     velf = np.load(input_path)
-    vellist = velf['wavespeedlist'][100:]
+    vellist = velf['wavespeedlist']
 
     n_samples = vellist.shape[0] # define the amount of data to generate
     print("amount of data to generate:", n_samples)
@@ -68,10 +65,7 @@ def generate_wave_from_medium(input_path, output_path, gen_data_manually = "no")
 
         #initialization of wave field
         u_init[:, :, j * n_timeslices], ut_init[:, :, j * n_timeslices] = initCond(grid_x, grid_y, widths[j], centers1[j, :]) #p.20, 14
-        if gen_data_manually in ["fig9", "waveguide", "inclusion"]:
-            vel = generate_data_manually(Nx, gen_data_manually)
-        else:
-            vel = vellist[j, :, :]
+        vel = vellist[j, :, :]
 
         #integrate initial conditions once using coarse solver/ first guess of parareal scheme
         up, utp, velX = InitParareal(u_init[:, :, j * n_timeslices], ut_init[:, :, j * n_timeslices],
@@ -195,34 +189,11 @@ def initCond_ricker(xx, yy, width, center):
     ut0 = np.zeros([np.size(xx, axis=1), np.size(yy, axis=0)])
     return u0, ut0
 
-def generate_data_manually(dim, func="fig9"):
-    def waveguide(x, _):
-        return .7 - .3 * np.cos(np.pi * x)
-
-    def inclusion(x, y):
-        res = .7 + .05 * y
-        tmp = .1 if .2 < x < .6 and .4 < y < .6 else 0
-        return res + tmp
-
-    def fig9(xx, yy):
-        return 1. + 0.0 * yy - 0.5 * (np.abs(yy + xx - 0.) > 0.4) + 0. * (np.abs(xx - 0.4) < 0.2) * (np.abs(yy - 0.5) < 0.1)
-
-    v_x = np.linspace(-1, 1, num=dim)
-    v_y = np.linspace(-1, 1, num=dim)
-    if func == "fig9":
-        z = np.array([fig9(i, j) for j in v_y for i in v_x])
-    elif func == "waveguide":
-        z = np.array([waveguide(i, j) for j in v_y for i in v_x])
-    else:
-        z = np.array([inclusion(i, j) for j in v_y for i in v_x])
-    z = z.reshape(dim, dim)
-    z = np.flip(z, 0)
-    return z
 
 
 if __name__ == "__main__":
     #n = "4" #sys.argv[1]
     #print("start training for", n)
 
-    generate_wave_from_medium(input_path="../data/vcrops_100_128.npz",
-                              output_path="../data/bp_m_10000_128.npz")
+    generate_wave_from_medium(input_path="../data/crops_bp_m_200_128.npz",
+                              output_path="../data/bp_m_200_128.npz")

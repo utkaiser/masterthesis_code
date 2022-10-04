@@ -2,7 +2,7 @@ import time
 import numpy as np
 import torch
 import torch.nn as nn
-import unet
+import unet_old as unet
 import tiramisu
 import u_transformer
 import torch.optim as optim
@@ -14,13 +14,13 @@ import sys
 # from generate_data.WaveUtil import WaveSol_from_EnergyComponent
 # from skimage.transform import resize
 
-def train(epochs = 850, lr = .01, nlayer = 3, wf = 1,
+def train(epochs = 700, lr = .001, nlayer = 3, wf = 1,
           fine_coarse_scale = 2, continue_training = False,
-          model_name = "unet", batchsize = 32, gamma = 0.991):
+          model_name = "unet", batchsize = 128, gamma = 0.991):
 
     # model configuration
     if model_name == "unet":
-        model = unet.UNet(wf=wf, depth=nlayer, scale_factor=fine_coarse_scale).double()
+        model = unet.UNet(depth=6, wf=1, acti_func='relu').double()
         if continue_training: load_model(model_name+"_1", model)
     elif model_name == "tiramisu":
         model = tiramisu.FCDenseNet().double()
@@ -38,15 +38,12 @@ def train(epochs = 850, lr = .01, nlayer = 3, wf = 1,
 
     # training setup
     optimizer = optim.Adam(model.parameters(), lr=lr)
-    loss_f = nn.SmoothL1Loss() #before: MSE loss
-    scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=gamma)
+    loss_f = nn.SmoothL1Loss()
+    #scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=gamma)
 
     # training data setup
     data_paths = [
-        # '../data/bp_m_10000_128.npz',
-        # '../data/train_data_waveguide_128.npz',
-        # '../data/train_data_inclusion_128.npz',
-         '../data/traindata_name14.npz'
+        '../data/crops_bp_m_200_128.npz',
     ]
     train_loaders = fetch_data(data_paths, batchsize)
 
@@ -65,26 +62,6 @@ def train(epochs = 850, lr = .01, nlayer = 3, wf = 1,
                 loss.backward()
                 optimizer.step()
 
-                # if loss.item() > 1:
-                #     f, ax = plt.subplots(1, 3)
-                #     f.set_figheight(5)
-                #     f.set_figwidth(10)
-                #     d = inputs[0][3, :, :].detach().numpy()
-                #
-                #     ax[0].imshow(d)
-                #     ax[0].set_title(loss.item())
-                #
-                #     dx = 2.0 / 128.0
-                #     a, b, c = inputs[0][0, :, :].detach().numpy(), inputs[0][1, :, :].detach().numpy(), inputs[0][2, :,:].detach().numpy()
-                #     res1 = WaveSol_from_EnergyComponent(a, b, c, d, dx, 0)  # capital lambda dagger
-                #     ax[1].imshow(res1[0]*dx*dx)
-                #
-                #     a, b, c = labels[0][0, :, :].detach().numpy(), labels[0][1, :, :].detach().numpy(), labels[0][2, :,:].detach().numpy()
-                #     res2 = WaveSol_from_EnergyComponent(a, b, c, resize(d, (128, 128)), dx, 0)  # capital lambda dagger
-                #     ax[2].imshow(res2[0]*dx*dx)
-                #     f.show()
-
-
                 loss_list.append(loss.item())
 
                 id_loss_list.append(
@@ -92,7 +69,7 @@ def train(epochs = 850, lr = .01, nlayer = 3, wf = 1,
                            labels).item()
                 )
 
-        scheduler.step()
+        #scheduler.step()
 
         mean_loss = np.array(loss_list).mean()
         mean_id_loss = np.array(id_loss_list).mean()

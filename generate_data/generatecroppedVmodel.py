@@ -35,7 +35,7 @@ def createCropsAndSave(v_images, m, outputdir, num_times = 40):
 
             wavespeed_list.append(resize(npimg,(m,m),order=4))
         
-    np.savez(outputdir,wavespeedlist = wavespeed_list)
+    np.savez(outputdir, wavespeedlist = wavespeed_list)
 
 
 if __name__ == '__main__':
@@ -48,8 +48,8 @@ if __name__ == '__main__':
     fullbp = gaussian(databp['V'],4)/1000 #to make smoother (and different order of magnitude)
 
     createCropsAndSave([fullmarm,fullbp],
-                       m=256,
-                       outputdir = '../data/vcrops_100_256.npz',
+                       m=128,
+                       outputdir = '../data/vcrops_100_128.npz',
                        num_times=100)
 
     print("finish running generatecroppedVmodel.py")

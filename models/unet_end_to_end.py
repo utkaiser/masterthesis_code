@@ -9,6 +9,11 @@ import torch
 from models.model_utils import npdat2Tensor
 
 class restriction_nn(nn.Module):
+    '''
+            x: delta t star, dx, prev fine solution
+            -> downsamply (NN1) -> coarse solution propagates -> upsample (NN2)
+            y: fine solution
+    '''
 
     def __init__(self, in_channels=3, n_classes=3, down_factor = 2):
         super(restriction_nn, self).__init__()
@@ -29,10 +34,10 @@ class restriction_nn(nn.Module):
         self.jnet = unet.UNet(wf=1, depth=3, scale_factor=down_factor)
 
 
-    def forward(self, prev_fine_sol_u, restr_fine_sol_ut, vel, delta_t_star, dx_times_m, dt_times_rt, w0, dx):
+    def forward(self, prev_fine_sol_u, prev_fine_sol_ut, vel, delta_t_star, dx_times_m, dt_times_rt, w0, dx):
 
         #R (restriction)
-        restr_fine_sol_u, restr_fine_sol_ut, vel_c  = self.restriction(prev_fine_sol_u, restr_fine_sol_ut, vel)
+        restr_fine_sol_u, restr_fine_sol_ut, vel_c  = self.restriction(prev_fine_sol_u, prev_fine_sol_ut, vel)
 
         #G delta t (coarse iteration)
         ucx, utcx = propagate(
@@ -49,7 +54,7 @@ class restriction_nn(nn.Module):
         inputs = torch.stack((npdat2Tensor(wx),
                               npdat2Tensor(wy),
                               npdat2Tensor(wtc),
-                              vel_c), dim=1)
+                              npdat2Tensor(vel_c)), dim=1)
 
         #upsampling through nn
         outputs = self.jnet(inputs)
