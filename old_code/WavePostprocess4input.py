@@ -1,6 +1,6 @@
 import numpy as np
 import torch
-
+from skimage.transform import resize
 import WaveUtil
 import OPPmodel
 
@@ -9,7 +9,7 @@ import OPPmodel
 def ApplyNet2WaveSol(w0,wt0,w,wt,c,dx,net):
     
     w0x,w0y,wt0c = WaveUtil.WaveEnergyComponentField(np.expand_dims(w0,axis=2),np.expand_dims(wt0,axis=2),c,dx)
-    wx,wy,wtc = WaveUtil.WaveEnergyComponentField(np.expand_dims(w,axis=2),np.expand_dims(wt,axis=2),c,dx)
+    wx,wy,wtc = WaveUtil.WaveEnergyComponentField(np.expand_dims(w,axis=2),np.expand_dims(wt,axis=2),resize(c, [64, 64], order=4),dx)
     
     w0x = torch.from_numpy(np.transpose(w0x,(2,0,1)))
     w0y = torch.from_numpy(np.transpose(w0y,(2,0,1)))

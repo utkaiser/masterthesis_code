@@ -95,7 +95,6 @@ def generate_wave_from_medium(input_path, output_path, gen_data_manually = "no")
 
             #saving solutions in tensor
             ridx = np.arange(j * n_timeslices + i * ncT, j * n_timeslices + (i + 1) * ncT)
-
             Ucx[:, :, ridx] = udx
             Ucy[:, :, ridx] = udy
             Utc[:, :, ridx] = utdt
@@ -113,10 +112,10 @@ def generate_wave_from_medium(input_path, output_path, gen_data_manually = "no")
                 P, S, Q = OPPmodel.ProcrustesShiftMap(i, coarse_dat=(UcXdx, UcXdy, UtcXdt), fine_dat=(UfXdx, UfXdy, UtfXdt), opmap=(P, S, Q), vel=vel, datmode='numpy')
 
             # Serial update, sequential step, compute my solution
-            for j in range(ncT - 1):
+            for ppp in range(ncT - 1):
                 # another way to compute velocity verlet
-                w0 = resize(up[:, :, j, i + 1], [ny, nx], order=4)
-                wt0 = resize(utp[:, :, j, i + 1], [ny, nx], order=4)
+                w0 = resize(up[:, :, ppp, i + 1], [ny, nx], order=4)
+                wt0 = resize(utp[:, :, ppp, i + 1], [ny, nx], order=4)
 
                 #requirement of convergence of parareal scheme (convergence to exact/ reference wave solution)
                 wX, wtX = w2s.wave2s(w0, wt0, velX, c_delta_x, c_delta_t, cT) #solver has to match with parareal compute PComp.ParallelCompute
@@ -125,13 +124,13 @@ def generate_wave_from_medium(input_path, output_path, gen_data_manually = "no")
                 uX, utX = WavePostprocess.ApplyOPP2WaveSol(resize(wX, vel.shape, order=4),
                                                            resize(wtX, vel.shape, order=4),
                                                            vel, f_delta_x, (P, S, Q))
-                vX, vtX = WavePostprocess.ApplyOPP2WaveSol(resize(UcX[:, :, j + 1], vel.shape, order=4),
-                                                           resize(UtcX[:, :, j + 1], vel.shape, order=4),
+                vX, vtX = WavePostprocess.ApplyOPP2WaveSol(resize(UcX[:, :, ppp + 1], vel.shape, order=4),
+                                                           resize(UtcX[:, :, ppp + 1], vel.shape, order=4),
                                                            vel, f_delta_x, (P, S, Q))
 
-                # coupling between fine and coarse solution, add and substract parareal coupling, eq. 26
-                up[:, :, j + 1, i + 1] = UfX[:, :, j + 1] + uX - vX
-                utp[:, :, j + 1, i + 1] = UtfX[:, :, j + 1] + utX - vtX
+                # coupling between fine and coarse solution, add and substract parareal coupling, eq. 26####
+                up[:, :, ppp + 1, i + 1] = UfX[:, :, ppp + 1] + uX - vX
+                utp[:, :, ppp + 1, i + 1] = UtfX[:, :, ppp + 1] + utX - vtX
 
     np.savez(output_path, vel=velsamp, Ucx=Ucx, Ucy=Ucy, Utc=Utc, Ufx=Ufx,
              Ufy=Ufy, Utf=Utf)

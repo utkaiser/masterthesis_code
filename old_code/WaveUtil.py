@@ -8,7 +8,7 @@ def WaveEnergyField(u,ut,c,dx):
     absux = np.abs(ux)
     absuy = np.abs(uy)
     absutc = np.divide(np.abs(ut),c)
-    
+    print(1/0)
     w = np.multiply(absux,absux) + np.multiply(absuy,absuy) + np.multiply(absutc,absutc)
     
     return w
