@@ -1,7 +1,7 @@
 import numpy as np
 from skimage.transform import resize  # for coarsening
 import ParallelCompute as PComp
-import WavePostprocess4input as WavePostprocess
+import WavePostprocess
 import WaveUtil
 import wave2 as wave2
 import wave2_spectral as w2s
@@ -25,7 +25,7 @@ def generate_wave_from_medium(input_path, output_path):
     f_delta_t = f_delta_x / 20 #discretization in time (fine disc, fine solver)
     pimax = 5 #max number of parareal iteration
     ncT = round(T / cT) #number of snapshot, =10 right now
-    Nx, Ny = 128, 128 #grid resolution fine
+    Nx, Ny = 256, 256 #grid resolution fine
     nx, ny = 64, 64 #grid resolution coarse
     sizing = Nx // nx
 
@@ -190,10 +190,9 @@ def initCond_ricker(xx, yy, width, center):
     return u0, ut0
 
 
-
 if __name__ == "__main__":
     #n = "4" #sys.argv[1]
     #print("start training for", n)
 
-    generate_wave_from_medium(input_path="../data/crops_bp_m_200_128.npz",
-                              output_path="../data/bp_m_200_128.npz")
+    generate_wave_from_medium(input_path="../data/crops_bp_m_200_256.npz",
+                              output_path="../data/bp_m_200_256.npz")

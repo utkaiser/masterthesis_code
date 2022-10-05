@@ -11,5 +11,4 @@
 
 pwd; hostname; date
 
-python3 ../parareal_datagen.py
-python3 ../models/train_multi_gpu.py unet
+python3 ../models/train_multi_gpu.py

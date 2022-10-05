@@ -6,17 +6,14 @@ import unet_old as unet
 import tiramisu
 import u_transformer
 import torch.optim as optim
-from model_utils import save_model, load_model, npdat2Tensor
+from model_utils import save_model, load_model
 import datetime
 from model_utils import fetch_data
 import sys
-# import matplotlib.pyplot as plt
-# from generate_data.WaveUtil import WaveSol_from_EnergyComponent
-# from skimage.transform import resize
 
-def train(epochs = 700, lr = .001, nlayer = 3, wf = 1,
+def train(epochs = 500, lr = .001, nlayer = 3, wf = 1,
           fine_coarse_scale = 2, continue_training = False,
-          model_name = "unet", batchsize = 128, gamma = 0.991):
+          model_name = "unet", batchsize = 32, gamma = 0.991):
 
     # model configuration
     if model_name == "unet":
@@ -43,7 +40,7 @@ def train(epochs = 700, lr = .001, nlayer = 3, wf = 1,
 
     # training data setup
     data_paths = [
-        '../data/crops_bp_m_200_128.npz',
+        '../data/bp_m_200_128.npz',
     ]
     train_loaders = fetch_data(data_paths, batchsize)
 
@@ -74,8 +71,8 @@ def train(epochs = 700, lr = .001, nlayer = 3, wf = 1,
         mean_loss = np.array(loss_list).mean()
         mean_id_loss = np.array(id_loss_list).mean()
         if epoch % 1 == 0:
-            print(datetime.datetime.now(), 'epoch %d: loss: %.5f | coarse loss: %.5f , lr %.5f' %
-                  (epoch + 1, mean_loss, mean_id_loss, optimizer.param_groups[0]["lr"]))
+            print(datetime.datetime.now(), 'epoch %d: loss: %.5f | coarse loss: %.5f' %  #, lr %.5f'
+                  (epoch + 1, mean_loss, mean_id_loss)) # optimizer.param_groups[0]["lr"]
 
         with open('../results/run_1/loss_list_'+model_name+'.txt', 'a') as fd:
             fd.write(f'\n{loss_list}')
@@ -90,7 +87,7 @@ def train(epochs = 700, lr = .001, nlayer = 3, wf = 1,
 if __name__ == "__main__":
 
     start_time = time.time()
-    model_name = "u_trans" #sys.argv[1]
+    model_name = "unet" #sys.argv[1]
     print("start training", model_name)
     train(model_name = model_name)
     end_time = time.time()

@@ -1,7 +1,7 @@
 from torch import nn
 import warnings
 warnings.filterwarnings("ignore")
-import unet
+import unet_old as unet
 from generate_data.wave2 import velocity_verlet_time_integrator as propagate
 from generate_data.WaveUtil import WaveEnergyComponentField, WaveSol_from_EnergyComponent
 import numpy as np

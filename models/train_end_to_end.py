@@ -43,7 +43,7 @@ def propagate_end_to_end(model_name = "unet"):
     #scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=gamma)
 
 
-    ########### approach 1: easy velocity ##################
+    ########### approach 1: D_t ##################
 
     ### data ###
     np.random.seed = 21  # TODO: randomize
@@ -90,18 +90,19 @@ def propagate_end_to_end(model_name = "unet"):
 
 
 
-    #### approach 2: dataloader complex velocities ####
-
-    # train_loaders = fetch_data('../data/traindata_name14.npz',
-    #                   batchsize=batch_size,
-    #                   shuffle=True)
+    #### approach 2: D_t^p (parareal scheme) ####
 
     ### data ###
-
+    train_loaders = fetch_data('../data/bp_m_200_128.npz',
+                      batchsize=batch_size,
+                      shuffle=True)
 
     ### training ###
     for epoch in range(n_epochs):
         loss_list = []
+        for train_loader in train_loaders:
+            for i, data in enumerate(train_loader):
+                inputs, labels = data[0].to(device), data[1].to(device) #parallel computing data
         for j in range(1, mt):
             labels = w2.velocity_verlet_time_integrator(
                 u_prev,
