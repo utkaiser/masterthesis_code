@@ -11,7 +11,7 @@ def save_model(model, modelname):
     from os import path
     model.to(torch.device("cpu"))
     for i in range(100):
-        saving_path = path.join(path.dirname(path.dirname(path.abspath(__file__))),'results/run_1/saved_model_' +modelname+ str(i) + '.pt')
+        saving_path = path.join(path.dirname(path.dirname(path.abspath(__file__))),'results/run_1/saved_model_' +modelname+ "_"+ str(i) + '.pt')
         if not path.isfile(saving_path):
             return save(model.state_dict(), saving_path)
     raise MemoryError("memory exceeded")
@@ -34,6 +34,7 @@ def fetch_data(data_paths, batchsize, shuffle=True):
 
     total_n_datapoints = 0
     train_loaders = []
+
     for path in data_paths:
         npz_PropS = np.load(path)
         inputdata = torch.stack((npdat2Tensor(npz_PropS['Ucx']),

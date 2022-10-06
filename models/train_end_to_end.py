@@ -10,19 +10,6 @@ import torch
 
 def propagate_end_to_end(model_name = "unet"):
 
-    ### parameter setup ###
-    Tf = 2.0
-    cT = 0.2
-    dx = 2.0 / 128.0
-    dt = dx / 20
-    m = 2
-    rt = 4
-    mt = round(Tf / cT)
-    ny, nx = 64, 64
-    x = np.arange(-1, 1, dx)
-    y = np.arange(-1, 1, dx)
-    xx, yy = np.meshgrid(x, y)
-
     #training params
     batch_size = 32
     lr = .01
@@ -46,16 +33,13 @@ def propagate_end_to_end(model_name = "unet"):
     ########### approach 1: D_t ##################
 
     ### data ###
-    np.random.seed = 21  # TODO: randomize
-    center = np.array([-0.8, -0.8])
-    vel = 1. + 0.0 * yy - 0.5 * (np.abs(yy + xx - 0.) > 0.4) + 0. * (np.abs(xx - 0.4) < 0.2) * (np.abs(yy - 0.5) < 0.1)
-    u0 = u_prev = np.exp(-250.0 * (0.2 * (xx - center[0]) ** 2 + (yy - center[1]) ** 2)) * np.cos(
-        8 * np.pi * (yy - center[1]))
-    ut_prev = np.zeros([np.size(xx, axis=1), np.size(yy, axis=0)])
+
+
 
     ### training ###
     for epoch in range(n_epochs):
         loss_list = []
+
         for j in range(1,mt):
 
             labels = w2.velocity_verlet_time_integrator(

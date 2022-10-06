@@ -2,8 +2,6 @@ import numpy as np
 from skimage.transform import resize # for Coarsening
 import wave2
 import wave2_spectral as w2s
-# import matplotlib.pyplot as plt
-# from WaveUtil import WaveEnergyField
 
 def ParallelCompute(v,vt,vel,velX,dx,dX,dt,dT,cT):
 
@@ -22,21 +20,10 @@ def ParallelCompute(v,vt,vel,velX,dx,dX,dt,dT,cT):
             resize(v[:, :, j], [ny, nx], order=4), resize(vt[:, :, j], [ny, nx], order=4),
             velX, dX, dT, cT
         )
-        uc[:, :, j + 1], utc[:, :, j + 1] = ucx, utcx  # resize(ucx,[Ny,Nx],order=4), resize(utcx,[Ny,Nx],order=4)
+        uc[:, :, j + 1], utc[:, :, j + 1] = ucx, utcx
 
         a, b = w2s.wave2(v[:, :, j], vt[:, :, j], vel, dx, dt, cT)
         uf[:, :, j + 1], utf[:, :, j + 1] = a, b
-
-
-        # f, ax = plt.subplots(1, 2)
-        # f.set_figheight(3)
-        # f.set_figwidth(10)
-        # res1 = WaveEnergyField(ucx, utcx, resize(vel,[64,64], order = 4), dX) * dX * dX  # coarse
-        # res2 = WaveEnergyField(a, b, vel, dx) * dx * dx  # fine
-        # ax[0].imshow(res1)
-        # ax[1].imshow(res2)
-        # plt.show()
-
 
     return uc,utc,uf,utf
 

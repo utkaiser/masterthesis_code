@@ -1,5 +1,5 @@
 import numpy as np
-from skimage.transform import resize  # for coarsening
+from skimage.transform import resize
 import ParallelCompute as PComp
 import WavePostprocess
 import WaveUtil
@@ -64,7 +64,7 @@ def generate_wave_from_medium(input_path, output_path):
         print('-'*20, 'sample', j, '-'*20)
 
         #initialization of wave field
-        u_init[:, :, j * n_timeslices], ut_init[:, :, j * n_timeslices] = initCond(grid_x, grid_y, widths[j], centers1[j, :]) #p.20, 14
+        u_init[:, :, j * n_timeslices], ut_init[:, :, j * n_timeslices] = WaveUtil.initCond(grid_x, grid_y, widths[j], centers1[j, :]) #p.20, 14
         vel = vellist[j, :, :]
 
         #integrate initial conditions once using coarse solver/ first guess of parareal scheme
@@ -165,29 +165,6 @@ def InitParareal(u0, ut0, vel, dx, cT, dX, dT, T, pimax):
 
     return up, utp, velX
 
-
-def initCond(xx, yy, width, center):
-    """
-    Gaussian pulse wavefield
-    u0(x,y)=e−(x2+y2)/σ2,∂tu0(x,y)=0, x,y∈δxZ2 ∩[−1,1)2, 1/σ2 ∼N(250,10).
-    """
-
-    u0 = np.exp(-width * ((xx - center[0]) ** 2 + (yy - center[1]) ** 2))
-    #u0 = np.cos(8*np.pi*yy) * np.exp(-25*(xx**2)-250*(yy**2))
-    ut0 = np.zeros([np.size(xx, axis=1), np.size(yy, axis=0)])
-    return u0, ut0
-
-
-def initCond_ricker(xx, yy, width, center):
-    """
-    Ricker pulse wavefield
-    """
-
-    u0 = np.exp(-width * ((xx - center[0]) ** 2 + (yy - center[1]) ** 2))
-    u0 = (1 - 2 * width * ((xx - center[0]) ** 2 + (yy - center[1]) ** 2)) * u0
-    u0 = u0 / np.max(np.abs(u0))
-    ut0 = np.zeros([np.size(xx, axis=1), np.size(yy, axis=0)])
-    return u0, ut0
 
 
 if __name__ == "__main__":

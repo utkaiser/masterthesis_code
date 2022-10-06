@@ -13,7 +13,9 @@ import sys
 
 def train(epochs = 500, lr = .001, nlayer = 3, wf = 1,
           fine_coarse_scale = 2, continue_training = False,
-          model_name = "unet", batchsize = 32, gamma = 0.991):
+          model_name = "unet", batchsize = 1, gamma = 0.991, resolution = "128"):
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # model configuration
     if model_name == "unet":
@@ -22,15 +24,14 @@ def train(epochs = 500, lr = .001, nlayer = 3, wf = 1,
     elif model_name == "tiramisu":
         model = tiramisu.FCDenseNet().double()
         if continue_training: load_model(model_name+"_1", model)
+        model = nn.DataParallel(model).to(device)  # parallel computing model
     elif model_name == "u_trans":
         model = u_transformer.U_Transformer(in_channels=4, classes=3).double()
         if continue_training: load_model(model_name + "_1", model)
     else:
         raise NotImplementedError("model with name " + model_name + " not implemented")
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print("gpu available:", torch.cuda.is_available(), "| n of gpus:", torch.cuda.device_count())
-    #model = nn.DataParallel(model).to(device) #parallel computing model
     model.to(device)
 
     # training setup
@@ -40,7 +41,7 @@ def train(epochs = 500, lr = .001, nlayer = 3, wf = 1,
 
     # training data setup
     data_paths = [
-        '../data/bp_m_200_128.npz',
+        '../data/bp_m_200_'+str(resolution)+'.npz',
     ]
     train_loaders = fetch_data(data_paths, batchsize)
 
@@ -74,11 +75,11 @@ def train(epochs = 500, lr = .001, nlayer = 3, wf = 1,
             print(datetime.datetime.now(), 'epoch %d: loss: %.5f | coarse loss: %.5f' %  #, lr %.5f'
                   (epoch + 1, mean_loss, mean_id_loss)) # optimizer.param_groups[0]["lr"]
 
-        with open('../results/run_1/loss_list_'+model_name+'.txt', 'a') as fd:
+        with open('../results/run_1/loss_list_'+ model_name + resolution +'.txt', 'a') as fd:
             fd.write(f'\n{loss_list}')
 
         if epoch % 50 == 0: #saves first models as a test
-            save_model(model, model_name)
+            save_model(model, model_name + str(resolution))
             model.to(device)
 
     save_model(model, model_name)
@@ -87,8 +88,9 @@ def train(epochs = 500, lr = .001, nlayer = 3, wf = 1,
 if __name__ == "__main__":
 
     start_time = time.time()
-    model_name = "unet" #sys.argv[1]
-    print("start training", model_name)
-    train(model_name = model_name)
+    model_name = "tiramisu" #sys.argv[1]
+    model_resolution = "256" #sys.argv[2]
+    print("start training", model_name, model_resolution)
+    train(model_name = model_name, resolution = model_resolution)
     end_time = time.time()
     print('training done:', (end_time - start_time))
