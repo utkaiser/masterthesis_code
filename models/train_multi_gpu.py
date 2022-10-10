@@ -82,7 +82,7 @@ def train(epochs = 500, lr = .001, nlayer = 3, wf = 1,
             save_model(model, model_name + str(resolution))
             model.to(device)
 
-    save_model(model, model_name  + str(resolution))
+    save_model(model, model_name + str(resolution))
 
 
 if __name__ == "__main__":

@@ -25,6 +25,19 @@ def WaveEnergyComponentField(uS,utS,c,dx):
         
     return wx,wy,wtc
 
+import torch
+def WaveEnergyComponentField_tensor(uS, utS, c, dx):
+    # Compute wave energy component field
+
+    wx = torch.zeros(uS.shape)
+    wy = torch.zeros(uS.shape)
+    wtc = torch.zeros(uS.shape)
+    for i in range(uS.shape[2]):
+        wx[:, :, i], wy[:, :, i] = torch.gradient(uS[:, :, i], spacing= dx)
+        wtc[:, :, i] = torch.divide(utS[:, :, i], c)
+
+    return wx, wy, wtc
+
 def WaveSol_from_EnergyComponent(wx,wy,wtc,c,dx,sumv):
     # Compute wave solution components from energy component
 

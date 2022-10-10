@@ -56,7 +56,7 @@ def InitNetParareal(u0,ut0,vel,dx,dt,cT,m,tm,T,pimax,net=None):
     
     # Initialize iteration with coarse solution
     for j in range(ncT-1):        
-        UX,UtX = wave2.wave2(UX,UtX,velX,dX,dT,cT)
+        UX,UtX = wave2.velocity_verlet_time_integrator(UX,UtX,velX,dX,dT,cT)
         if net != None:
             vX,vtX = WavePostprocess.ApplyJNet2WaveSol(UX,UtX,vel,dx,net,m)
             up[:,:,j+1,0] = vX
@@ -95,7 +95,7 @@ def parareal2_NNpostprocess(u0,ut0,vel,dx,dt,cT,m,tm,T,pimax,net):
     
     dX = dx*m
     dT = dt*tm
-    
+
     up,utp,velX = InitNetParareal(u0,ut0,vel,dx,dt,cT,m,tm,T,pimax,net)
     # Parareal iteration 
     for parI in range(pimax-1):
@@ -111,7 +111,7 @@ def parareal2_NNpostprocess(u0,ut0,vel,dx,dt,cT,m,tm,T,pimax,net):
         for j in range(ncT-1):
             w0 = resize(up[:,:,j,parI+1],[ny,nx],order=4)
             wt0 = resize(utp[:,:,j,parI+1],[ny,nx],order=4)
-            wX,wtX = wave2.wave2(w0,wt0,velX,dX,dT,cT)
+            wX,wtX = wave2.velocity_verlet_time_integrator(w0,wt0,velX,dX,dT,cT)
             uX,utX = WavePostprocess.ApplyJNet2WaveSol(wX,wtX,\
                                                       vel,dx,net,m)            
             
@@ -167,7 +167,7 @@ def parareal2_Original(u0,ut0,vel,dx,dt,cT,m,tm,T,pimax):
         for j in range(ncT-1):
             w0 = resize(up[:,:,j,parI+1],[ny,nx],order=4)
             wt0 = resize(utp[:,:,j,parI+1],[ny,nx],order=4)
-            uX,utX = wave2.wave2(w0,wt0,velX,dX,dT,cT)
+            uX,utX = wave2.velocity_verlet_time_integrator(w0,wt0,velX,dX,dT,cT)
         
             vX = resize(UcX[:,:,j+1],[Ny,Nx],order=4)
             vtX = resize(UtcX[:,:,j+1],[Ny,Nx],order=4)
@@ -228,7 +228,7 @@ def parareal2_Procrustes(u0,ut0,vel,dx,dt,cT,m,tm,T,pimax):
         for j in range(ncT-1):
             w0 = resize(up[:,:,j,parI+1],[ny,nx],order=4)
             wt0 = resize(utp[:,:,j,parI+1],[ny,nx],order=4)
-            wX,wtX = wave2.wave2(w0,wt0,velX,dX,dT,cT)
+            wX,wtX = wave2.velocity_verlet_time_integrator(w0,wt0,velX,dX,dT,cT)
             
             uX,utX = WavePostprocess.ApplyOPP2WaveSol(resize(wX,vel.shape,order=4),resize(wtX,vel.shape,order=4),\
                                                       vel,dx,(P,S,Q))
@@ -291,7 +291,7 @@ def parareal2_coarseProcrustes(u0,ut0,vel,dx,dt,cT,m,tm,T,pimax):
         for j in range(ncT-1):
             w0 = resize(up[:,:,j,parI+1],[ny,nx],order=4)
             wt0 = resize(utp[:,:,j,parI+1],[ny,nx],order=4)
-            wX,wtX = wave2.wave2(w0,wt0,velX,dX,dT,cT)
+            wX,wtX = wave2.velocity_verlet_time_integrator(w0,wt0,velX,dX,dT,cT)
             
             uX,utX = WavePostprocess.ApplyOPP2WaveSol(wX,wtX,velX,dX,(P,S,Q))
                        
@@ -351,7 +351,7 @@ def parareal2_NNseq(u0,ut0,vel,dx,dt,cT,m,tm,Ts,Tf,pimax,net):
             for j in range(scT-1):
                 w0 = resize(useq[:,:,j,parI+1],[ny,nx],order=4)
                 wt0 = resize(utseq[:,:,j,parI+1],[ny,nx],order=4)
-                wX,wtX = wave2.wave2(w0,wt0,velX,dX,dT,cT)
+                wX,wtX = wave2.velocity_verlet_time_integrator(w0,wt0,velX,dX,dT,cT)
                 uX,utX = WavePostprocess.ApplyNet2WaveSol7in(useq[:,:,j,parI+1],utseq[:,:,j,parI+1],\
                                                           resize(wX,vel.shape,order=4),resize(wtX,vel.shape,order=4),\
                                                           vel,dx,net)            
@@ -367,7 +367,7 @@ def parareal2_NNseq(u0,ut0,vel,dx,dt,cT,m,tm,Ts,Tf,pimax,net):
         up[:,:,k*scT:endseq,:] = useq[:,:,:,:]
         utp[:,:,k*scT:endseq,:] = utseq[:,:,:,:]
         
-        up[:,:,endseq,-1],utp[:,:,endseq,-1] = wave2.wave2(up[:,:,endseq-1,-1],utp[:,:,endseq-1,-1],\
+        up[:,:,endseq,-1],utp[:,:,endseq,-1] = wave2.velocity_verlet_time_integrator(up[:,:,endseq-1,-1],utp[:,:,endseq-1,-1],\
                                               vel,dx,dt,cT)
         
         

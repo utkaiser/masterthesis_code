@@ -1,4 +1,5 @@
 import numpy as np
+import torch
 
 '''
 Solving 2D second order wave equation with periodic BC
@@ -37,31 +38,6 @@ def velocity_verlet_time_integrator(u0,ut0,vel,dx,dt,Tf):
     
     return u, ut
 
-
-def velocity_verlet_zero_padding(u0, ut0, vel, dx, dt, Tf):
-    """
-    Wave solution propagator
-    propagate wavefield using velocity Verlet in time and the second order
-    discrete Laplacian in space
-    found eq. 10 in paper
-    """
-
-    Nt = round(abs(Tf / dt))
-    c2 = np.multiply(vel, vel)
-    u = u0
-    ut = ut0
-
-    for i in range(Nt):
-        # Velocity Verlet
-
-        ddxou = periLaplacian2(u, dx)
-        u = u + dt * ut + 0.5 * dt ** 2 * np.multiply(c2, ddxou)
-        ddxu = periLaplacian2(u, dx)
-        ut = ut + 0.5 * dt * np.multiply(c2, ddxou + ddxu)
-
-    return u,ut
-
-
 def periLaplacian2(v,dx):
     """
     Define periodic Laplacian
@@ -72,6 +48,42 @@ def periLaplacian2(v,dx):
          (np.roll(v,1,axis=0) - 2*v + np.roll(v,-1,axis=0))/(dx**2)
 
     return Lv
+
+
+def velocity_verlet_tensor(u0, ut0, vel, dx, dt, Tf):
+    """
+    Wave solution propagator
+    propagate wavefield using velocity Verlet in time and the second order
+    discrete Laplacian in space
+    found eq. 10 in paper
+    """
+
+    Nt = round(abs(Tf / dt))
+    c2 = torch.mul(vel, vel)
+    u = u0
+    ut = ut0
+
+    for i in range(Nt):
+        # Velocity Verlet
+
+        ddxou = periLaplacian2_tensor(u, dx)
+        u = u + dt * ut + 0.5 * dt ** 2 * torch.mul(c2, ddxou)
+        ddxu = periLaplacian2_tensor(u, dx)
+        ut = ut + 0.5 * dt * torch.mul(c2, ddxou + ddxu)
+
+    return u,ut
+
+def periLaplacian2_tensor(v,dx):
+    """
+    Define periodic Laplacian
+    evaluate discrete Laplacian with periodic boundary condition
+    """
+
+    Lv = (torch.roll(v,1,dims=1) - 2*v + torch.roll(v,-1,dims=1))/(dx**2)+\
+         (torch.roll(v,1,dims=0) - 2*v + torch.roll(v,-1,dims=0))/(dx**2)
+
+    return Lv
+
 
 
 def del2_iso9p(v,dx):
