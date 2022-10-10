@@ -1,11 +1,10 @@
 import numpy as np
 from skimage.transform import resize
-import ParallelCompute as PComp
-
-import wave2   
-import WavePostprocess
-import WaveUtil
-import OPPmodel
+import generate_data.wave2 as wave2
+import generate_data.ParallelCompute as PComp
+import generate_data.WavePostprocess as WavePostprocess
+import generate_data.WaveUtil as WaveUtil
+import generate_data.OPPmodel as OPPmodel
 #import modeltraining
 #import CleanUtil
 

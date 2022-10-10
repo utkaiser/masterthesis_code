@@ -1,7 +1,7 @@
 import numpy as np
 from skimage.transform import resize # for Coarsening
-import wave2
-import wave2_spectral as w2s
+import generate_data.wave2 as wave2
+import generate_data.wave2_spectral as w2s
 
 def ParallelCompute(v,vt,vel,velX,dx,dX,dt,dT,cT):
 

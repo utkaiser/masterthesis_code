@@ -38,17 +38,42 @@ def velocity_verlet_time_integrator(u0,ut0,vel,dx,dt,Tf):
     return u, ut
 
 
+def velocity_verlet_zero_padding(u0, ut0, vel, dx, dt, Tf):
+    """
+    Wave solution propagator
+    propagate wavefield using velocity Verlet in time and the second order
+    discrete Laplacian in space
+    found eq. 10 in paper
+    """
+
+    Nt = round(abs(Tf / dt))
+    c2 = np.multiply(vel, vel)
+    u = u0
+    ut = ut0
+
+    for i in range(Nt):
+        # Velocity Verlet
+
+        ddxou = periLaplacian2(u, dx)
+        u = u + dt * ut + 0.5 * dt ** 2 * np.multiply(c2, ddxou)
+        ddxu = periLaplacian2(u, dx)
+        ut = ut + 0.5 * dt * np.multiply(c2, ddxou + ddxu)
+
+    return u,ut
+
+
 def periLaplacian2(v,dx):
     """
     Define periodic Laplacian
     evaluate discrete Laplacian with periodic boundary condition
     """
 
-    Lv = (np.roll(v,1,axis=1) - 2*v + np.roll(v,-1,axis=1))/(dx**2) + \
+    Lv = (np.roll(v,1,axis=1) - 2*v + np.roll(v,-1,axis=1))/(dx**2)+\
          (np.roll(v,1,axis=0) - 2*v + np.roll(v,-1,axis=0))/(dx**2)
+
     return Lv
 
-'''
+
 def del2_iso9p(v,dx):
     """
     evaluate isotropic discrete Laplacian with 9-point stencil
@@ -109,4 +134,4 @@ def wave2_9p(u0,ut0,vel,dx,dt,Tf):
         ut = ut + 0.5*dt*np.multiply(c2,ddxou+ddxu)
     
     return u, ut
-'''
+

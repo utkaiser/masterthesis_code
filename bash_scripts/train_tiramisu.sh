@@ -11,5 +11,4 @@
 
 pwd; hostname; date
 
-python3 ../models/train_multi_gpu.py tiramisu 128
-python3 ../models/train_multi_gpu.py tiramisu 256
+python3 ../models/train_multi_gpu.py tiramisu 256 4
