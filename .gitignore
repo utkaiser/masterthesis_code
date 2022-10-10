@@ -4,4 +4,4 @@ notes.txt
 *.npz
 *.mat
 old_code
-analysis.test.py
+analysis/test.py
