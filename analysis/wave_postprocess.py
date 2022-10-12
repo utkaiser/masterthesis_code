@@ -1,8 +1,8 @@
 import numpy as np
 import torch
 from skimage.transform import resize
-import WaveUtil
-import OPPmodel
+import generate_data.wave_util as WaveUtil
+import generate_data.opp_model as OPPmodel
 
 def ApplyJNet2WaveSol(w,wt,c,dx,net,m=2):
     ''' 

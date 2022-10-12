@@ -5,6 +5,7 @@ import math
 import numpy as np
 
 #https://github.com/HXLH50K/U-Net-Transformer/blob/main/models/utransformer/U_Transformer.py
+#https://arxiv.org/pdf/2103.06104.pdf
 
 class DoubleConv(nn.Module):
     def __init__(self, in_channels, out_channels, mid_channels=None):

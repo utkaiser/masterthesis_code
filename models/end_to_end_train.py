@@ -7,7 +7,7 @@ import datetime
 from model_utils import save_model, fetch_data_end_to_end
 import torch
 
-def train_end_to_end(batch_size = 1, lr = .01, gamma = .991, fine_coarse_scale = 2, n_epochs = 500,
+def train_end_to_end(batch_size = 32, lr = .001, gamma = .991, fine_coarse_scale = 2, n_epochs = 500,
                          nlayer = 3, wf = 1, continue_training = False, model_name = "unet", resolution = "128"):
 
 
@@ -40,14 +40,17 @@ def train_end_to_end(batch_size = 1, lr = .01, gamma = .991, fine_coarse_scale =
 
                 outputs = model(inputs)
 
+                print(inputs.shape, outputs.shape, labels.shape)
+
                 optimizer.zero_grad()
                 loss = loss_f(outputs, labels) #fine solution as target
+
                 loss_list.append(loss.item())
                 loss.backward()
                 optimizer.step()
 
         if epoch % 1 == 0:
-            print(datetime.datetime.now(), 'epoch %d: loss: %.5f' % (epoch + 1, np.array(loss_list).mean()))
+            print(datetime.datetime.now(), 'epoch %d loss: %.5f' % (epoch + 1, np.array(loss_list).mean()))
 
         if epoch % 50 == 0:  # saves first models as a test
             save_model(model, model_name + str(resolution))

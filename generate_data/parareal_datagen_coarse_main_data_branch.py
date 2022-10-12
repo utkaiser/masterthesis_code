@@ -19,6 +19,8 @@ def generate_wave_from_medium(input_path, output_path):
         coarse-fine solutions are computed.
     """
 
+    #TODO: make coarse solver main data branch
+
     # parameter setup
     T, cT = 2, .2 #T time, cT time snapshot T_com in paper
     f_delta_x = 2.0/128.0  # .01 #discretization in spatial (fine disc, fine solver)

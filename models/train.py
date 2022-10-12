@@ -2,13 +2,14 @@ import time
 import numpy as np
 import torch
 import torch.nn as nn
-import unet_old as unet
+import unet
 import tiramisu
 import u_transformer
 import torch.optim as optim
 from model_utils import save_model, load_model
 import datetime
 from model_utils import fetch_data
+#from torchsummary import summary
 import sys
 
 def train(epochs = 500, lr = .001, nlayer = 3, wf = 1,
@@ -20,20 +21,22 @@ def train(epochs = 500, lr = .001, nlayer = 3, wf = 1,
     # model configuration
     if model_name == "unet":
         model = unet.UNet(depth=6, wf=1, acti_func='relu', scale_factor=fine_coarse_scale).double()
-        if continue_training: load_model(model_name+"_1", model)
+        model.to(device)
     elif model_name == "tiramisu":
         model = tiramisu.FCDenseNet(scale_factor= fine_coarse_scale).double()
         batchsize = 20
-        if continue_training: load_model(model_name+"_1", model)
         model = nn.DataParallel(model).to(device)  # parallel computing model
     elif model_name == "u_trans":
+        batchsize = 20
         model = u_transformer.U_Transformer(in_channels=4, classes=3).double()
-        if continue_training: load_model(model_name + "_1", model)
+        model = nn.DataParallel(model).to(device)  # parallel computing model
+        #summary(model, (4, int(resolution)//int(fine_coarse_scale), int(resolution)//int(fine_coarse_scale)))
     else:
         raise NotImplementedError("model with name " + model_name + " not implemented")
 
+    if continue_training: load_model(model_name + "_1", model)
     print("gpu available:", torch.cuda.is_available(), "| n of gpus:", torch.cuda.device_count())
-    model.to(device)
+
 
     # training setup
     optimizer = optim.Adam(model.parameters(), lr=lr)
@@ -88,9 +91,15 @@ def train(epochs = 500, lr = .001, nlayer = 3, wf = 1,
 if __name__ == "__main__":
 
     start_time = time.time()
+
+    # model_name = "u_trans"
+    # model_resolution = "128"
+    # scaler = "2"
+
     model_name = sys.argv[1]
     model_resolution = sys.argv[2]
     scaler = sys.argv[3]
+
     print("start training", model_name, model_resolution)
     train(model_name = model_name, resolution = model_resolution, fine_coarse_scale=int(scaler))
     end_time = time.time()

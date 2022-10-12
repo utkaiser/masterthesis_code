@@ -1,5 +1,6 @@
 import numpy as np
 from scipy import fftpack
+import torch
 
 
 def WaveEnergyField(u,ut,c,dx):
@@ -15,26 +16,23 @@ def WaveEnergyField(u,ut,c,dx):
 
 def WaveEnergyComponentField(uS,utS,c,dx):
     # Compute wave energy component field
-
     wx = np.zeros(uS.shape)
     wy = np.zeros(uS.shape)
-    wtc = np.zeros(uS.shape) 
+    wtc = np.zeros(uS.shape)
     for i in range(uS.shape[2]):
         wx[:,:,i],wy[:,:,i] = np.gradient(uS[:,:,i],dx)
         wtc[:,:,i] = np.divide(utS[:,:,i],c)
-        
     return wx,wy,wtc
 
-import torch
+
 def WaveEnergyComponentField_tensor(uS, utS, c, dx):
     # Compute wave energy component field
-
     wx = torch.zeros(uS.shape)
     wy = torch.zeros(uS.shape)
     wtc = torch.zeros(uS.shape)
-    for i in range(uS.shape[2]):
-        wx[:, :, i], wy[:, :, i] = torch.gradient(uS[:, :, i], spacing= dx)
-        wtc[:, :, i] = torch.divide(utS[:, :, i], c)
+    for b in range(uS.shape[0]):
+        wx[b, :, :], wy[b, :, :] = torch.gradient(uS[b, :, :], spacing= dx)
+        wtc[b, :, :] = torch.divide(utS[b, :, :], c[b,:,:])
 
     return wx, wy, wtc
 
@@ -93,3 +91,35 @@ def initCond_ricker(xx, yy, width, center):
     u0 = u0 / np.max(np.abs(u0))
     ut0 = np.zeros([np.size(xx, axis=1), np.size(yy, axis=0)])
     return u0, ut0
+
+
+def WaveSol_from_EnergyComponent_tensor(wx, wy, wtc, c, dx, sumv):
+    # Compute wave solution components from energy component
+
+    u = torch.zeros((wx.shape[0],128,128))
+    for b in range(wx.shape[0]):
+        u[b,:,:] = grad2func_tensor(wx[b,:,:], wy[b,:,:], dx, sumv)
+
+    ut = torch.multiply(wtc, c)
+
+    return u, ut
+
+
+def grad2func_tensor(vx, vy, dx, sumv):
+    # Mapping gradient to functional value
+
+    hatx = torch.fft.fft2(vx)
+    haty = torch.fft.fft2(vy)
+
+    ny, nx = vx.shape
+
+    xii = 2 * torch.pi / (dx * nx) * torch.fft.fftshift(torch.linspace(-round(nx / 2), round(nx / 2 - 1), nx))
+    yii = 2 * torch.pi / (dx * ny) * torch.fft.fftshift(torch.linspace(-round(ny / 2), round(ny / 2 - 1), ny))
+
+    yiyi, xixi = torch.meshgrid(xii, yii)
+    radsq = torch.multiply(xixi, xixi) + torch.multiply(yiyi, yiyi)
+    radsq[0, 0] = 1
+    hatv = -1j * torch.divide((torch.multiply(hatx, xixi) + torch.multiply(haty, yiyi)), radsq)
+    hatv[0, 0] = sumv
+
+    return torch.real(torch.fft.ifft2(hatv))

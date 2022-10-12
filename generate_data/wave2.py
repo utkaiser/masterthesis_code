@@ -50,7 +50,7 @@ def periLaplacian2(v,dx):
     return Lv
 
 
-def velocity_verlet_tensor(u0, ut0, vel, dx, dt, Tf):
+def velocity_verlet_tensor(u0, ut0, vel, dx, dt, Tf, number=0):
     """
     Wave solution propagator
     propagate wavefield using velocity Verlet in time and the second order
@@ -66,21 +66,21 @@ def velocity_verlet_tensor(u0, ut0, vel, dx, dt, Tf):
     for i in range(Nt):
         # Velocity Verlet
 
-        ddxou = periLaplacian2_tensor(u, dx)
+        ddxou = periLaplacian2_tensor(u, dx, number)
         u = u + dt * ut + 0.5 * dt ** 2 * torch.mul(c2, ddxou)
-        ddxu = periLaplacian2_tensor(u, dx)
+        ddxu = periLaplacian2_tensor(u, dx, number)
         ut = ut + 0.5 * dt * torch.mul(c2, ddxou + ddxu)
 
     return u,ut
 
-def periLaplacian2_tensor(v,dx):
+def periLaplacian2_tensor(v,dx, number):
     """
     Define periodic Laplacian
     evaluate discrete Laplacian with periodic boundary condition
     """
 
-    Lv = (torch.roll(v,1,dims=1) - 2*v + torch.roll(v,-1,dims=1))/(dx**2)+\
-         (torch.roll(v,1,dims=0) - 2*v + torch.roll(v,-1,dims=0))/(dx**2)
+    Lv = (torch.roll(v,1,dims=1+number) - 2*v + torch.roll(v,-1,dims=1+number))/(dx**2)+\
+         (torch.roll(v,1,dims=0+number) - 2*v + torch.roll(v,-1,dims=0+number))/(dx**2)
 
     return Lv
 
