@@ -2,7 +2,7 @@ import numpy as np
 from skimage.transform import resize
 import generate_data.wave2 as wave2
 import generate_data.parallel_compute as PComp
-import analysis.wave_postprocess as WavePostprocess
+import generate_data.wave_postprocess as WavePostprocess
 import generate_data.wave_util as WaveUtil
 import generate_data.opp_model as OPPmodel
 #import modeltraining

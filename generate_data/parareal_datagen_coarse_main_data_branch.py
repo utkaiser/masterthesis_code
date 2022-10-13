@@ -1,11 +1,12 @@
 import numpy as np
 from skimage.transform import resize
 import parallel_compute as PComp
-from analysis import wave_postprocess
 import wave_util
 import wave2 as wave2
 import wave2_spectral as w2s
 import opp_model
+import wave_postprocess
+
 # import sys
 # import matplotlib.pyplot as plt
 # import torch
@@ -18,8 +19,6 @@ def generate_wave_from_medium(input_path, output_path):
         the Procrustes parareal scheme, during which the pair
         coarse-fine solutions are computed.
     """
-
-    #TODO: make coarse solver main data branch
 
     # parameter setup
     T, cT = 2, .2 #T time, cT time snapshot T_com in paper
@@ -66,7 +65,7 @@ def generate_wave_from_medium(input_path, output_path):
         print('-'*20, 'sample', j, '-'*20)
 
         #initialization of wave field
-        u_init[:, :, j * n_timeslices], ut_init[:, :, j * n_timeslices] = WaveUtil.initCond(grid_x, grid_y, widths[j], centers1[j, :]) #p.20, 14
+        u_init[:, :, j * n_timeslices], ut_init[:, :, j * n_timeslices] = wave_util.initCond(grid_x, grid_y, widths[j], centers1[j, :]) #p.20, 14
         vel = vellist[j, :, :]
 
         #integrate initial conditions once using coarse solver/ first guess of parareal scheme
@@ -83,11 +82,11 @@ def generate_wave_from_medium(input_path, output_path):
 
             #way to compute the solution, solve fine and coarse solution using velocity etc., for current solution/iteration
             UcX, UtcX, UfX, UtfX = PComp.ParallelCompute(vx, vtx, vel, velX, f_delta_x, c_delta_x, f_delta_t, c_delta_t, cT) #propagation of wave field for whole interval
-            udx, udy, utdt = WaveUtil.WaveEnergyComponentField(UcX, UtcX, velX, c_delta_x) #convert above into energy component
+            udx, udy, utdt = wave_util.WaveEnergyComponentField(UcX, UtcX, velX, c_delta_x) #convert above into energy component
             UcX = resize(UcX, [Ny, Nx], order=4)
             UtcX = resize(UtcX, [Ny, Nx], order=4)
-            UcXdx, UcXdy, UtcXdt = WaveUtil.WaveEnergyComponentField(UcX, UtcX, vel, f_delta_x)
-            UfXdx, UfXdy, UtfXdt = WaveUtil.WaveEnergyComponentField(UfX, UtfX, vel, f_delta_x)
+            UcXdx, UcXdy, UtcXdt = wave_util.WaveEnergyComponentField(UcX, UtcX, vel, f_delta_x)
+            UfXdx, UfXdy, UtfXdt = wave_util.WaveEnergyComponentField(UfX, UtfX, vel, f_delta_x)
 
             #saving solutions in tensor
             ridx = np.arange(j * n_timeslices + i * ncT, j * n_timeslices + (i + 1) * ncT)
@@ -103,9 +102,9 @@ def generate_wave_from_medium(input_path, output_path):
 
             #idea: compute matrix correction to correct my solution later
             if i == 0:
-                P, S, Q = OPPmodel.ProcrustesShiftMap(i, coarse_dat=(UcXdx, UcXdy, UtcXdt), fine_dat=(UfXdx, UfXdy, UtfXdt), vel=vel, datmode='numpy')
+                P, S, Q = opp_model.ProcrustesShiftMap(i, coarse_dat=(UcXdx, UcXdy, UtcXdt), fine_dat=(UfXdx, UfXdy, UtfXdt), vel=vel, datmode='numpy')
             else:
-                P, S, Q = OPPmodel.ProcrustesShiftMap(i, coarse_dat=(UcXdx, UcXdy, UtcXdt), fine_dat=(UfXdx, UfXdy, UtfXdt), opmap=(P, S, Q), vel=vel, datmode='numpy')
+                P, S, Q = opp_model.ProcrustesShiftMap(i, coarse_dat=(UcXdx, UcXdy, UtcXdt), fine_dat=(UfXdx, UfXdy, UtfXdt), opmap=(P, S, Q), vel=vel, datmode='numpy')
 
             # Serial update, sequential step, compute my solution
             for ppp in range(ncT - 1):
@@ -117,10 +116,10 @@ def generate_wave_from_medium(input_path, output_path):
                 wX, wtX = w2s.wave2s(w0, wt0, velX, c_delta_x, c_delta_t, cT) #solver has to match with parareal compute PComp.ParallelCompute
 
                 #use computed correct P, S, Q to correct coarse solution
-                uX, utX = WavePostprocess.ApplyOPP2WaveSol(resize(wX, vel.shape, order=4),
+                uX, utX = wave_postprocess.ApplyOPP2WaveSol(resize(wX, vel.shape, order=4),
                                                            resize(wtX, vel.shape, order=4),
                                                            vel, f_delta_x, (P, S, Q))
-                vX, vtX = WavePostprocess.ApplyOPP2WaveSol(resize(UcX[:, :, ppp + 1], vel.shape, order=4),
+                vX, vtX = wave_postprocess.ApplyOPP2WaveSol(resize(UcX[:, :, ppp + 1], vel.shape, order=4),
                                                            resize(UtcX[:, :, ppp + 1], vel.shape, order=4),
                                                            vel, f_delta_x, (P, S, Q))
 

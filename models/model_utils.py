@@ -33,7 +33,7 @@ def npdat2Tensor_tensor(nda):
     return ndt
 
 
-def fetch_data(data_paths, batchsize, shuffle=True):
+def fetch_data(data_paths, batchsize=1, shuffle=True):
     print("setting up data")
 
     total_n_datapoints = 0
