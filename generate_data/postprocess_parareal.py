@@ -1,17 +1,10 @@
 import numpy as np
 from skimage.transform import resize
-import generate_data.wave2 as wave2
+import generate_data.wave_propagation as wave2
 import generate_data.parallel_compute as PComp
-import generate_data.wave_postprocess as WavePostprocess
+import generate_data.postprocess_wave as WavePostprocess
 import generate_data.wave_util as WaveUtil
 import generate_data.opp_model as OPPmodel
-#import modeltraining
-#import CleanUtil
-
-#import torch
-#import torchvision
-#import torchvision.transforms as transforms
-#import torch.nn as nn
 
 
 def InitNetParareal(u0,ut0,vel,dx,dt,cT,m,tm,T,pimax,net=None):

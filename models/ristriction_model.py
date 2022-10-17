@@ -2,7 +2,7 @@ from torch import nn
 import warnings
 warnings.filterwarnings("ignore")
 import unet as unet
-from generate_data.wave2 import velocity_verlet_tensor
+from generate_data.wave_propagation import velocity_verlet_tensor
 from generate_data.wave_util import WaveEnergyComponentField_tensor, WaveSol_from_EnergyComponent_tensor
 import torch
 

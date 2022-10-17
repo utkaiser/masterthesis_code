@@ -1,8 +1,8 @@
 import numpy as np
 import torch
 from skimage.transform import resize
-import generate_data.wave_util as WaveUtil
-import generate_data.opp_model as OPPmodel
+from generate_data import wave_util
+from generate_data import opp_model
 
 def ApplyJNet2WaveSol(w,wt,c,dx,net,m=2):
     ''' 
@@ -20,7 +20,7 @@ def ApplyJNet2WaveSol(w,wt,c,dx,net,m=2):
     '''
     
     c_coarse = resize(c,w.shape,order=4)
-    wx,wy,wtc = WaveUtil.WaveEnergyComponentField(np.expand_dims(w,axis=2),np.expand_dims(wt,axis=2),c_coarse,dx*m)
+    wx,wy,wtc = wave_util.WaveEnergyComponentField(np.expand_dims(w,axis=2),np.expand_dims(wt,axis=2),c_coarse,dx*m)
 
     wx = torch.from_numpy(np.transpose(wx,(2,0,1)))
     wy = torch.from_numpy(np.transpose(wy,(2,0,1)))
@@ -36,7 +36,7 @@ def ApplyJNet2WaveSol(w,wt,c,dx,net,m=2):
     vtc = outputs[0,2,:,:]
     
     sumv = np.sum(resize(w,c.shape,order=4))
-    u,ut = WaveUtil.WaveSol_from_EnergyComponent(vx.detach().numpy(),vy.detach().numpy(),\
+    u,ut = wave_util.WaveSol_from_EnergyComponent(vx.detach().numpy(),vy.detach().numpy(),
                                                  vtc.detach().numpy(),c,dx,sumv)
     
     return u,ut
@@ -59,12 +59,12 @@ def ApplyOPP2WaveSol(w,wt,c,dx,opmap):
     '''
     P,_,Q = opmap
     
-    wx,wy,wtc = WaveUtil.WaveEnergyComponentField(np.expand_dims(w,axis=2),np.expand_dims(wt,axis=2),c,dx)
+    wx,wy,wtc = wave_util.WaveEnergyComponentField(np.expand_dims(w,axis=2),np.expand_dims(wt,axis=2),c,dx)
     
-    vx,vy,vtc = OPPmodel.ProcrustesShift(P,Q,(wx,wy,wtc),datmode='numpy')
+    vx,vy,vtc = opp_model.ProcrustesShift(P,Q,(wx,wy,wtc),datmode='numpy')
 
     sumv = np.sum(w)
     
-    u,ut = WaveUtil.WaveSol_from_EnergyComponent(np.squeeze(vx),np.squeeze(vy),\
+    u,ut = wave_util.WaveSol_from_EnergyComponent(np.squeeze(vx),np.squeeze(vy),
                                                  np.squeeze(vtc),c,dx,sumv)
     return u,ut

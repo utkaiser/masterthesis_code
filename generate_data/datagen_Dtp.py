@@ -1,14 +1,13 @@
 import numpy as np
 from skimage.transform import resize
 import parallel_compute as PComp
-import wave2 as wave2
-import wave2_spectral as w2s
+import wave_propagation as wave2
+import wave_propagation_spectral as w2s
 import opp_model
-import wave_postprocess
 import wave_util
 
 # import sys
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 # import torch
 
 def generate_wave_from_medium(input_path, output_path, resolution_f = 128, resolution_c = 64):

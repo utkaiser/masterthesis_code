@@ -1,7 +1,6 @@
 import numpy as np
-from wave_util import initCond, WaveEnergyComponentField
-import wave2
-import wave2_spectral as w2s
+from wave_util import initCond
+import wave_propagation_spectral as w2s
 
 def datagen_Dt(input_path, output_path):
 

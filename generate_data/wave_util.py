@@ -2,7 +2,6 @@ import numpy as np
 from scipy import fftpack
 import torch
 
-
 def WaveEnergyField(u,ut,c,dx):
     # Compute wave energy field
 
