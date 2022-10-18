@@ -5,3 +5,4 @@ notes.txt
 *.mat
 old_code
 analysis/test.py
+generate_data/additional_code.py

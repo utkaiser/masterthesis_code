@@ -23,7 +23,6 @@ def WaveEnergyComponentField(uS,utS,c,dx):
         wtc[:,:,i] = np.divide(utS[:,:,i],c)
     return wx,wy,wtc
 
-
 def WaveEnergyComponentField_tensor(uS, utS, c, dx):
     # Compute wave energy component field
     wx = torch.zeros(uS.shape)
@@ -67,29 +66,6 @@ def gradient2Per(v,dx,dy):
 
     vx,vy = np.gradient(v,dx,dy)
     return vx, vy
-
-def initCond(xx, yy, width, center):
-    """
-    Gaussian pulse wavefield
-    u0(x,y)=e−(x2+y2)/σ2,∂tu0(x,y)=0, x,y∈δxZ2 ∩[−1,1)2, 1/σ2 ∼N(250,10).
-    """
-
-    u0 = np.exp(-width * ((xx - center[0]) ** 2 + (yy - center[1]) ** 2))
-    #u0 = np.cos(8*np.pi*yy) * np.exp(-25*(xx**2)-250*(yy**2))
-    ut0 = np.zeros([np.size(xx, axis=1), np.size(yy, axis=0)])
-    return u0, ut0
-
-
-def initCond_ricker(xx, yy, width, center):
-    """
-    Ricker pulse wavefield
-    """
-
-    u0 = np.exp(-width * ((xx - center[0]) ** 2 + (yy - center[1]) ** 2))
-    u0 = (1 - 2 * width * ((xx - center[0]) ** 2 + (yy - center[1]) ** 2)) * u0
-    u0 = u0 / np.max(np.abs(u0))
-    ut0 = np.zeros([np.size(xx, axis=1), np.size(yy, axis=0)])
-    return u0, ut0
 
 
 def WaveSol_from_EnergyComponent_tensor(wx, wy, wtc, c, dx, sumv):

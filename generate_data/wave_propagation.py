@@ -1,21 +1,37 @@
 import numpy as np
 import torch
+from skimage.transform import resize # for coarsening
+from scipy import fft
 
-'''
-Solving 2D second order wave equation with periodic BC
-Input: 
-    u_0 (2d array) initial condition
-    ut_0 (2d array) initial condition
-    vel (2d array) wavespeed field
-    dx (double) spatial grid 
-    dt (double) temporal step size
-    Tf (double) terminal time
-Output:
-    u (2d array) solution at final time Tf
-    ut (2d array) solution at final time Tf
-'''
+def parallel_compute(u, ut, vel, vel_c, f_delta_x, c_delta_x, f_delta_t, c_delta_t, delta_t_star):
 
-def velocity_verlet_time_integrator(u0,ut0,vel,dx,dt,Tf):
+    n_snapshots = u.shape[2]
+    resolution_c, resolution_f = vel_c.shape[0], vel.shape[0]
+
+    # pre-allocate arrays for output
+    uf = np.zeros([resolution_f,resolution_f,n_snapshots])
+    utf = np.zeros([resolution_f,resolution_f,n_snapshots])
+    uc = np.zeros([resolution_c,resolution_c,n_snapshots])
+    utc = np.zeros([resolution_c,resolution_c,n_snapshots])
+
+    # parallel loop, each rhs is independent of lhs
+    for j in range(n_snapshots):
+
+        restriction_u, restriction_ut = resize(u[:, :, j], [resolution_c, resolution_c], order=4),\
+                                        resize(ut[:, :, j], [resolution_c, resolution_c], order=4)
+
+        # coarse solver propagation using finite-difference time-domain method
+        uc[:,:,j], utc[:,:,j] = velocity_verlet(restriction_u, restriction_ut,
+                                                vel_c, c_delta_x, c_delta_t, delta_t_star)
+
+        # fine solver propagation using pseudo spectral method
+        uf[:,:,j], utf[:,:,j] = pseudo_spectral(u[:, :, j], ut[:, :, j], vel, f_delta_x, f_delta_t, delta_t_star)
+
+    return uc,utc,uf,utf
+
+
+
+def velocity_verlet(u0, ut0, vel, dx, dt, delta_t_star):
     """
     Wave solution propagator
     propagate wavefield using velocity Verlet in time and the second order
@@ -23,7 +39,7 @@ def velocity_verlet_time_integrator(u0,ut0,vel,dx,dt,Tf):
     found eq. 10 in paper
     """
 
-    Nt = round(abs(Tf/dt))
+    Nt = round(abs(delta_t_star / dt))
     c2 = np.multiply(vel,vel)
     u = u0
     ut = ut0
@@ -31,14 +47,37 @@ def velocity_verlet_time_integrator(u0,ut0,vel,dx,dt,Tf):
     for i in range(Nt):
 
         # Velocity Verlet
-        ddxou = periLaplacian2(u,dx)
+        ddxou = periLaplacian(u,dx)
         u = u + dt*ut + 0.5*dt**2*np.multiply(c2,ddxou)
-        ddxu = periLaplacian2(u,dx)
+        ddxu = periLaplacian(u,dx)
         ut = ut + 0.5*dt*np.multiply(c2,ddxou+ddxu)
     
     return u, ut
 
-def periLaplacian2(v,dx):
+def velocity_verlet_tensor(u0, ut0, vel, dx, dt, delta_t_star, number=0):
+    """
+    Wave solution propagator
+    propagate wavefield using velocity Verlet in time and the second order
+    discrete Laplacian in space
+    found eq. 10 in paper
+    """
+
+    Nt = round(abs(delta_t_star / dt))
+    c2 = torch.mul(vel, vel)
+    u = u0
+    ut = ut0
+
+    for i in range(Nt):
+        # Velocity Verlet
+
+        ddxou = periLaplacian_tensor(u, dx, number)
+        u = u + dt * ut + 0.5 * dt ** 2 * torch.mul(c2, ddxou)
+        ddxu = periLaplacian_tensor(u, dx, number)
+        ut = ut + 0.5 * dt * torch.mul(c2, ddxou + ddxu)
+
+    return u,ut
+
+def periLaplacian(v,dx):
     """
     Define periodic Laplacian
     evaluate discrete Laplacian with periodic boundary condition
@@ -49,31 +88,7 @@ def periLaplacian2(v,dx):
 
     return Lv
 
-
-def velocity_verlet_tensor(u0, ut0, vel, dx, dt, Tf, number=0):
-    """
-    Wave solution propagator
-    propagate wavefield using velocity Verlet in time and the second order
-    discrete Laplacian in space
-    found eq. 10 in paper
-    """
-
-    Nt = round(abs(Tf / dt))
-    c2 = torch.mul(vel, vel)
-    u = u0
-    ut = ut0
-
-    for i in range(Nt):
-        # Velocity Verlet
-
-        ddxou = periLaplacian2_tensor(u, dx, number)
-        u = u + dt * ut + 0.5 * dt ** 2 * torch.mul(c2, ddxou)
-        ddxu = periLaplacian2_tensor(u, dx, number)
-        ut = ut + 0.5 * dt * torch.mul(c2, ddxou + ddxu)
-
-    return u,ut
-
-def periLaplacian2_tensor(v,dx, number):
+def periLaplacian_tensor(v,dx, number):
     """
     Define periodic Laplacian
     evaluate discrete Laplacian with periodic boundary condition
@@ -86,64 +101,53 @@ def periLaplacian2_tensor(v,dx, number):
 
 
 
-def del2_iso9p(v,dx):
+def pseudo_spectral(u0, ut0, vel, dx, dt, Tf):
     """
-    evaluate isotropic discrete Laplacian with 9-point stencil
+    propagate wavefield using RK4 in time and spectral approx.
+    of Laplacian in space
     """
 
-    Lv = (0.25*np.roll(v,[1,1],axis=[0,1]) + 0.25*np.roll(v,[-1,1],axis=[0,1])) + \
-         (0.25*np.roll(v,[1,-1],axis=[0,1]) + 0.25*np.roll(v,[-1,-1],axis=[0,1])) + \
-         (0.5*np.roll(v,1,axis=1) + 0.5*np.roll(v,-1,axis=1)) + \
-         (0.5*np.roll(v,1,axis=0) + 0.5*np.roll(v,-1,axis=0)) - 3*v
-         
-    return Lv/(dx**2)
+    Nt = round(abs(Tf / dt))
+    c2 = np.multiply(vel, vel)
 
-def wave2_iso9p(u0,ut0,vel,dx,dt,Tf):
-    """
-    propagate wavefield using velocity Verlet in time and the isotropic Laplacian
-    """
-    Nt = round(abs(Tf/dt))
-    c2 = np.multiply(vel,vel)
-    
     u = u0
     ut = ut0
-    
+
     for i in range(Nt):
-        # Velocity Verlet
-        ddxou = del2_iso9p(u,dx)
-        u = u + dt*ut + 0.5*dt**2*np.multiply(c2,ddxou)
-        ddxu = del2_iso9p(u,dx)
-        ut = ut + 0.5*dt*np.multiply(c2,ddxou+ddxu)
-    
-    return u,ut
+        # RK4 scheme
+        k1u = ut
+        k1ut = np.multiply(c2, spectral_del(u, dx))
 
-def periLaplacian9p(v,dx):
-    """
-    evaluate discrete Laplacian with 9-point stencil
-    """
-    Lv = (-1./12*np.roll(v,2,axis=0) + 4./3.*np.roll(v,1,axis=0)) + \
-         (-1./12*np.roll(v,-2,axis=0) + 4./3.*np.roll(v,-1,axis=0)) + \
-         (-1./12*np.roll(v,2,axis=1) + 4./3.*np.roll(v,1,axis=1)) + \
-         (-1./12*np.roll(v,-2,axis=1) + 4./3.*np.roll(v,-1,axis=1)) - 5.*v
-         
-    return Lv/(dx**2)
+        k2u = ut + dt / 2 * k1ut
+        k2ut = np.multiply(c2, spectral_del(u + dt / 2 * k1u, dx))
 
-def wave2_9p(u0,ut0,vel,dx,dt,Tf):
+        k3u = ut + dt / 2 * k2ut
+        k3ut = np.multiply(c2, spectral_del(u + dt / 2 * k2u, dx))
+
+        k4u = ut + dt * k3ut
+        k4ut = np.multiply(c2, spectral_del(u + dt * k3u, dx))
+
+        u = u + 1. / 6 * dt * (k1u + 2 * k2u + 2 * k3u + k4u)
+        ut = ut + 1. / 6 * dt * (k1ut + 2 * k2ut + 2 * k3ut + k4ut)
+
+    return np.real(u), np.real(ut)
+
+def spectral_del(v, dx):
     """
-    propagate wavefield using velocity Verlet in time and the 9-point discrete Laplacian
+    evaluate the discrete Laplacian using spectral method
     """
 
-    Nt = round(abs(Tf/dt))
-    c2 = np.multiply(vel,vel)
-    u = u0
-    ut = ut0
-    
-    for i in range(Nt):
-        # Velocity Verlet
-        ddxou = periLaplacian9p(u,dx)
-        u = u + dt*ut + 0.5*dt**2*np.multiply(c2,ddxou)
-        ddxu = periLaplacian9p(u,dx)
-        ut = ut + 0.5*dt*np.multiply(c2,ddxou+ddxu)
-    
-    return u, ut
+    N1 = v.shape[0]
+    N2 = v.shape[1]
+
+    kx = 2 * np.pi / (dx * N1) * fft.fftshift(np.linspace(-round(N1 / 2), round(N1 / 2 - 1), N1))
+    ky = 2 * np.pi / (dx * N2) * fft.fftshift(np.linspace(-round(N2 / 2), round(N2 / 2 - 1), N2))
+    [kxx, kyy] = np.meshgrid(kx, ky)
+
+    U = -(kxx ** 2 + kyy ** 2) * fft.fft2(v)
+
+    return fft.ifft2(U)
+
+
+
 

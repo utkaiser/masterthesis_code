@@ -2,7 +2,7 @@ import numpy as np
 
 # Procrustean approach to shift coarse to fine solution
 
-def ProcrustesShiftMap(it, coarse_dat,fine_dat,opmap=(np.empty(0),np.empty(0),np.empty(0)), vel = None, datmode='tensor'):
+def ProcrustesShiftMap(coarse_dat,fine_dat,opmap=(np.empty(0),np.empty(0),np.empty(0))):
     # Compute Procustes shift map
 
     Ucx,Ucy,Utc = coarse_dat
