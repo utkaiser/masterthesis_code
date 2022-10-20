@@ -56,29 +56,26 @@ class restriction_nn(nn.Module):
     def forward(self, x):
 
         # R (restriction)
-        restr_output = self.restriction_net(x)
+        restr_output = self.restriction_net(x) # b x 3 x w_c x h_c
+
+        restr_fine_sol_u = restr_output[:, 0, :, :] # b x w_c x h_c
+        restr_fine_sol_ut = restr_output[:, 1, :, :] # b x w_c x h_c
+        vel_c = restr_output[:,2, :, :] # b x w_c x h_c
 
         # G delta t (coarse iteration); checked, this is valid for batching
-        restr_fine_sol_u, restr_fine_sol_ut, vel_c = \
-            restr_output[:, 0, :, :], restr_output[:, 1, :, :], restr_output[:,2, :, :]
         ucx, utcx = velocity_verlet_tensor(
             restr_fine_sol_u, restr_fine_sol_ut,
             vel_c, self.c_delta_x, self.c_delta_t, self.delta_t_star, number=1
-        )
+        ) # b x w_c x h_c, b x w_c x h_c
 
         #change to energy components
-        wx, wy, wtc = WaveEnergyComponentField_tensor(ucx,
-                                               utcx,
-                                               vel_c, self.f_delta_x)
+        wx, wy, wtc = WaveEnergyComponentField_tensor(ucx,utcx,vel_c, self.f_delta_x) # b x w_c x h_c, b x w_c x h_c, b x w_c x h_c
 
         #create input for nn
-        inputs = torch.stack((wx,
-                              wy,
-                              wtc,
-                              vel_c), dim=1)
+        inputs = torch.stack((wx, wy, wtc, vel_c), dim=1) # b x 4 x 64 x 64
 
         #upsampling through nn
-        outputs = self.jnet(inputs)
+        outputs = self.jnet(inputs)  # b x 3 x w x h
 
         #change output back to wave components
         vx = outputs[:, 0, :, :]
@@ -87,8 +84,7 @@ class restriction_nn(nn.Module):
         sumv = torch.sum(torch.sum(x[:,0,:,:]))
 
         # change to physical components
-        u, ut = WaveSol_from_EnergyComponent_tensor(vx, vy,
-                                             vtc, x[:,2,:,:], self.f_delta_x, sumv)
+        u, ut = WaveSol_from_EnergyComponent_tensor(vx, vy, vtc, x[:,2,:,:], self.f_delta_x, sumv) # b x w x h, b x w x h
 
         return torch.stack((u, ut), dim=1)
 

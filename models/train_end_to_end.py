@@ -12,8 +12,6 @@ import random
 def train_Dt_end_to_end(batch_size = 1, lr = .001, res_scaler = 2, n_epochs = 500,
                         model_name = "unet", model_res = "128"):
 
-    #TODO: check model implementation
-
     # model setup
     model = restriction_nn(res_scaler = res_scaler).double()
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -21,9 +19,6 @@ def train_Dt_end_to_end(batch_size = 1, lr = .001, res_scaler = 2, n_epochs = 50
     model.to(device)
     optimizer = optim.AdamW(model.parameters(), lr=lr)
     loss_f = nn.SmoothL1Loss()
-
-
-    ########### approach 1: D_t ##################
 
     # data setup
     data_paths = [
@@ -38,14 +33,14 @@ def train_Dt_end_to_end(batch_size = 1, lr = .001, res_scaler = 2, n_epochs = 50
             for i, data in enumerate(train_loader):
 
                 n_snaps = data[0].shape[1]
-                data = data[0].to(device)  # b x n_snaps x 3 x w x h
+                data = data[0].to(device) # b x n_snaps x 3 x w x h
 
                 for input_idx in range(n_snaps-1):
-                    input = data[:, input_idx, :, :, :]
+                    input = data[:, input_idx, :, :, :] # b x 3 x w x h
 
                     for label_idx in range(input_idx+1, n_snaps):
 
-                        label = data[:, label_idx, :2, :, :]
+                        label = data[:, label_idx, :2, :, :] # b x 2 x w x h
 
                         # random horizontal and vertical flipping
                         if random.random() > 0.5:

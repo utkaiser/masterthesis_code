@@ -64,8 +64,7 @@ def velocity_verlet_tensor(u0, ut0, vel, dx, dt, delta_t_star, number=0):
 
     Nt = round(abs(delta_t_star / dt))
     c2 = torch.mul(vel, vel)
-    u = u0
-    ut = ut0
+    u, ut = u0, ut0
 
     for i in range(Nt):
         # Velocity Verlet
