@@ -10,4 +10,4 @@
 
 pwd; hostname; date
 
-python3 ../generate_data/parareal_datagen.py
+python3 ../generate_data/datagen_Dtp.py 64 128

@@ -2,9 +2,9 @@ import time
 import numpy as np
 import torch
 import torch.nn as nn
-import unet
-import tiramisu
-import u_transformer
+import model_unet
+import model_tiramisu
+import model_u_transformer
 import torch.optim as optim
 from model_utils import save_model, load_model
 import datetime
@@ -20,15 +20,15 @@ def train(epochs = 500, lr = .001, nlayer = 3, wf = 1,
 
     # model configuration
     if model_name == "unet":
-        model = unet.UNet(depth=6, wf=1, acti_func='relu', scale_factor=fine_coarse_scale).double()
+        model = model_unet.UNet(depth=6, wf=1, acti_func='relu', scale_factor=fine_coarse_scale).double()
         model.to(device)
     elif model_name == "tiramisu":
-        model = tiramisu.FCDenseNet(scale_factor= fine_coarse_scale).double()
+        model = model_tiramisu.FCDenseNet(scale_factor= fine_coarse_scale).double()
         batchsize = 20
         model = nn.DataParallel(model).to(device)  # parallel computing model
     elif model_name == "u_trans":
         batchsize = 20
-        model = u_transformer.U_Transformer(in_channels=4, classes=3).double()
+        model = model_u_transformer.U_Transformer(in_channels=4, classes=3).double()
         model = nn.DataParallel(model).to(device)  # parallel computing model
         #summary(model, (4, int(resolution)//int(fine_coarse_scale), int(resolution)//int(fine_coarse_scale)))
     else:
@@ -58,6 +58,9 @@ def train(epochs = 500, lr = .001, nlayer = 3, wf = 1,
         for train_loader in train_loaders:
             for i, data in enumerate(train_loader):
                 inputs, labels = data[0].to(device), data[1].to(device) #parallel computing data
+
+                print(inputs.shape)
+
                 optimizer.zero_grad()
                 outputs = model(inputs)
                 loss = loss_f(outputs, labels)
@@ -92,13 +95,13 @@ if __name__ == "__main__":
 
     start_time = time.time()
 
-    # model_name = "u_trans"
-    # model_resolution = "128"
-    # scaler = "2"
+    model_name = "u_trans"
+    model_resolution = "128"
+    scaler = "2"
 
-    model_name = sys.argv[1]
-    model_resolution = sys.argv[2]
-    scaler = sys.argv[3]
+    # model_name = sys.argv[1]
+    # model_resolution = sys.argv[2]
+    # scaler = sys.argv[3]
 
     print("start training", model_name, model_resolution)
     train(model_name = model_name, resolution = model_resolution, fine_coarse_scale=int(scaler))

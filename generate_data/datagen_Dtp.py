@@ -6,9 +6,9 @@ import postprocess_wave as post_wave
 import opp_model
 import wave_util
 import initial_conditions as init_cond
-import matplotlib.pyplot as plt
 
-def generate_wave_from_medium(input_path, output_path, res_f = 128, res_c = 64):
+def generate_wave_from_medium(input_path, output_path, res_c = 64, res_f = 128):
+
 
     ################################### setup ###################################
 
@@ -25,7 +25,7 @@ def generate_wave_from_medium(input_path, output_path, res_f = 128, res_c = 64):
     # data setup
     grid_x, grid_y = np.meshgrid(np.linspace(-1, 1, res_f), np.linspace(-1, 1, res_f))
     velocities = np.load(input_path)['wavespeedlist']
-    n_it = 20 #velocities.shape[0]  # define the amount of data to generate
+    n_it = velocities.shape[0]  # define the amount of data to generate
     centers, widths = np.random.rand(n_it, 2) * 1. - 0.5, 250 + np.random.randn(n_it) * 10
 
     # tensors for coarse solutions in energy components form
@@ -121,9 +121,15 @@ def generate_wave_from_medium(input_path, output_path, res_f = 128, res_c = 64):
 
 
 if __name__ == "__main__":
-    # import sys
-    #n = "4" #sys.argv[1]
-    #print("start training for", n)
+    import sys
 
-    generate_wave_from_medium(input_path="../data/crops_bp_m_200_128.npz",
-                              output_path="../data/bp_m_test2.npz")
+    # res_c = "64"
+    # res_f = "256"
+
+    res_c = sys.argv[1]
+    res_f = sys.argv[2]
+
+    generate_wave_from_medium(input_path="../data/crops_bp_m_200_"+res_f+".npz",
+                              output_path="../data/bp_m_200_"+res_c+"_"+res_f+".npz",
+                              res_c=int(res_c),
+                              res_f=int(res_f))

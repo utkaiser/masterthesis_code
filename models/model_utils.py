@@ -33,7 +33,7 @@ def npdat2Tensor_tensor(nda):
     return ndt
 
 
-def fetch_data(data_paths, batchsize=1, shuffle=True):
+def fetch_data(data_paths, batch_size=1, shuffle=True):
     print("setting up data")
 
     total_n_datapoints = 0
@@ -49,31 +49,33 @@ def fetch_data(data_paths, batchsize=1, shuffle=True):
                                   npdat2Tensor(npz_PropS['Ufy']),
                                   npdat2Tensor(npz_PropS['Utf'])), dim=1)
         data_loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(inputdata, outputdata),
-                                                  batch_size=batchsize, shuffle=shuffle, num_workers=1)
+                                                  batch_size=batch_size, shuffle=shuffle, num_workers=1)
         total_n_datapoints += len(data_loader)
         train_loaders.append(data_loader)
 
-    print("total number of data points:", total_n_datapoints * batchsize)
+    print("total number of data points:", total_n_datapoints * batch_size)
     return train_loaders
 
 
-def fetch_data_end_to_end(data_paths, batchsize, shuffle=True):
+def fetch_data_end_to_end(data_paths, batch_size, shuffle=True):
     print("setting up data")
 
     total_n_datapoints = 0
     train_loaders = []
 
     for path in data_paths:
-        npz_PropS = np.load(path)
-        inputdata = torch.stack((npdat2Tensor(npz_PropS['X_U']),
-                                 npdat2Tensor(npz_PropS['X_Ut']),
-                                 npdat2Tensor(npz_PropS['vel'])), dim=1)
-        outputdata = torch.stack((npdat2Tensor(npz_PropS['Y_U']),
-                                  npdat2Tensor(npz_PropS['Y_Ut'])), dim=1)
-        data_loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(inputdata, outputdata),
-                                                  batch_size=batchsize, shuffle=shuffle, num_workers=1)
+        np_array = np.load(path)
+
+        # 200 x 11 x 128 x 128
+
+        tensor = torch.stack((torch.from_numpy(np_array['U']),
+                              torch.from_numpy(np_array['Ut']),
+                              torch.from_numpy(np_array['vel'])), dim=2)
+
+        data_loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(tensor),
+                                                  batch_size=batch_size, shuffle=shuffle, num_workers=1)
         total_n_datapoints += len(data_loader)
         train_loaders.append(data_loader)
 
-    print("total number of data points:", total_n_datapoints * batchsize)
+    print("total number of data points:", total_n_datapoints * batch_size)
     return train_loaders
