@@ -6,9 +6,9 @@
 #SBATCH --time=24:00:00
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=1
-#SBATCH --gres=gpu:1
-#SBATCH --mem-per-cpu=11000M
+#SBATCH --gres=gpu:2
+#SBATCH --mem-per-cpu=10000M
 
 pwd; hostname; date
 
-python3 ../models/train_multi_gpu.py unet 256 4
+python3 ../models/train_multi_gpu.py unet 128 2

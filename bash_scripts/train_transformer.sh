@@ -7,8 +7,8 @@
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=1
 #SBATCH --gres=gpu:2
-#SBATCH --mem-per-cpu=20000M
+#SBATCH --mem-per-cpu=10000M
 
 pwd; hostname; date
 
-python3 ../models/train_multi_gpu.py transformer 128 2
+python3 ../models/train_multi_gpu.py u_trans 128 2

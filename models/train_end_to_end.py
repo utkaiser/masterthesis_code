@@ -22,7 +22,7 @@ def train_Dt_end_to_end(batch_size = 1, lr = .001, res_scaler = 2, n_epochs = 50
 
     # data setup
     data_paths = [
-        '../data/end_to_end_bp_m_200_' + str(model_res) + '_test.npz',
+        '../data/end_to_end_bp_m_200_' + str(model_res) + '.npz',
     ]
     train_loaders = fetch_data_end_to_end(data_paths, batch_size = batch_size)
 
@@ -76,8 +76,8 @@ if __name__ == "__main__":
     start_time = time.time()
 
     model_name = "unet" #sys.argv[1]
-    model_res = "128" #sys.argv[2]
-    res_scaler = "2" #sys.argv[3]
+    model_res = "256" #sys.argv[2]
+    res_scaler = "4" #sys.argv[3]
     print("start training", model_name, model_res)
     train_Dt_end_to_end(model_name = "end_to_end_"+model_name, model_res = model_res, res_scaler=int(res_scaler))
     end_time = time.time()
