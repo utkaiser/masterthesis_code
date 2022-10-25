@@ -25,11 +25,11 @@ def train(epochs = 500, lr = .001, nlayer = 3, wf = 1, continue_training = False
         model = nn.DataParallel(model).to(device)  # parallel computing model
     elif model_name == "tiramisu":
         model = model_tiramisu.FCDenseNet(scale_factor= scaler).double()
-        batch_size = 20
+        batch_size = 10
         model = nn.DataParallel(model).to(device)  # parallel computing model
     elif model_name == "u_trans":
-        batch_size = 20
-        model = model_u_transformer.U_Transformer(in_channels=4, classes=3).double()
+        batch_size = 1
+        model = model_u_transformer.U_Transformer(in_channels=4, classes=3, scale_factor = scaler).double()
         model = nn.DataParallel(model).to(device)  # parallel computing model
     else:
         raise NotImplementedError("model with name " + model_name + " not implemented")
@@ -45,7 +45,7 @@ def train(epochs = 500, lr = .001, nlayer = 3, wf = 1, continue_training = False
 
     # training data setup
     data_paths = [
-        '../data/bp_m_200_'+str(int(model_res)//scaler)+"_"+str(model_res)+'.npz'
+        '../data/bp_m_200_'+str(int(model_res)//scaler)+"_"+str(model_res)+'small.npz'
     ]
     train_loaders = fetch_data(data_paths, batch_size)
 
@@ -78,7 +78,7 @@ def train(epochs = 500, lr = .001, nlayer = 3, wf = 1, continue_training = False
                     loss_f(nn.functional.upsample(inputs[:, :3, :, :], scale_factor=scaler, mode='bilinear'),
                            labels).item()
                 )
-
+                print("worked")
         #scheduler.step()
 
         mean_loss = np.array(loss_list).mean()
@@ -101,13 +101,13 @@ if __name__ == "__main__":
 
     start_time = time.time()
 
-    # model_name = "unet"
-    # model_res = "128"
-    # scaler = "2"
+    model_name = "u_trans"
+    model_res = "256"
+    scaler = "4"
 
-    model_name = sys.argv[1]
-    model_res = sys.argv[2]
-    scaler = sys.argv[3]
+    # model_name = sys.argv[1]
+    # model_res = sys.argv[2]
+    # scaler = sys.argv[3]
 
     print("start training", model_name, model_res)
     train(model_name = model_name, model_res = model_res, scaler=int(scaler))

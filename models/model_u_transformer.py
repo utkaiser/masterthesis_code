@@ -7,19 +7,57 @@ import numpy as np
 #https://github.com/HXLH50K/U-Net-Transformer/blob/main/models/utransformer/U_Transformer.py
 #https://arxiv.org/pdf/2103.06104.pdf
 
+class U_Transformer(nn.Module):
+    def __init__(self, in_channels, classes, scale_factor=2):
+        super(U_Transformer, self).__init__()
+
+        self.inc = DoubleConv(in_channels, 64)
+        self.down1 = Down(64, 128)
+        self.down2 = Down(128, 256)
+        self.down3 = Down(256, 512)
+        self.MHSA = MultiHeadSelfAttention(512)
+        self.up1 = TransformerUp(512, 256)
+        self.up2 = TransformerUp(256, 128)
+
+        if scale_factor == 2:
+            self.up3 = TransformerUp(128, 64)
+            self.up_sample = nn.ConvTranspose2d(64,128, kernel_size=2, stride=2)
+            last = 128
+        else:
+            self.upsample1 = nn.ConvTranspose2d(128,256, kernel_size=2, stride=2)
+            self.up3 = TransformerUp(256, 128)
+            self.up_sample = nn.ConvTranspose2d(128,256, kernel_size=2, stride=2)
+            last = 256
+
+        self.outc = OutConv(last, classes)
+
+    def forward(self, x):
+        x1 = self.inc(x)
+        x2 = self.down1(x1)
+        x3 = self.down2(x2)
+        x4 = self.down3(x3)
+        x4 = self.MHSA(x4)
+        x = self.up1(x4, x3)
+        x = self.up2(x, x2)
+        if self.scale_factor:
+            x = self.upsample1(x)
+        x = self.up3(x, x1)
+        x = self.up_sample(x)
+        return self.outc(x)
+
+
 class DoubleConv(nn.Module):
-    def __init__(self, in_channels, out_channels, mid_channels=None):
+    def __init__(self, in_channels, out_channels):
         super().__init__()
-        if not mid_channels:
-            mid_channels = out_channels
-        self.double_conv = nn.Sequential(
-            nn.Conv2d(in_channels, mid_channels, kernel_size=3, padding=1),
-            nn.BatchNorm2d(mid_channels),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(mid_channels, out_channels, kernel_size=3, padding=1),
+
+        self.double_conv = nn.Sequential(*[
+            nn.Conv2d(in_channels, out_channels//2, kernel_size=3, padding=1),
+            nn.BatchNorm2d(out_channels//2),
+            nn.ReLU(),
+            nn.Conv2d(out_channels//2, out_channels, kernel_size=3, padding=1),
             nn.BatchNorm2d(out_channels),
-            nn.ReLU(inplace=True),
-        )
+            nn.ReLU()
+        ])
 
     def forward(self, x):
         return self.double_conv(x)
@@ -29,69 +67,46 @@ class Down(nn.Module):
     """Downscaling with maxpool then double conv"""
     def __init__(self, in_channels, out_channels):
         super().__init__()
-        self.maxpool_conv = nn.Sequential(
+        self.maxpool_conv = nn.Sequential(*[
             nn.MaxPool2d(2),
             DoubleConv(in_channels, out_channels),
-        )
+        ])
 
     def forward(self, x):
         return self.maxpool_conv(x)
 
 
-class Up(nn.Module):
-    """Upscaling then double conv"""
-    def __init__(self, in_channels, out_channels, bilinear=True):
-        super().__init__()
+class TransformerUp(nn.Module):
+    def __init__(self, Ychannels, Schannels):
+        super(TransformerUp, self).__init__()
+        self.MHCA = MultiHeadCrossAttention(Ychannels, Schannels)
+        self.conv = nn.Sequential(
+            nn.Conv2d(Ychannels,
+                      Schannels,
+                      kernel_size=3,
+                      stride=1,
+                      padding=1,
+                      bias=True), nn.BatchNorm2d(Schannels),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(Schannels,
+                      Schannels,
+                      kernel_size=3,
+                      stride=1,
+                      padding=1,
+                      bias=True), nn.BatchNorm2d(Schannels),
+            nn.ReLU(inplace=True))
 
-        # if bilinear, use the normal convolutions to reduce the number of channels
-        if bilinear:
-            self.up = nn.Upsample(scale_factor=2,
-                                  mode='bilinear',
-                                  align_corners=True)
-            self.conv = DoubleConv(in_channels, out_channels, in_channels // 2)
-        else:
-            self.up = nn.ConvTranspose2d(
-                in_channels,
-                in_channels // 2,
-                kernel_size=2,
-                stride=2,
-            )
-            self.conv = DoubleConv(in_channels, out_channels)
-
-    def forward(self, x1, x2):
-        x1 = self.up(x1)
-        # input is CHW
-        diffY = x2.size()[2] - x1.size()[2]
-        diffX = x2.size()[3] - x1.size()[3]
-
-        x1 = F.pad(
-            x1,
-            [diffX // 2, diffX - diffX // 2, diffY // 2, diffY - diffY // 2])
-        # if you have padding issues, see
-        # https://github.com/HaiyongJiang/U-Net-Pytorch-Unstructured-Buggy/commit/0e854509c2cea854e247a9c615f175f76fbb2e3a
-        # https://github.com/xiaopeng-liao/Pytorch-UNet/commit/8ebac70e633bac59fc22bb5195e513d5832fb3bd
-        x = torch.cat([x2, x1], dim=1)
-        return self.conv(x)
-
-
-class OutConv(nn.Module):
-    def __init__(self, in_channels, out_channels):
-        super(OutConv, self).__init__()
-        self.conv = nn.Conv2d(in_channels, out_channels, kernel_size=1)
-
-    def forward(self, x):
-        return self.conv(x)
+    def forward(self, Y, S):
+        x = self.MHCA(Y, S)
+        x = self.conv(x)
+        return x
 
 
 class MultiHeadDense(nn.Module):
     def __init__(self, d, bias=False):
         super(MultiHeadDense, self).__init__()
         self.weight = nn.Parameter(torch.Tensor(d, d))
-        if bias:
-            raise NotImplementedError()
-            self.bias = Parameter(torch.Tensor(d, d))
-        else:
-            self.register_parameter('bias', None)
+        self.register_parameter('bias', None)
         self.reset_parameters()
 
     def reset_parameters(self) -> None:
@@ -227,6 +242,7 @@ class MultiHeadSelfAttention(MultiHeadAttention):
 class MultiHeadCrossAttention(MultiHeadAttention):
     def __init__(self, channelY, channelS):
         super(MultiHeadCrossAttention, self).__init__()
+
         self.Sconv = nn.Sequential(
             nn.MaxPool2d(2), nn.Conv2d(channelS, channelS, kernel_size=1),
             nn.BatchNorm2d(channelS), nn.ReLU(inplace=True))
@@ -272,58 +288,53 @@ class MultiHeadCrossAttention(MultiHeadAttention):
         return Z
 
 
-class TransformerUp(nn.Module):
-    def __init__(self, Ychannels, Schannels):
-        super(TransformerUp, self).__init__()
-        self.MHCA = MultiHeadCrossAttention(Ychannels, Schannels)
-        self.conv = nn.Sequential(
-            nn.Conv2d(Ychannels,
-                      Schannels,
-                      kernel_size=3,
-                      stride=1,
-                      padding=1,
-                      bias=True), nn.BatchNorm2d(Schannels),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(Schannels,
-                      Schannels,
-                      kernel_size=3,
-                      stride=1,
-                      padding=1,
-                      bias=True), nn.BatchNorm2d(Schannels),
-            nn.ReLU(inplace=True))
 
-    def forward(self, Y, S):
-        x = self.MHCA(Y, S)
-        x = self.conv(x)
-        return x
-
-
-class U_Transformer(nn.Module):
-    def __init__(self, in_channels, classes, bilinear=True):
-        super(U_Transformer, self).__init__()
-        self.in_channels = in_channels
-        self.classes = classes
-        self.bilinear = bilinear
-
-        self.inc = DoubleConv(in_channels, 64)
-        self.down1 = Down(64, 128)
-        self.down2 = Down(128, 256)
-        self.down3 = Down(256, 512)
-        self.MHSA = MultiHeadSelfAttention(512)
-        self.up1 = TransformerUp(512, 256)
-        self.up2 = TransformerUp(256, 128)
-        self.up3 = TransformerUp(128, 64)
-        self.up_sample = nn.ConvTranspose2d(64,128, kernel_size=2, stride=2)
-        self.outc = OutConv(128, classes)
+class OutConv(nn.Module):
+    def __init__(self, in_channels, out_channels):
+        super(OutConv, self).__init__()
+        self.conv = nn.Conv2d(in_channels, out_channels, kernel_size=1)
 
     def forward(self, x):
-        x1 = self.inc(x)
-        x2 = self.down1(x1)
-        x3 = self.down2(x2)
-        x4 = self.down3(x3)
-        x4 = self.MHSA(x4)
-        x = self.up1(x4, x3)
-        x = self.up2(x, x2)
-        x = self.up3(x, x1)
-        x = self.up_sample(x)
-        return self.outc(x)
+        return self.conv(x)
+
+
+
+
+
+
+
+
+class Up(nn.Module):
+    """Upscaling then double conv"""
+    def __init__(self, in_channels, out_channels, bilinear=True):
+        super().__init__()
+
+        # if bilinear, use the normal convolutions to reduce the number of channels
+        if bilinear:
+            self.up = nn.Upsample(scale_factor=2,
+                                  mode='bilinear',
+                                  align_corners=True)
+            self.conv = DoubleConv(in_channels, out_channels, in_channels // 2)
+        else:
+            self.up = nn.ConvTranspose2d(
+                in_channels,
+                in_channels // 2,
+                kernel_size=2,
+                stride=2,
+            )
+            self.conv = DoubleConv(in_channels, out_channels)
+
+    def forward(self, x1, x2):
+        x1 = self.up(x1)
+        # input is CHW
+        diffY = x2.size()[2] - x1.size()[2]
+        diffX = x2.size()[3] - x1.size()[3]
+
+        x1 = F.pad(
+            x1,
+            [diffX // 2, diffX - diffX // 2, diffY // 2, diffY - diffY // 2])
+        # if you have padding issues, see
+        # https://github.com/HaiyongJiang/U-Net-Pytorch-Unstructured-Buggy/commit/0e854509c2cea854e247a9c615f175f76fbb2e3a
+        # https://github.com/xiaopeng-liao/Pytorch-UNet/commit/8ebac70e633bac59fc22bb5195e513d5832fb3bd
+        x = torch.cat([x2, x1], dim=1)
+        return self.conv(x)
