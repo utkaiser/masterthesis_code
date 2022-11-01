@@ -26,15 +26,15 @@ def train_Dt_end_to_end(batch_size = 1, lr = .001, res_scaler = 2, n_epochs = 50
     data_paths = [
         '../data/end_to_end_bp_m_200_' + str(model_res) + '_test.npz'
     ]
+    train_loader, val_loader = fetch_data_end_to_end(data_paths, batch_size=batch_size)
     label_distr_shift = 0
 
-    #TODO: tensorboard, proper analysis after
+    #TODO: tensorboard, proper analysis after, see neural networks course
     #TODO: read about batching how to do it best
+    #TODO: figure out why nan for validation set if not flipping
 
     # training
     for epoch in range(n_epochs):
-
-        train_loader, test_loader = fetch_data_end_to_end(data_paths, batch_size=batch_size)
 
         # training
         model.train()
@@ -84,8 +84,8 @@ def train_Dt_end_to_end(batch_size = 1, lr = .001, res_scaler = 2, n_epochs = 50
 
         # validation
         model.eval()
-        test_loss_list = []
-        for i, data in enumerate(train_loader): #TODO: change back to test_loader
+        val_loss_list = []
+        for i, data in enumerate(val_loader):
             n_snaps = data[0].shape[1]
             data = data[0].to(device)  # b x n_snaps x 3 x w x h
 
@@ -96,7 +96,7 @@ def train_Dt_end_to_end(batch_size = 1, lr = .001, res_scaler = 2, n_epochs = 50
                     label = data[:, label_idx, :2, :, :]  # b x 2 x w x h
                     output = model(input_tensor)
                     val_loss = loss_f(output, label)
-                    test_loss_list.append(val_loss.item())
+                    val_loss_list.append(val_loss.item())
                     input_tensor[:, :2, :, :] = output
 
 
@@ -120,7 +120,7 @@ def train_Dt_end_to_end(batch_size = 1, lr = .001, res_scaler = 2, n_epochs = 50
 
         if epoch % 1 == 0:
             print(datetime.datetime.now().strftime("%H:%M:%S"), 'epoch %d , train loss: %.5f, test loss: %.5f' %
-                  (epoch + 1, np.array(train_loss_list).mean(), np.array(test_loss_list).mean()))
+                  (epoch + 1, np.array(train_loss_list).mean(), np.array(val_loss_list).mean()))
 
         if epoch % 50 == 0:  # saves first model as a test
             save_model(model, model_name + str(model_res))
