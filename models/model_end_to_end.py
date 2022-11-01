@@ -33,7 +33,8 @@ class restriction_nn(nn.Module):
 
         for i in range(res_scaler // 2):
             downsample_layers += [
-                nn.Conv2d(in_channels * 2, in_channels * 4, kernel_size=3, padding=1, stride=2),  # reduces resolution
+                nn.MaxPool2d(2),
+                nn.Conv2d(in_channels * 2, in_channels * 4, kernel_size=3, padding=1),  # reduces resolution, or could use maxpooling
                 nn.BatchNorm2d(in_channels * 4),
                 nn.ReLU()
             ]

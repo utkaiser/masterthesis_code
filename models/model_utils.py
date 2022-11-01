@@ -11,7 +11,7 @@ def save_model(model, modelname):
     from os import path
     model.to(torch.device("cpu"))
     for i in range(100):
-        saving_path = path.join(path.dirname(path.dirname(path.abspath(__file__))),'results/run_1/saved_model_' +modelname+ "_"+ str(i) + '.pt')
+        saving_path = path.join(path.dirname(path.dirname(path.abspath(__file__))),'results/run_2/saved_model_' +modelname+ "_"+ str(i) + '.pt')
         if not path.isfile(saving_path):
             return save(model.state_dict(), saving_path)
     raise MemoryError("memory exceeded")
@@ -58,24 +58,22 @@ def fetch_data(data_paths, batch_size=1, shuffle=True):
 
 
 def fetch_data_end_to_end(data_paths, batch_size, shuffle=True):
+    global np_array
     print("setting up data")
 
-    total_n_datapoints = 0
-    train_loaders = []
+    #concatenate
+    for i, path in enumerate(data_paths):
+        if i == 0: np_array = np.load(path) # 200 x 11 x 128 x 128
+        else: np_array = np.concatenate((np_array, np.load(path)), axis=0)
 
-    for path in data_paths:
-        np_array = np.load(path)
+    tensor = torch.stack((torch.from_numpy(np_array['U']),
+                          torch.from_numpy(np_array['Ut']),
+                          torch.from_numpy(np_array['vel'])), dim=2)
 
-        # 200 x 11 x 128 x 128
+    train_loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(tensor),
+                                              batch_size=batch_size, shuffle=shuffle, num_workers=1)
 
-        tensor = torch.stack((torch.from_numpy(np_array['U']),
-                              torch.from_numpy(np_array['Ut']),
-                              torch.from_numpy(np_array['vel'])), dim=2)
+    test_loader = None
 
-        data_loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(tensor),
-                                                  batch_size=batch_size, shuffle=shuffle, num_workers=1)
-        total_n_datapoints += len(data_loader)
-        train_loaders.append(data_loader)
-
-    print("total number of data points:", total_n_datapoints * batch_size)
-    return train_loaders
+    print("total number of data points:", len(train_loader) * batch_size)
+    return train_loader, test_loader

@@ -11,11 +11,11 @@ import datetime
 from model_utils import fetch_data
 import torchvision.transforms.functional as TF
 import random
-#from torchsummary import summary
+from torchsummary import summary
 import sys
 
 def train(epochs = 500, lr = .001, nlayer = 3, wf = 1, continue_training = False,
-          model_name = "unet", batch_size = 64, gamma = 0.991, model_res ="128", scaler = 2):
+          model_name = "unet", batch_size = 32, gamma = 0.991, model_res ="128", scaler = 2):
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -25,10 +25,10 @@ def train(epochs = 500, lr = .001, nlayer = 3, wf = 1, continue_training = False
         model = nn.DataParallel(model).to(device)  # parallel computing model
     elif model_name == "tiramisu":
         model = model_tiramisu.FCDenseNet(scale_factor= scaler).double()
-        batch_size = 10
+        batch_size = 1
         model = nn.DataParallel(model).to(device)  # parallel computing model
     elif model_name == "u_trans":
-        batch_size = 1
+        batch_size = 10
         model = model_u_transformer.U_Transformer(in_channels=4, classes=3, scale_factor = scaler).double()
         model = nn.DataParallel(model).to(device)  # parallel computing model
     else:
@@ -36,7 +36,7 @@ def train(epochs = 500, lr = .001, nlayer = 3, wf = 1, continue_training = False
 
     if continue_training: load_model(model_name + "_1", model)
     print("gpu available:", torch.cuda.is_available(), "| n of gpus:", torch.cuda.device_count())
-    # summary(model, (4, int(resolution)//int(fine_coarse_scale), int(resolution)//int(fine_coarse_scale)))
+    #summary(model, (4, 64, 64))
 
     # training setup
     optimizer = optim.Adam(model.parameters(), lr=lr)
@@ -101,9 +101,9 @@ if __name__ == "__main__":
 
     start_time = time.time()
 
-    model_name = "u_trans"
-    model_res = "256"
-    scaler = "4"
+    model_name = "tiramisu"
+    model_res = "128"
+    scaler = "2"
 
     # model_name = sys.argv[1]
     # model_res = sys.argv[2]

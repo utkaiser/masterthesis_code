@@ -29,7 +29,6 @@ class FCDenseNet(nn.Module):
             skip_connection_channel_counts.insert(0,cur_channels_count)
             self.transDownBlocks.append(TransitionDown(cur_channels_count))
 
-
         # Bottleneck
         self.add_module('bottleneck',Bottleneck(cur_channels_count,
                                      growth_rate, bottleneck_layers))
@@ -81,8 +80,10 @@ class FCDenseNet(nn.Module):
         for i in range(len(self.up_blocks)):
             skip = skip_connections.pop()
             out = self.transUpBlocks[i](out, skip)
+
             if i == len(self.up_blocks) - 1:
                 out = self.rescale[0](out)
+                print("here", out.shape)
             out = self.denseBlocksUp[i](out)
 
         out = self.finalConv(out)

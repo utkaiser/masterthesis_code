@@ -18,7 +18,7 @@ def generate_wave_from_medium(input_path, output_path, res_f = 128):
     # data setup
     grid_x, grid_y = np.meshgrid(np.linspace(-1, 1, res_f), np.linspace(-1, 1, res_f))
     velocities = np.load(input_path)['wavespeedlist']
-    n_it = 10 #velocities.shape[0]  # define the amount of data to generate
+    n_it = velocities.shape[0]  # define the amount of data to generate
     centers, widths = np.random.rand(n_it, 2) * 1. - 0.5, 250 + np.random.randn(n_it) * 10
 
     # tensors for fine solutions in energy components form
@@ -62,5 +62,5 @@ if __name__ == "__main__":
     # res_f = sys.argv[2]
 
     generate_wave_from_medium(input_path="../data/crops_bp_m_200_"+res_f+".npz",
-                              output_path="../data/end_to_end_bp_m_200_"+res_f+"_test.npz",
+                              output_path="../data/end_to_end_bp_m_200_"+res_f+".npz",
                               res_f=int(res_f))

@@ -1,7 +1,7 @@
 #!/bin/bash
 
-#SBATCH --job-name=data_generation
-#SBATCH --output=data_generation.out
+#SBATCH --job-name=data_gen_end_to_end
+#SBATCH --output=data_gen_end_to_end.out
 #SBATCH --nodes=1
 #SBATCH --time=24:00:00
 #SBATCH --ntasks=1
@@ -10,4 +10,4 @@
 
 pwd; hostname; date
 
-python3 ../generate_data/datagen_Dtp.py 64 128
+python3 ../generate_data/datagen_end_to_end.py
