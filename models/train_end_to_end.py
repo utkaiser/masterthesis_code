@@ -10,9 +10,19 @@ import torch
 import torchvision.transforms.functional as TF
 import random
 import scipy.stats as ss
+import torch.utils.tensorboard as tb
 
 def train_Dt_end_to_end(batch_size = 1, lr = .001, res_scaler = 2, n_epochs = 500,
-                        model_name = "unet", model_res = "128"):
+                        model_name = "unet", model_res = "128", logging=False):
+
+    #logger setup
+    train_logger, valid_logger = None, None
+    if logging:
+        train_logger = tb.SummaryWriter('../results/run_2/log_train/'+ model_name + str(model_res)
+                                        + '/{}'.format(time.strftime('%H-%M-%S')) + '_test.npz', flush_secs=1)
+        valid_logger = tb.SummaryWriter('../results/run_2/log_valid/'+ model_name + str(model_res)
+                                        + '/{}'.format(time.strftime('%H-%M-%S')) + '_test.npz', flush_secs=1)
+    global_step = 0
 
     # model setup
     model = restriction_nn(res_scaler = res_scaler).double()
@@ -29,7 +39,6 @@ def train_Dt_end_to_end(batch_size = 1, lr = .001, res_scaler = 2, n_epochs = 50
     train_loader, val_loader = fetch_data_end_to_end(data_paths, batch_size=batch_size)
     label_distr_shift = 0
 
-    #TODO: tensorboard, proper analysis after, see neural networks course
     #TODO: read about batching how to do it best
     #TODO: figure out why nan for validation set if not flipping
 
@@ -79,7 +88,11 @@ def train_Dt_end_to_end(batch_size = 1, lr = .001, res_scaler = 2, n_epochs = 50
                     loss.backward()
                     optimizer.step()
                     input_tensor[:, :2, :, :] = output.detach()
+                    if logging: train_logger.add_scalar('loss', loss.item(), global_step=global_step)
                     train_loss_list.append(loss.item())
+                    global_step += 1
+
+        if logging: train_logger.add_scalar('loss', np.array(train_loss_list).mean(), global_step=global_step)
 
 
         # validation
@@ -99,24 +112,7 @@ def train_Dt_end_to_end(batch_size = 1, lr = .001, res_scaler = 2, n_epochs = 50
                     val_loss_list.append(val_loss.item())
                     input_tensor[:, :2, :, :] = output
 
-
-                    # # visualization
-                    # fig1 = plt.figure(figsize=(15, 15))
-                    # ax1 = fig1.add_subplot(3, 2, 1)
-                    # ax1.imshow(input_tensor[:, 0, :, :].squeeze())
-                    # ax2 = fig1.add_subplot(3, 2, 2)
-                    # ax2.imshow(input_tensor[:, 1, :, :].squeeze())
-                    # ax3 = fig1.add_subplot(3, 2, 3)
-                    # ax3.imshow(label[:, 0, :, :].squeeze())
-                    # ax4 = fig1.add_subplot(3, 2, 4)
-                    # ax4.imshow(label[:, 1, :, :].squeeze())
-                    # ax5 = fig1.add_subplot(3, 2, 5)
-                    # ax5.imshow(output[:, 0, :, :].detach().squeeze())
-                    # ax6 = fig1.add_subplot(3, 2, 6)
-                    # ax6.imshow(output[:, 1, :, :].detach().squeeze())
-                    # ax5.set_title(str(loss.item()) + "_" + str(input_idx) + "_" + str(label_idx), fontsize=20)
-                    # plt.show()
-
+        if logging: valid_logger.add_scalar('loss', np.array(val_loss_list).mean() ,global_step=global_step)
 
         if epoch % 1 == 0:
             print(datetime.datetime.now().strftime("%H:%M:%S"), 'epoch %d , train loss: %.5f, test loss: %.5f' %
@@ -137,11 +133,34 @@ if __name__ == "__main__":
     model_res = "128" #sys.argv[2]
     res_scaler = "2" #sys.argv[3]
     print("start training", model_name, model_res)
-    train_Dt_end_to_end(model_name = "end_to_end_"+model_name, model_res = model_res, res_scaler=int(res_scaler))
+    train_Dt_end_to_end(model_name = "end_to_end_"+model_name, model_res = model_res, res_scaler=int(res_scaler), logging=True)
     end_time = time.time()
 
     print('training done:', (end_time - start_time))
 
 
+
+
+
+
+
+# # visualization
+# fig1 = plt.figure(figsize=(15, 15))
+# ax1 = fig1.add_subplot(3, 2, 1)
+# ax1.imshow(input_tensor[:, 0, :, :].squeeze())
+# ax2 = fig1.add_subplot(3, 2, 2)
+# ax2.imshow(input_tensor[:, 1, :, :].squeeze())
+# ax3 = fig1.add_subplot(3, 2, 3)
+# ax3.imshow(label[:, 0, :, :].squeeze())
+# ax4 = fig1.add_subplot(3, 2, 4)
+# ax4.imshow(label[:, 1, :, :].squeeze())
+# ax5 = fig1.add_subplot(3, 2, 5)
+# ax5.imshow(output[:, 0, :, :].detach().squeeze())
+# ax6 = fig1.add_subplot(3, 2, 6)
+# ax6.imshow(output[:, 1, :, :].detach().squeeze())
+# ax5.set_title(str(loss.item()) + "_" + str(input_idx) + "_" + str(label_idx), fontsize=20)
+# plt.show()
+
+#tensorboard --logdir=results/run_2 --host localhost --port 1111
 
 

@@ -82,5 +82,5 @@ def fetch_data_end_to_end(data_paths, batch_size, shuffle=True, train_split = .9
     val_loader = torch.utils.data.DataLoader(val_dataset,
                                               batch_size=batch_size, shuffle=shuffle, num_workers=1)
 
-    print("test data points:", len(train_loader) * batch_size, "; train data points:", len(val_loader) * batch_size)
+    print("test data points:", len(train_loader) * batch_size, "| train data points:", len(val_loader) * batch_size)
     return train_loader, val_loader
