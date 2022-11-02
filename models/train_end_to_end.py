@@ -10,7 +10,7 @@ import torch
 import torchvision.transforms.functional as TF
 import random
 import scipy.stats as ss
-import torch.utils.tensorboard as tb
+import torch.utils.tensorboard as tb  # tensorboard --logdir=results/run_x --host localhost --port xxxx
 
 def train_Dt_end_to_end(batch_size = 1, lr = .001, res_scaler = 2, n_epochs = 500,
                         model_name = "unet", model_res = "128", logging=False):
@@ -160,7 +160,5 @@ if __name__ == "__main__":
 # ax6.imshow(output[:, 1, :, :].detach().squeeze())
 # ax5.set_title(str(loss.item()) + "_" + str(input_idx) + "_" + str(label_idx), fontsize=20)
 # plt.show()
-
-#tensorboard --logdir=results/run_2 --host localhost --port 1111
 
 
