@@ -2,6 +2,8 @@ from os import environ, path
 from torch import load
 import numpy as np
 import torch
+import torchvision.transforms.functional as TF
+import random
 
 environ["TOKENIZERS_PARALLELISM"] = "false"
 environ["OMP_NUM_THREADS"] = "1"
@@ -85,3 +87,20 @@ def fetch_data_end_to_end(data_paths, batch_size, shuffle=True, train_split = .9
 
     print("test data points:", len(train_loader) * batch_size, "| train data points:", len(val_loader) * batch_size)
     return train_loader, val_loader
+
+def flip_tensors(input_tensor, label, v_flipped, h_flipped):
+
+    if v_flipped: label = TF.vflip(label)
+    if h_flipped: label = TF.hflip(label)
+
+    #random vertical and horizontal flipping
+    if random.random() > 0.5:
+        v_flipped = not v_flipped
+        input_tensor = TF.vflip(input_tensor)
+        label = TF.vflip(label)
+    if random.random() > 0.5:
+        h_flipped = not h_flipped
+        input_tensor = TF.hflip(input_tensor)
+        label = TF.hflip(label)
+
+    return input_tensor, label, v_flipped, h_flipped

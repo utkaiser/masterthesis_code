@@ -1,19 +1,18 @@
-import matplotlib.pyplot as plt
 import numpy as np
 import time
 import torch.optim as optim
 import torch.nn as nn
 import datetime
 from model_end_to_end import restriction_nn
-from model_utils import save_model, fetch_data_end_to_end
+from model_utils import save_model, fetch_data_end_to_end, flip_tensors
 import torch
-import torchvision.transforms.functional as TF
 import random
 import scipy.stats as ss
-import torch.utils.tensorboard as tb  # tensorboard --logdir=results/run_x --host localhost --port xxxx (after mounting logging folders back)
+import torch.utils.tensorboard as tb
+from visualize_progress import visualize_wavefield
 
-def train_Dt_end_to_end(batch_size = 50, lr = .001, res_scaler = 2, n_epochs = 500,
-                        model_name = "unet", model_res = "128", logging=False, validate = False):
+def train_Dt_end_to_end(batch_size = 1, lr = .001, res_scaler = 2, n_epochs = 500,
+                        model_name = "unet", model_res = "128", logging=False, validate = False, flipping=False, visualize=False):
 
     #logger setup
     train_logger, valid_logger = None, None
@@ -34,16 +33,12 @@ def train_Dt_end_to_end(batch_size = 50, lr = .001, res_scaler = 2, n_epochs = 5
 
     # data setup
     data_paths = [
-        '../data/end_to_end_bp_m_200_' + str(model_res) + '_test.npz'
+        '../data/end_to_end_bp_m_200_' + str(model_res) + '.npz'
     ]
     train_loader, val_loader = fetch_data_end_to_end(data_paths, batch_size=batch_size, shuffle=True)
     label_distr_shift = 0
 
-
     #TODO: nochmal genauer anschauen ob alles passt, auch mit transformen zu energy norm und so
-    #TODO: absorbing boundaries
-    #TODO: Dtp and train for that
-
 
     # training
     for epoch in range(n_epochs):
@@ -55,13 +50,15 @@ def train_Dt_end_to_end(batch_size = 50, lr = .001, res_scaler = 2, n_epochs = 5
         for i, data in enumerate(train_loader):
 
             n_snaps = data[0].shape[1]
-            data = data[0].to(device) # b x n_snaps x 3 x w x h
+            data = data[0].to(device) # b x n_snaps x 4 x w x h
             loss_list = []
 
             if epoch % (n_epochs // n_snaps) == 0 and epoch != 0:
                 label_distr_shift += 1
 
-            for input_idx in random.choices(range(n_snaps-1), k=3):  # randomly shuffle order TODO: change back k to n_snaps-1
+            #for input_idx in random.choices(range(n_snaps-1), k=3):  # randomly shuffle order TODO: change back k to n_snaps-1
+            for input_idx in range(1):
+                if visualize: visualize_list = []
 
                 input_tensor = data[:, input_idx, :, :, :] # b x 4 x w x h
                 h_flipped, v_flipped = False, False
@@ -71,28 +68,25 @@ def train_Dt_end_to_end(batch_size = 50, lr = .001, res_scaler = 2, n_epochs = 5
                 prob = ss.norm.cdf(possible_label_range + 0.5, scale=3) - ss.norm.cdf(possible_label_range - 0.5, scale=3)
                 label_range = list(np.random.choice(possible_label_range + label_distr_shift, size=1, p=prob / prob.sum()))[0]
 
-                for label_idx in range(input_idx+1, label_range): # randomly decide how long path is
+                for label_idx in range(input_idx+1, input_idx+5): # randomly decide how long path is
 
                     label = data[:, label_idx, :3, :, :] # b x 3 x w x h
 
-                    # if v_flipped: label = TF.vflip(label)
-                    # if h_flipped: label = TF.hflip(label)
-                    #
-                    # #random horizontal and vertical flipping
-                    # if random.random() > 0.5:
-                    #     h_flipped = not h_flipped
-                    #     input_tensor = TF.hflip(input_tensor)
-                    #     label = TF.hflip(label)
-                    # if random.random() > 0.5:
-                    #     input_tensor = TF.vflip(input_tensor)
-                    #     label = TF.vflip(label)
+                    if flipping:
+                        input_tensor, label, v_flipped, h_flipped = flip_tensors(input_tensor, label, v_flipped, h_flipped)
 
                     output = model(input_tensor)
 
                     loss = loss_f(output, label)
                     loss_list.append(loss)
+
+                    if visualize:
+                        # save only first element of batch
+                        visualize_list.append((loss, input_idx, label_idx, input_tensor[0,:,:,:].detach(), output[0,:,:,:].detach(), label[0,:,:,:].detach()))
+
                     input_tensor = torch.cat((output, torch.unsqueeze(input_tensor[:, 3, :, :], dim=1)), dim=1).detach()
 
+                if visualize: visualize_wavefield(visualize_list)
 
             optimizer.zero_grad()
 
@@ -148,7 +142,8 @@ if __name__ == "__main__":
     model_res = "128" #sys.argv[2]
     res_scaler = "2" #sys.argv[3]
     print("start training", model_name, model_res)
-    train_Dt_end_to_end(model_name = "end_to_end_"+model_name, model_res = model_res, res_scaler=int(res_scaler), logging=False)
+    train_Dt_end_to_end(model_name = "end_to_end_"+model_name, model_res = model_res, res_scaler=int(res_scaler),
+                        logging=False, visualize=True)
     end_time = time.time()
 
     print('training done:', (end_time - start_time))
