@@ -66,8 +66,9 @@ def fetch_data_end_to_end(data_paths, batch_size, shuffle=True, train_split = .9
         if i == 0: np_array = np.load(path) # 200 x 11 x 128 x 128
         else: np_array = np.concatenate((np_array, np.load(path)), axis=0)
 
-    tensor = torch.stack((torch.from_numpy(np_array['U']),
-                          torch.from_numpy(np_array['Ut']),
+    tensor = torch.stack((torch.from_numpy(np_array['Ux']),
+                          torch.from_numpy(np_array['Uy']),
+                          torch.from_numpy(np_array['Utc']),
                           torch.from_numpy(np_array['vel'])), dim=2)
 
     full_dataset = torch.utils.data.TensorDataset(tensor)
@@ -75,12 +76,12 @@ def fetch_data_end_to_end(data_paths, batch_size, shuffle=True, train_split = .9
     train_size = int(train_split * len(full_dataset))
     val_size = len(full_dataset) - train_size
     train_dataset, val_dataset = torch.utils.data.random_split(full_dataset, [train_size, val_size])
+    #train_dataset = torch.utils.data.Subset(full_dataset, [0])
 
     train_loader = torch.utils.data.DataLoader(train_dataset,
                                               batch_size=batch_size, shuffle=shuffle, num_workers=1)
 
-    val_loader = torch.utils.data.DataLoader(val_dataset,
-                                              batch_size=batch_size, shuffle=shuffle, num_workers=1)
+    val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=batch_size, shuffle=shuffle, num_workers=1)
 
     print("test data points:", len(train_loader) * batch_size, "| train data points:", len(val_loader) * batch_size)
     return train_loader, val_loader

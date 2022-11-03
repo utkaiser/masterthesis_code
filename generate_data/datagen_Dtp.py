@@ -123,11 +123,11 @@ def generate_wave_from_medium(input_path, output_path, res_c = 64, res_f = 128):
 if __name__ == "__main__":
     import sys
 
-    # res_c = "64"
-    # res_f = "256"
+    res_c = "64"
+    res_f = "128"
 
-    res_c = sys.argv[1]
-    res_f = sys.argv[2]
+    # res_c = sys.argv[1]
+    # res_f = sys.argv[2]
 
     generate_wave_from_medium(input_path="../data/crops_bp_m_200_"+res_f+".npz",
                               output_path="../data/bp_m_200_"+res_c+"_"+res_f+".npz",

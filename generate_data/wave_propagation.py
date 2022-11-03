@@ -54,6 +54,7 @@ def velocity_verlet(u0, ut0, vel, dx, dt, delta_t_star):
     
     return u, ut
 
+
 def velocity_verlet_tensor(u0, ut0, vel, dx, dt, delta_t_star, number=0):
     """
     Wave solution propagator

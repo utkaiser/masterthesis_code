@@ -1,6 +1,6 @@
 from torch import nn
 import warnings
-import model_unet
+import models.model_unet as model_unet
 warnings.filterwarnings("ignore")
 from generate_data.wave_propagation import velocity_verlet_tensor
 from generate_data.wave_util import WaveEnergyComponentField_tensor, WaveSol_from_EnergyComponent_tensor
@@ -56,8 +56,14 @@ class restriction_nn(nn.Module):
 
     def forward(self, x):
 
+        u_x, u_y, u_t_c, vel = x[:, 0, :, :], x[:, 1, :, :], x[:, 2, :, :], x[:, 3, :, :]
+        sumv = torch.sum(torch.sum(u_x))
+
+        u, ut = WaveSol_from_EnergyComponent_tensor(u_x, u_y, u_t_c, vel, self.f_delta_x, sumv)
+        phys_input = torch.stack((u, ut, vel), dim=1)
+
         # R (restriction)
-        restr_output = self.restriction_net(x) # b x 3 x w_c x h_c
+        restr_output = self.restriction_net(phys_input) # b x 3 x w_c x h_c
 
         restr_fine_sol_u = restr_output[:, 0, :, :] # b x w_c x h_c
         restr_fine_sol_ut = restr_output[:, 1, :, :] # b x w_c x h_c
@@ -82,11 +88,7 @@ class restriction_nn(nn.Module):
         vx = outputs[:, 0, :, :]
         vy = outputs[:, 1, :, :]
         vtc = outputs[:, 2, :, :]
-        sumv = torch.sum(torch.sum(x[:,0,:,:]))
 
-        # change to physical components
-        u, ut = WaveSol_from_EnergyComponent_tensor(vx, vy, vtc, x[:,2,:,:], self.f_delta_x, sumv) # b x w x h, b x w x h
-
-        return torch.stack((u, ut), dim=1)
+        return torch.stack((vx, vy, vtc), dim=1)
 
 

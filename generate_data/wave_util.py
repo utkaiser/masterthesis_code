@@ -13,6 +13,17 @@ def WaveEnergyField(u,ut,c,dx):
 
     return w
 
+def WaveEnergyField_tensor(u,ut,c,dx):
+    # Compute wave energy field
+
+    ux, uy = torch.gradient(u,spacing=dx)
+    absux = torch.abs(ux)
+    absuy = torch.abs(uy)
+    absutc = torch.divide(np.abs(ut),c)
+    w = torch.multiply(absux,absux) + torch.multiply(absuy,absuy) + torch.multiply(absutc,absutc)
+
+    return w
+
 def WaveEnergyComponentField(uS,utS,c,dx):
     # Compute wave energy component field
     wx = np.zeros(uS.shape)
@@ -21,6 +32,14 @@ def WaveEnergyComponentField(uS,utS,c,dx):
     for i in range(uS.shape[2]):
         wx[:,:,i],wy[:,:,i] = np.gradient(uS[:,:,i],dx)
         wtc[:,:,i] = np.divide(utS[:,:,i],c)
+    return wx,wy,wtc
+
+def WaveEnergyComponentField_end_to_end(uS,utS,c,dx):
+    # Compute wave energy component field for end_to_end approach
+
+    wx,wy = np.gradient(uS,dx)
+    wtc = np.divide(utS,c)
+
     return wx,wy,wtc
 
 def WaveEnergyComponentField_tensor(uS, utS, c, dx):
