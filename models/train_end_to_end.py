@@ -11,7 +11,7 @@ import scipy.stats as ss
 import torch.utils.tensorboard as tb
 from visualize_progress import visualize_wavefield
 
-def train_Dt_end_to_end(batch_size = 1, lr = .001, res_scaler = 2, n_epochs = 500,
+def train_Dt_end_to_end(batch_size = 50, lr = .001, res_scaler = 2, n_epochs = 500,
                         model_name = "unet", model_res = "128", logging=False, validate = False, flipping=False, visualize=False):
 
     #logger setup
@@ -37,8 +37,6 @@ def train_Dt_end_to_end(batch_size = 1, lr = .001, res_scaler = 2, n_epochs = 50
     ]
     train_loader, val_loader = fetch_data_end_to_end(data_paths, batch_size=batch_size, shuffle=True)
     label_distr_shift = 0
-
-    #TODO: nochmal genauer anschauen ob alles passt, auch mit transformen zu energy norm und so
 
     # training
     for epoch in range(n_epochs):
@@ -68,7 +66,7 @@ def train_Dt_end_to_end(batch_size = 1, lr = .001, res_scaler = 2, n_epochs = 50
                 prob = ss.norm.cdf(possible_label_range + 0.5, scale=3) - ss.norm.cdf(possible_label_range - 0.5, scale=3)
                 label_range = list(np.random.choice(possible_label_range + label_distr_shift, size=1, p=prob / prob.sum()))[0]
 
-                for label_idx in range(input_idx+1, input_idx+5): # randomly decide how long path is
+                for label_idx in range(input_idx+1, input_idx+2): # randomly decide how long path is
 
                     label = data[:, label_idx, :3, :, :] # b x 3 x w x h
 
@@ -77,7 +75,7 @@ def train_Dt_end_to_end(batch_size = 1, lr = .001, res_scaler = 2, n_epochs = 50
 
                     output = model(input_tensor)
 
-                    loss = loss_f(output, label)
+                    loss = loss_f(output, input_tensor)#label)
                     loss_list.append(loss)
 
                     if visualize:
@@ -86,7 +84,7 @@ def train_Dt_end_to_end(batch_size = 1, lr = .001, res_scaler = 2, n_epochs = 50
 
                     input_tensor = torch.cat((output, torch.unsqueeze(input_tensor[:, 3, :, :], dim=1)), dim=1).detach()
 
-                if visualize: visualize_wavefield(visualize_list)
+                if visualize: visualize_wavefield(visualize_list,scaler=res_scaler)
 
             optimizer.zero_grad()
 
@@ -143,32 +141,9 @@ if __name__ == "__main__":
     res_scaler = "2" #sys.argv[3]
     print("start training", model_name, model_res)
     train_Dt_end_to_end(model_name = "end_to_end_"+model_name, model_res = model_res, res_scaler=int(res_scaler),
-                        logging=False, visualize=True)
+                        logging=False, visualize=True, absorbing_bc = False)
     end_time = time.time()
 
     print('training done:', (end_time - start_time))
-
-
-
-
-
-
-
-# # visualization
-# fig1 = plt.figure(figsize=(15, 15))
-# ax1 = fig1.add_subplot(3, 2, 1)
-# ax1.imshow(input_tensor[:, 0, :, :].squeeze())
-# ax2 = fig1.add_subplot(3, 2, 2)
-# ax2.imshow(input_tensor[:, 1, :, :].squeeze())
-# ax3 = fig1.add_subplot(3, 2, 3)
-# ax3.imshow(label[:, 0, :, :].squeeze())
-# ax4 = fig1.add_subplot(3, 2, 4)
-# ax4.imshow(label[:, 1, :, :].squeeze())
-# ax5 = fig1.add_subplot(3, 2, 5)
-# ax5.imshow(output[:, 0, :, :].detach().squeeze())
-# ax6 = fig1.add_subplot(3, 2, 6)
-# ax6.imshow(output[:, 1, :, :].detach().squeeze())
-# ax5.set_title(str(loss.item()) + "_" + str(input_idx) + "_" + str(label_idx), fontsize=20)
-# plt.show()
 
 

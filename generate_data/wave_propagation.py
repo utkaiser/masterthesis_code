@@ -99,8 +99,6 @@ def periLaplacian_tensor(v,dx, number):
 
     return Lv
 
-
-
 def pseudo_spectral(u0, ut0, vel, dx, dt, Tf):
     """
     propagate wavefield using RK4 in time and spectral approx.

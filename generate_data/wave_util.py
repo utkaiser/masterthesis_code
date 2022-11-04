@@ -117,3 +117,9 @@ def grad2func_tensor(vx, vy, dx, sumv):
     hatv[0, 0] = sumv
 
     return torch.real(torch.fft.ifft2(hatv))
+
+def crop_center(img,cropx,cropy):
+    y,x = img.shape
+    startx = x//2-(cropx//2)
+    starty = y//2-(cropy//2)
+    return img[starty:starty+cropy,startx:startx+cropx]
