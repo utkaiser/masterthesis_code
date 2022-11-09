@@ -29,8 +29,6 @@ def parallel_compute(u, ut, vel, vel_c, f_delta_x, c_delta_x, f_delta_t, c_delta
 
     return uc,utc,uf,utf
 
-
-
 def velocity_verlet(u0, ut0, vel, dx, dt, delta_t_star):
     """
     Wave solution propagator
@@ -51,31 +49,119 @@ def velocity_verlet(u0, ut0, vel, dx, dt, delta_t_star):
         u = u + dt*ut + 0.5*dt**2*np.multiply(c2,ddxou)
         ddxu = periLaplacian(u,dx)
         ut = ut + 0.5*dt*np.multiply(c2,ddxou+ddxu)
-    
+
     return u, ut
 
 
-def velocity_verlet_tensor(u0, ut0, vel, dx, dt, delta_t_star, number=0):
+
+def velocity_verlet_tensor(u0, ut0, vel, dx, dt, delta_t_star, number=0, boundary_c='periodic'):
     """
     Wave solution propagator
     propagate wavefield using velocity Verlet in time and the second order
     discrete Laplacian in space
     found eq. 10 in paper
+
+    u0 shape: b x w_c x h_c
+    vel shape: b x w_c x h_c
     """
 
-    Nt = round(abs(delta_t_star / dt))
-    c2 = torch.mul(vel, vel)
-    u, ut = u0, ut0
+    if boundary_c == 'periodic':
+        Nt = round(abs(delta_t_star / dt))
+        c2 = torch.mul(vel, vel)
+        u, ut = u0, ut0
 
-    for i in range(Nt):
-        # Velocity Verlet
+        for i in range(Nt):
+            # Velocity Verlet
 
-        ddxou = periLaplacian_tensor(u, dx, number)
-        u = u + dt * ut + 0.5 * dt ** 2 * torch.mul(c2, ddxou)
-        ddxu = periLaplacian_tensor(u, dx, number)
-        ut = ut + 0.5 * dt * torch.mul(c2, ddxou + ddxu)
+            ddxou = periLaplacian_tensor(u, dx, number)
+            u = u + dt * ut + 0.5 * dt ** 2 * torch.mul(c2, ddxou)
+            ddxu = periLaplacian_tensor(u, dx, number)
+            ut = ut + 0.5 * dt * torch.mul(c2, ddxou + ddxu)
 
-    return u,ut
+        return u,ut
+    elif boundary_c == 'absorbing':
+        # TODO: check why nan values
+        # TODO: speed up algorithm
+        #TODO: first for non-batch case, then add batch case
+
+        u0, ut0, vel = u0.squeeze(), ut0.squeeze(), vel.squeeze()
+
+        Nt = round(abs(delta_t_star / dt))
+        Ny, Nx = u0.shape[-1] - 1, u0.shape[-2] - 1
+        c2 = torch.mul(vel, vel)
+
+        lambda_v = abs(dt/dx)
+        lambda_v2 = lambda_v**2
+        lambda_vc2 = lambda_v2*c2
+
+        a = dx/(dx+abs(dt))
+
+        #euler step to generate u1 from u0 and ut0
+        uneg1 = u0 - dt * ut0
+        u2 = u0
+        u1 = u0
+        u0 = uneg1
+
+        for k in range(Nt):
+            # wave eq update
+            u2[1:Ny-1, 1:Nx-1] = 2*u1[1:Ny-1,1:Nx-1]-u0[1:Ny-1,1:Nx-1]+\
+                                 torch.mul(lambda_vc2[1:Ny-1,1:Nx-1],u1[2:Ny,1:Nx-1])+\
+                                 u1[0:Ny-2,1:Nx-1]+u1[1:Ny-1,2:Nx]+u1[1:Ny-1,0:Nx-2]-\
+                                 4*u1[1:Ny-1,1:Nx-1]
+
+            # absorbing boundary update (Engquist-Majda ABC second order)
+            for j in range(1,Nx-1):
+                # bottom
+                u2[-1,j] = a*(-u2[Ny-1,j]+2*u1[-1,j]-u0[-1,j]+2*u1[Ny-1,j]-u0[Ny-1,j])+\
+                           lambda_v*(u2[Ny-1,j]-u0[Ny-1,j]+u0[-1,j])+\
+                           .5*lambda_v2*(u0[-1,j+1]-2*u0[-1,j]+u0[-1,j-1]+
+                                         u2[Ny-1,j+1]-2*u2[Ny-1,j]+u2[Ny-1,j-1])
+
+                # top
+                u2[0,j] = a*(-u2[1,j]+2*u1[0,j]-u0[0,j]+2*u1[1,j]-u0[1,j]+
+                             lambda_v*(u2[1,j]-u0[1,j]+u0[0,j])+
+                             .5*lambda_v2*(u0[0,j+1]-2*u0[0,j]+u0[0,j-1]+
+                                           u2[1,j+1]-2*u2[1,j]+u2[1,j-1]))
+
+            for i in range(1,Ny-1):
+                # right
+                u2[i,-1] = a*(-u2[i,Nx-1]+2*u1[i,Nx-1]-u0[i,Nx-1]+2.*u1[i,Nx]-u0[i,Nx]+
+                              lambda_v*(u2[i,Nx-1]-u0[i,Nx-1]+u0[i,Nx])+
+                              .5*lambda_v2*(u0[i+1,Nx]-2*u0[i,Nx]+u0[i-1,Nx]+
+                                            u2[i+1,Nx-1]-2*u2[i,Nx-1]+u2[i-1,Nx-1]))
+
+                # left
+                u2[i,0] = a*(-u2[i,1]+2*u1[i,1]-u0[i,1]+2*u1[i,0]-u0[i,0]+
+                             lambda_v*(u2[i,1]-u0[i,1]+u0[i,0])+
+                             .5*lambda_v2*(u0[i+1,0]-2*u0[i,0]+u0[i-1,0]+
+                                           u2[i+1,1]-2*u2[i,1]+u2[i-1,1]))
+
+
+            # four corners
+            u2[-1,0] = a*(u1[-1,0]-u2[Ny-1,0]+u1[Ny-1,0]+
+                          lambda_v*(u2[Ny-1,0]-u1[-1,0]+u1[Ny-1,0]))
+
+            u2[0, 0] = a*(u1[0, 0]-u2[1, 0]+u1[1, 0]+
+                          lambda_v*(u2[1,0]-u1[0,0]+u1[1,0]))
+
+            u2[0,-1] = a*(u1[0,-1]-u2[0,Nx-1]+u1[0,Nx-1]+
+                          lambda_v*u2[0,Nx-1]-u1[0,-1]+u1[0,Nx-1])
+
+            u2[-1,-1] = a*(u1[-1,-1]-u2[Ny-1,-1]+u1[Ny-1,-1]+
+                           lambda_v*(u2[Ny-1,-1]-u1[-1,-1]+u1[Ny-1,-1]))
+
+            # update grids
+            ut = (u2-u0) / (2*dt)
+            u = u2
+            u0 = u1
+            u1 = u2
+
+            print("u0", k, u.shape, torch.isnan(u).any(), torch.isnan(u).sum())
+
+        return u, ut
+
+    else:
+        raise NotImplementedError("this boundary condition is not implemented")
 
 def periLaplacian(v,dx):
     """

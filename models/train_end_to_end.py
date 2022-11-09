@@ -11,8 +11,8 @@ import scipy.stats as ss
 import torch.utils.tensorboard as tb
 from visualize_progress import visualize_wavefield
 
-def train_Dt_end_to_end(batch_size = 50, lr = .001, res_scaler = 2, n_epochs = 500,
-                        model_name = "unet", model_res = "128", logging=False, validate = False, flipping=False, visualize=False):
+def train_Dt_end_to_end(batch_size = 1, lr = .001, res_scaler = 2, n_epochs = 500,
+                        model_name = "unet", model_res = "128", logging=False, validate = False, flipping=False, visualize=False, boundary_c = 'periodic'):
 
     #logger setup
     train_logger, valid_logger = None, None
@@ -24,7 +24,7 @@ def train_Dt_end_to_end(batch_size = 50, lr = .001, res_scaler = 2, n_epochs = 5
     global_step = 0
 
     # model setup
-    model = restriction_nn(res_scaler = res_scaler).double()
+    model = restriction_nn(res_scaler = res_scaler,boundary_c=boundary_c).double()
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print("gpu available:", torch.cuda.is_available(), "| n of gpus:", torch.cuda.device_count())
     model.to(device)
@@ -75,7 +75,7 @@ def train_Dt_end_to_end(batch_size = 50, lr = .001, res_scaler = 2, n_epochs = 5
 
                     output = model(input_tensor)
 
-                    loss = loss_f(output, input_tensor)#label)
+                    loss = loss_f(output, label)
                     loss_list.append(loss)
 
                     if visualize:
@@ -141,7 +141,7 @@ if __name__ == "__main__":
     res_scaler = "2" #sys.argv[3]
     print("start training", model_name, model_res)
     train_Dt_end_to_end(model_name = "end_to_end_"+model_name, model_res = model_res, res_scaler=int(res_scaler),
-                        logging=False, visualize=True, absorbing_bc = False)
+                        logging=False, visualize=True, boundary_c = 'absorbing')
     end_time = time.time()
 
     print('training done:', (end_time - start_time))
