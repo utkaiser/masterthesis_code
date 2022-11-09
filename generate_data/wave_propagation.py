@@ -105,10 +105,10 @@ def velocity_verlet_tensor(u0, ut0, vel, dx, dt, delta_t_star, number=0, boundar
         for k in range(Nt):
             # wave eq update
             u2[1:Ny-1, 1:Nx-1] = 2*u1[1:Ny-1,1:Nx-1]-u0[1:Ny-1,1:Nx-1]+\
-                                 torch.mul(lambda_vc2[1:Ny-1,1:Nx-1],u1[2:Ny,1:Nx-1])+\
-                                 u1[0:Ny-2,1:Nx-1]+u1[1:Ny-1,2:Nx]+u1[1:Ny-1,0:Nx-2]-\
-                                 4*u1[1:Ny-1,1:Nx-1]
-
+                                 torch.mul(lambda_vc2[1:Ny-1,1:Nx-1],(u1[2:Ny,1:Nx-1]+
+                                 u1[0:Ny-2,1:Nx-1]+u1[1:Ny-1,2:Nx]+u1[1:Ny-1,0:Nx-2]-
+                                 4*u1[1:Ny-1,1:Nx-1]))
+            '''
             # absorbing boundary update (Engquist-Majda ABC second order)
             for j in range(1,Nx-1):
                 # bottom
@@ -149,14 +149,12 @@ def velocity_verlet_tensor(u0, ut0, vel, dx, dt, delta_t_star, number=0, boundar
 
             u2[-1,-1] = a*(u1[-1,-1]-u2[Ny-1,-1]+u1[Ny-1,-1]+
                            lambda_v*(u2[Ny-1,-1]-u1[-1,-1]+u1[Ny-1,-1]))
-
+            '''
             # update grids
             ut = (u2-u0) / (2*dt)
             u = u2
             u0 = u1
             u1 = u2
-
-            print("u0", k, u.shape, torch.isnan(u).any(), torch.isnan(u).sum())
 
         return u, ut
 
