@@ -4,6 +4,7 @@ import numpy as np
 import torch
 import torchvision.transforms.functional as TF
 import random
+import scipy.stats as ss
 
 environ["TOKENIZERS_PARALLELISM"] = "false"
 environ["OMP_NUM_THREADS"] = "1"
@@ -104,3 +105,9 @@ def flip_tensors(input_tensor, label, v_flipped, h_flipped):
         label = TF.hflip(label)
 
     return input_tensor, label, v_flipped, h_flipped
+
+def sample_label_random(input_idx, label_distr_shift):
+    possible_label_range = np.arange(input_idx + 2 - label_distr_shift, 12 - label_distr_shift)  # [a,b-1]
+    prob = ss.norm.cdf(possible_label_range + 0.5, scale=3) - ss.norm.cdf(possible_label_range - 0.5, scale=3)
+    label_range = list(np.random.choice(possible_label_range + label_distr_shift, size=1, p=prob / prob.sum()))[0]
+    return label_range

@@ -118,7 +118,20 @@ def grad2func_tensor(vx, vy, dx, sumv):
 
     return torch.real(torch.fft.ifft2(hatv))
 
+
 def crop_center(img,cropx,cropy):
+    '''
+    Parameters
+    ----------
+    img : tensor w x h, should reduce it to size cropx x cropy
+    cropx : int
+    cropy : int
+
+    Returns
+    -------
+    cropped img
+    '''
+
     y,x = img.shape
     startx = x//2-(cropx//2)
     starty = y//2-(cropy//2)

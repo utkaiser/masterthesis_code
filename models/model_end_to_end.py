@@ -5,19 +5,17 @@ warnings.filterwarnings("ignore")
 from generate_data.wave_propagation import velocity_verlet_tensor
 from generate_data.wave_util import WaveEnergyComponentField_tensor, WaveSol_from_EnergyComponent_tensor
 import torch
-import torch.nn.functional as F
-import matplotlib.pyplot as plt
-from generate_data import wave_util
 
-class restriction_nn(nn.Module):
+class Restriction_nn(nn.Module):
     '''
             x: delta t star, dx, prev fine solution
             -> downsampling (NN1) -> coarse solution propagates -> upsample (NN2)
             y: fine solution
     '''
 
-    def __init__(self, in_channels=3, n_classes=3, res_scaler = 2, delta_t_star = .2, f_delta_x = 2.0/128.0, boundary_c='periodic'):
-        super(restriction_nn, self).__init__()
+    def __init__(self, in_channels_wave=2, in_channels_vel=1, res_scaler = 2, delta_t_star = .2, f_delta_x =2.0 / 128.0, boundary_c='periodic'):
+        super().__init__()
+        # https://arxiv.org/abs/1412.6806 why I added stride
 
         # param setup
         self.delta_t_star = delta_t_star
@@ -26,32 +24,20 @@ class restriction_nn(nn.Module):
         self.f_delta_x = f_delta_x
         self.boundary_c = boundary_c
 
+        ##################### restriction nets ####################
 
-        ##################### restriction net ####################
+        #TODO: automate if we want downsample two times
+        self.phys_comp_restr_layer1 = Restr_block(in_channels_wave, 8) #TODO: check if same channel number as unet when skip_all adding
+        self.phys_comp_restr_layer2 = Restr_block(8, 8 * 2, stride=2)
+        self.phys_comp_restr_layer3 = Restr_block(8*2, 8*2)
+        self.phys_comp_restr_layer4 = Restr_block(8*2, 8)
+        self.phys_comp_restr_layer5 = Restr_block(8, in_channels_wave, relu=False, batch_norm=False)
 
-        downsample_layers = [
-            nn.Conv2d(in_channels, 42, kernel_size=3, padding=1, stride=2),  # , groups=3 https://arxiv.org/abs/1412.6806 why i added stride
-            nn.BatchNorm2d(42),
-            nn.ReLU(),
-            nn.Conv2d(42, 3, kernel_size=3, padding=1), #, groups=3
-        ]
-
-        # for i in range(res_scaler // 2):
-        #     downsample_layers += [
-        #         nn.MaxPool2d(2),
-        #         nn.Conv2d(in_channels * 2, in_channels * 4, kernel_size=3, padding=1),
-        #         nn.BatchNorm2d(in_channels * 4),
-        #         nn.ReLU()
-        #     ]
-        #
-        # downsample_layers += [
-        #     nn.Conv2d(in_channels * 4, in_channels * 2, kernel_size=3, padding=1),
-        #     nn.BatchNorm2d(in_channels * 2),
-        #     nn.ReLU(),
-        #     nn.Conv2d(in_channels * 2, 3, kernel_size=3, padding=1)
-        # ]
-
-        self.restriction_net = nn.Sequential(*downsample_layers)
+        self.vel_restr_layer1 = Restr_block(in_channels_vel, in_channels_vel * 2)
+        self.vel_restr_layer2 = Restr_block(in_channels_vel * 2, in_channels_vel * 4, stride=2)
+        self.vel_restr_layer3 = Restr_block(in_channels_vel * 4, in_channels_vel * 4)
+        self.vel_restr_layer4 = Restr_block(in_channels_vel * 4, in_channels_vel * 2)
+        self.vel_restr_layer5 = Restr_block(in_channels_vel * 2, in_channels_vel, relu=False, batch_norm=False)
 
 
         ##################### enhancing net ####################
@@ -66,12 +52,70 @@ class restriction_nn(nn.Module):
 
         u, ut = WaveSol_from_EnergyComponent_tensor(u_x, u_y, u_t_c, vel, self.f_delta_x, sumv)
 
-        # R (restriction)
-        phys_input = torch.stack((u, ut, vel), dim=1)
-        restr_output = self.restriction_net(phys_input) # b x 3 x w_c x h_c
-        restr_fine_sol_u = restr_output[:, 0, :, :]*.1  # b x w_c x h_c
-        restr_fine_sol_ut = restr_output[:, 1, :, :]*.1  # b x w_c x h_c
-        vel_c = restr_output[:, 2, :, :]  # b x w_c x h_c
+        ###### R (restriction) ######
+
+        # physical component restriction net
+        phys_input = torch.stack((u, ut), dim=1)
+        phys_output = self.phys_comp_restr_layer1(phys_input)
+        skip_all = phys_output
+        phys_output = self.phys_comp_restr_layer2(phys_output)
+        phys_output = self.phys_comp_restr_layer3(phys_output)
+        phys_output = self.phys_comp_restr_layer4(phys_output)
+        phys_output = self.phys_comp_restr_layer5(phys_output)
+        restr_fine_sol_u = phys_output[:, 0, :, :]  # b x w_c x h_c
+        restr_fine_sol_ut = phys_output[:, 1, :, :]  # b x w_c x h_c
+
+        # velocity component restriciton net
+        vel = vel.unsqueeze(dim=1)
+        vel_output = self.vel_restr_layer1(vel)
+        vel_output = self.vel_restr_layer2(vel_output)
+        vel_output = self.vel_restr_layer3(vel_output)
+        vel_output = self.vel_restr_layer4(vel_output)
+        vel_output = self.vel_restr_layer5(vel_output)
+        vel_c = vel_output[:,0, :, :]  # b x w_c x h_c
+
+        ###### G delta t (coarse iteration) ######
+        ucx, utcx = velocity_verlet_tensor(
+            restr_fine_sol_u, restr_fine_sol_ut,
+            vel_c, self.c_delta_x, self.c_delta_t, self.delta_t_star, number=1, boundary_c=self.boundary_c
+        )# b x w_c x h_c, b x w_c x h_c
+
+        #change to energy components
+        wx, wy, wtc = WaveEnergyComponentField_tensor(ucx,utcx,vel_c, self.f_delta_x)  # b x w_c x h_c, b x w_c x h_c, b x w_c x h_c
+
+        #create input for nn
+        inputs = torch.stack((wx, wy, wtc, vel_c), dim=1)  # b x 4 x 64 x 64
+
+        ###### upsampling through nn ######
+        outputs = self.jnet(inputs, skip_all=skip_all)  # b x 3 x w x h
+
+        #change output back to wave components
+        vx = outputs[:, 0, :, :]
+        vy = outputs[:, 1, :, :]
+        vtc = outputs[:, 2, :, :]
+
+        return torch.stack((vx, vy, vtc), dim=1)
+
+
+class Restr_block(nn.Module):
+    def __init__(self, in_channels, out_channel, stride=1, relu=True, batch_norm=True, kernel=3, padding=1):
+        super().__init__()
+
+        layers = [
+            nn.Conv2d(in_channels, out_channel, kernel_size=kernel, padding=padding, stride = stride)
+        ]
+        if batch_norm: layers += [nn.BatchNorm2d(out_channel)]
+        if relu: layers += [nn.ReLU()]
+
+        self.restr = nn.Sequential(*layers)
+
+    def forward(self, x):
+        return self.restr(x)
+
+
+
+
+
 
         #resizing
         # restr_output = torch.zeros([u.shape[0], 3, 64,64])
@@ -98,35 +142,9 @@ class restriction_nn(nn.Module):
         # plt.colorbar(pos2)
         # plt.show()
 
-        # G delta t (coarse iteration); checked, this is valid for batching
-        ucx, utcx = velocity_verlet_tensor(
-            restr_fine_sol_u, restr_fine_sol_ut,
-            vel_c, self.c_delta_x, self.c_delta_t, self.delta_t_star, number=1, boundary_c=self.boundary_c
-        )
-        # b x w_c x h_c, b x w_c x h_c
-        ucx, utcx = ucx.unsqueeze(dim=0), utcx.unsqueeze(dim=0)
-
-        #change to energy components
-        wx, wy, wtc = WaveEnergyComponentField_tensor(ucx,utcx,vel_c, self.f_delta_x) # b x w_c x h_c, b x w_c x h_c, b x w_c x h_c
-
-        #create input for nn
-        inputs = torch.stack((wx, wy, wtc, vel_c), dim=1) # b x 4 x 64 x 64
-
-        #upsampling through nn
-        outputs = self.jnet(inputs)  # b x 3 x w x h
-
-        #change output back to wave components
-        vx = outputs[:, 0, :, :]
-        vy = outputs[:, 1, :, :]
-        vtc = outputs[:, 2, :, :]
-
-        # a,b,c = WaveEnergyComponentField_tensor(restr_fine_sol_u,restr_fine_sol_ut,vel_c, self.f_delta_x)
-        # res = torch.zeros([u.shape[0], 4, 128, 128])
-        # res[:,0,:,:] = F.upsample(a.unsqueeze(dim=0), size=(128, 128), mode='bilinear')
-        # res[:,1, :, :] = F.upsample(b.unsqueeze(dim=0), size=(128, 128), mode='bilinear')
-        # res[:,2, :, :] = F.upsample(c.unsqueeze(dim=0), size=(128, 128), mode='bilinear')
-        # res[:,3, :, :] = F.upsample(vel_c.unsqueeze(dim=0), size=(128, 128), mode='bilinear')
-
-        return torch.stack((vx, vy, vtc), dim=1) #res
-
-
+    # a,b,c = WaveEnergyComponentField_tensor(restr_fine_sol_u,restr_fine_sol_ut,vel_c, self.f_delta_x)
+    # res = torch.zeros([u.shape[0], 4, 128, 128])
+    # res[:,0,:,:] = F.upsample(a.unsqueeze(dim=0), size=(128, 128), mode='bilinear')
+    # res[:,1, :, :] = F.upsample(b.unsqueeze(dim=0), size=(128, 128), mode='bilinear')
+    # res[:,2, :, :] = F.upsample(c.unsqueeze(dim=0), size=(128, 128), mode='bilinear')
+    # res[:,3, :, :] = F.upsample(vel_c.unsqueeze(dim=0), size=(128, 128), mode='bilinear')

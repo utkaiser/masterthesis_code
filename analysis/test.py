@@ -71,17 +71,18 @@ def solution_unten(u0, ut0, vel):
     return u, ut
 
 if __name__ == '__main__':
-    #from generate_data import wave_propagation as wav
+    from generate_data import wave_propagation as wav
     path = "../analysis/run_2abc/"
-    vel = torch.ones(128, 128)
+    vel = torch.ones(3,128, 128)
     val_a, val_b = torch.meshgrid(torch.linspace(-1, 1, 128), torch.linspace(-1, 1, 128))
-    u = torch.exp(-250 * (torch.mul(val_a,val_a) + torch.mul(val_b, val_b)))
-    ut = torch.zeros(128, 128)
+    u1 = torch.exp(-250 * (torch.mul(val_a,val_a) + torch.mul(val_b, val_b)))
+    u = torch.stack((u1,u1,u1), dim=0)
+    ut = torch.zeros(3,128, 128)
 
     for i in range(13):
-        plt.imshow(u)
+        plt.imshow(u[0,:,:])
         plt.colorbar()
-        plt.savefig(path+'abc_test'+str(i)+'.pdf')
-        plt.clf()
-        u, ut = solution_unten(u, ut, vel)  # wav.velocity_verlet_tensor(u,ut,boundary_c='periodic',vel=torch.ones((128,128)), dx=2.0/128.0, dt=(2.0/128.0) / 20, delta_t_star=.2)
+        plt.show()
+        u, ut =  wav.velocity_verlet_tensor(u,ut,boundary_c='absorbing',vel=torch.ones((3,128,128)), dx=2.0/128.0, dt=(2.0/128.0) / 20, delta_t_star=.2)
 
+        #solution_unten(u, ut, vel)

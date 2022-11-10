@@ -83,6 +83,8 @@ def velocity_verlet_tensor(u0, ut0, vel, dx, dt, delta_t_star, number=0, boundar
     elif boundary_c == 'absorbing':
         #TODO: first for non-batch case, then add batch case
 
+        # shape: u, ut -> b x w_c x h_c
+
         Ny, Nx = u0.shape[-1] - 1, u0.shape[-2] - 1
 
         lambda_v = abs(dt / dx)
@@ -99,54 +101,53 @@ def velocity_verlet_tensor(u0, ut0, vel, dx, dt, delta_t_star, number=0, boundar
 
         for k in range(Nt):
             # wave equation update
+            # for b in range(length):
+            #     u2[b, 1: Ny, 1: Nx] = 2 * u1[b, 1: Ny, 1: Nx] - u0[b, 1: Ny, 1: Nx] + lambdaC2[b, 1: Ny, 1: Nx] * \
+            #                        (u1[b, 2:Ny + 1, 1:Nx] + u1[b, 0: Ny - 1, 1: Nx] + u1[b, 1: Ny, 2: Nx + 1] + u1[b, 1: Ny,0: Nx - 1] - 4 * u1[b, 1: Ny,1: Nx])
+            u2[:,1: Ny, 1: Nx] = 2 * u1[:,1: Ny, 1: Nx] - u0[:,1: Ny, 1: Nx] + lambdaC2[:,1: Ny, 1: Nx] * \
+                                  (u1[:,2:Ny + 1, 1:Nx] + u1[:,0: Ny - 1, 1: Nx] + u1[:,1: Ny, 2: Nx + 1] + u1[:,1: Ny,0: Nx - 1] - 4 * u1[:,1: Ny,1: Nx])
 
-            u2[1: Ny, 1: Nx] = 2 * u1[1: Ny, 1: Nx] - u0[1: Ny, 1: Nx] + lambdaC2[1: Ny, 1: Nx] * \
-                               (u1[2:Ny + 1, 1:Nx] + u1[0: Ny - 1, 1: Nx] + u1[1: Ny, 2: Nx + 1] + u1[1: Ny,
-                                                                                                   0: Nx - 1] - 4 * u1[
-                                                                                                                    1: Ny,
-                                                                                                                    1: Nx])
-
-            # absorbing boundary update (Engquist-Majda ABC second order)
+            # # absorbing boundary update (Engquist-Majda ABC second order)
             Ny, Nx = Ny - 1, Nx - 1
-            u2[-1, 1:Nx + 1] = a * (
-                        -u2[Ny, 1:Nx + 1] + 2 * u1[-1, 1:Nx + 1] - u0[-1, 1:Nx + 1] + 2 * u1[Ny, 1:Nx + 1] - u0[Ny,
+            u2[:,-1, 1:Nx + 1] = a * (
+                        -u2[:,Ny, 1:Nx + 1] + 2 * u1[:,-1, 1:Nx + 1] - u0[:,-1, 1:Nx + 1] + 2 * u1[:,Ny, 1:Nx + 1] - u0[:,Ny,
                                                                                                              1:Nx + 1] +
-                        lambda_v * (u2[Ny, 1:Nx + 1] - u0[Ny, 1:Nx + 1] + u0[-1, 1:Nx + 1]) +
-                        .5 * lambda2 * (u0[-1, 2:Nx + 2] - 2 * u0[-1, 1:Nx + 1] + u0[-1, 0:Nx] +
-                                        u2[Ny, 2:Nx + 2] - 2 * u2[Ny, 1:Nx + 1] + u2[Ny, 0:Nx]))
+                        lambda_v * (u2[:,Ny, 1:Nx + 1] - u0[:,Ny, 1:Nx + 1] + u0[:,-1, 1:Nx + 1]) +
+                        .5 * lambda2 * (u0[:,-1, 2:Nx + 2] - 2 * u0[:,-1, 1:Nx + 1] + u0[:,-1, 0:Nx] +
+                                        u2[:,Ny, 2:Nx + 2] - 2 * u2[:,Ny, 1:Nx + 1] + u2[:,Ny, 0:Nx]))
 
-            u2[0, 1:Nx + 1] = a * (
-                        -u2[1, 1:Nx + 1] + 2 * u1[0, 1:Nx + 1] - u0[0, 1:Nx + 1] + 2 * u1[1, 1:Nx + 1] - u0[1,
+            u2[:,0, 1:Nx + 1] = a * (
+                        -u2[:,1, 1:Nx + 1] + 2 * u1[:,0, 1:Nx + 1] - u0[:,0, 1:Nx + 1] + 2 * u1[:,1, 1:Nx + 1] - u0[:,1,
                                                                                                          1:Nx + 1] +
-                        lambda_v * (u2[1, 1:Nx + 1] - u0[1, 1:Nx + 1] + u0[0, 1:Nx + 1]) +
-                        .5 * lambda2 * (u0[0, 2:Nx + 2] - 2 * u0[0, 1:Nx + 1] + u0[0, 0:Nx] +
-                                        u2[1, 2:Nx + 2] - 2 * u2[1, 1:Nx + 1] + u2[1, 0:Nx]))
+                        lambda_v * (u2[:,1, 1:Nx + 1] - u0[:,1, 1:Nx + 1] + u0[:,0, 1:Nx + 1]) +
+                        .5 * lambda2 * (u0[:,0, 2:Nx + 2] - 2 * u0[:,0, 1:Nx + 1] + u0[:,0, 0:Nx] +
+                                        u2[:,1, 2:Nx + 2] - 2 * u2[:,1, 1:Nx + 1] + u2[:,1, 0:Nx]))
 
-            u2[1:Ny + 1, -1] = a * (
-                        -u2[1:Ny + 1, Nx] + 2 * u1[1:Ny + 1, Nx] - u0[1:Ny + 1, Nx] + 2 * u1[1:Ny + 1, Nx + 1] - u0[
+            u2[:,1:Ny + 1, -1] = a * (
+                        -u2[:,1:Ny + 1, Nx] + 2 * u1[:,1:Ny + 1, Nx] - u0[:,1:Ny + 1, Nx] + 2 * u1[:,1:Ny + 1, Nx + 1] - u0[:,
                                                                                                                  1:Ny + 1,
                                                                                                                  Nx + 1] +
-                        lambda_v * (u2[1:Ny + 1, Nx] - u0[1:Ny + 1, Nx] + u0[1:Ny + 1, Nx + 1]) +
-                        .5 * lambda2 * (u0[2:Ny + 2, Nx + 1] - 2 * u0[1:Ny + 1, Nx + 1] + u0[0:Ny, Nx + 1] +
-                                        u2[2:Ny + 2, Nx] - 2 * u2[1:Ny + 1, Nx] + u2[0:Ny, Nx]))
+                        lambda_v * (u2[:,1:Ny + 1, Nx] - u0[:,1:Ny + 1, Nx] + u0[:,1:Ny + 1, Nx + 1]) +
+                        .5 * lambda2 * (u0[:,2:Ny + 2, Nx + 1] - 2 * u0[:,1:Ny + 1, Nx + 1] + u0[:,0:Ny, Nx + 1] +
+                                        u2[:,2:Ny + 2, Nx] - 2 * u2[:,1:Ny + 1, Nx] + u2[:,0:Ny, Nx]))
 
-            u2[1:Ny + 1, 0] = a * (
-                        -u2[1:Ny + 1, 1] + 2 * u1[1:Ny + 1, 1] - u0[1:Ny + 1, 1] + 2 * u1[1:Ny + 1, 0] - u0[1:Ny + 1,
+            u2[:,1:Ny + 1, 0] = a * (
+                        -u2[:,1:Ny + 1, 1] + 2 * u1[:,1:Ny + 1, 1] - u0[:,1:Ny + 1, 1] + 2 * u1[:,1:Ny + 1, 0] - u0[:,1:Ny + 1,
                                                                                                          0] +
-                        lambda_v * (u2[1:Ny + 1, 1] - u0[1:Ny + 1, 1] + u0[1:Ny + 1, 0]) +
-                        .5 * lambda2 * (u0[2:Ny + 2, 0] - 2 * u0[1:Ny + 1, 0] + u0[0:Ny, 0] +
-                                        u2[2:Ny + 2, 1] - 2 * u2[1:Ny + 1, 1] + u2[0:Ny, 1]))
+                        lambda_v * (u2[:,1:Ny + 1, 1] - u0[:,1:Ny + 1, 1] + u0[:,1:Ny + 1, 0]) +
+                        .5 * lambda2 * (u0[:,2:Ny + 2, 0] - 2 * u0[:,1:Ny + 1, 0] + u0[:,0:Ny, 0] +
+                                        u2[:,2:Ny + 2, 1] - 2 * u2[:,1:Ny + 1, 1] + u2[:,0:Ny, 1]))
 
             # corners
             # corners
-            u2[-1, 0] = a * (u1[-1, 0] - u2[Ny, 0] + u1[Ny, 0] +
-                             lambda_v * (u2[Ny, 0] - u1[-1, 0] + u1[Ny, 0]))
-            u2[0, 0] = a * (u1[0, 0] - u2[1, 0] + u1[1, 0] +
-                            lambda_v * (u2[1, 0] - u1[0, 0] + u1[1, 0]))
-            u2[0, -1] = a * (u1[0, -1] - u2[0, Nx] + u1[0, Nx] +
-                             lambda_v * (u2[0, Nx] - u1[0, -1] + u1[0, Nx]))
-            u2[-1, -1] = a * (u1[-1, -1] - u2[Ny, -1] + u1[Ny, -1] +
-                              lambda_v * (u2[Ny, -1] - u1[-1, -1] + u1[Ny, -1]))
+            u2[:,-1, 0] = a * (u1[:,-1, 0] - u2[:,Ny, 0] + u1[:,Ny, 0] +
+                             lambda_v * (u2[:,Ny, 0] - u1[:,-1, 0] + u1[:,Ny, 0]))
+            u2[:,0, 0] = a * (u1[:,0, 0] - u2[:,1, 0] + u1[:,1, 0] +
+                            lambda_v * (u2[:,1, 0] - u1[:,0, 0] + u1[:,1, 0]))
+            u2[:,0, -1] = a * (u1[:,0, -1] - u2[:,0, Nx] + u1[:,0, Nx] +
+                             lambda_v * (u2[:,0, Nx] - u1[:,0, -1] + u1[:,0, Nx]))
+            u2[:,-1, -1] = a * (u1[:,-1, -1] - u2[:,Ny, -1] + u1[:,Ny, -1] +
+                              lambda_v * (u2[:,Ny, -1] - u1[:,-1, -1] + u1[:,Ny, -1]))
 
             # update grids
             u, ut = u2.clone(), (u2 - u0) / (2 * dt)

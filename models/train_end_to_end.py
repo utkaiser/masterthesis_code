@@ -3,15 +3,15 @@ import time
 import torch.optim as optim
 import torch.nn as nn
 import datetime
-from model_end_to_end import restriction_nn
-from model_utils import save_model, fetch_data_end_to_end, flip_tensors
+from model_end_to_end import Restriction_nn
+from model_utils import save_model, fetch_data_end_to_end, flip_tensors, sample_label_random
 import torch
 import random
-import scipy.stats as ss
+
 import torch.utils.tensorboard as tb
 from visualize_progress import visualize_wavefield
 
-def train_Dt_end_to_end(batch_size = 1, lr = .001, res_scaler = 2, n_epochs = 500,
+def train_Dt_end_to_end(batch_size = 3, lr = .001, res_scaler = 2, n_epochs = 500,
                         model_name = "unet", model_res = "128", logging=False, validate = False, flipping=False, visualize=False, boundary_c = 'periodic'):
 
     #logger setup
@@ -24,7 +24,8 @@ def train_Dt_end_to_end(batch_size = 1, lr = .001, res_scaler = 2, n_epochs = 50
     global_step = 0
 
     # model setup
-    model = restriction_nn(res_scaler = res_scaler,boundary_c=boundary_c).double()
+    model = Restriction_nn(res_scaler = res_scaler,boundary_c=boundary_c).double()
+    # model = torch.nn.DataParallel(model)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print("gpu available:", torch.cuda.is_available(), "| n of gpus:", torch.cuda.device_count())
     model.to(device)
@@ -33,7 +34,7 @@ def train_Dt_end_to_end(batch_size = 1, lr = .001, res_scaler = 2, n_epochs = 50
 
     # data setup
     data_paths = [
-        '../data/end_to_end_bp_m_200_' + str(model_res) + '.npz'
+        '../data/end_to_end_bp_m_200_2000_test.npz'
     ]
     train_loader, val_loader = fetch_data_end_to_end(data_paths, batch_size=batch_size, shuffle=True)
     label_distr_shift = 0
@@ -51,8 +52,7 @@ def train_Dt_end_to_end(batch_size = 1, lr = .001, res_scaler = 2, n_epochs = 50
             data = data[0].to(device) # b x n_snaps x 4 x w x h
             loss_list = []
 
-            if epoch % (n_epochs // n_snaps) == 0 and epoch != 0:
-                label_distr_shift += 1
+            if epoch % (n_epochs // n_snaps) == 0 and epoch != 0: label_distr_shift += 1
 
             #for input_idx in random.choices(range(n_snaps-1), k=3):  # randomly shuffle order TODO: change back k to n_snaps-1
             for input_idx in range(1):
@@ -62,9 +62,7 @@ def train_Dt_end_to_end(batch_size = 1, lr = .001, res_scaler = 2, n_epochs = 50
                 h_flipped, v_flipped = False, False
 
                 # randomly sample label idx from normal distribution
-                possible_label_range = np.arange(input_idx + 2 - label_distr_shift, 12 - label_distr_shift)  # [a,b-1]
-                prob = ss.norm.cdf(possible_label_range + 0.5, scale=3) - ss.norm.cdf(possible_label_range - 0.5, scale=3)
-                label_range = list(np.random.choice(possible_label_range + label_distr_shift, size=1, p=prob / prob.sum()))[0]
+                label_range = sample_label_random(input_idx, label_distr_shift)
 
                 for label_idx in range(input_idx+1, input_idx+2): # randomly decide how long path is
 
@@ -125,7 +123,7 @@ def train_Dt_end_to_end(batch_size = 1, lr = .001, res_scaler = 2, n_epochs = 50
                 print(datetime.datetime.now().strftime("%H:%M:%S"), 'epoch %d , train loss: %.5f, test loss: %.5f' %
                       (epoch + 1, np.array(train_loss_list).mean(), np.array(val_loss_list).mean()))
 
-        if epoch % 20 == 0:  # saves first model as a test
+        if epoch % 50 == 0:  # saves first model as a test
             save_model(model, model_name + str(model_res))
             model.to(device)
 
@@ -141,7 +139,7 @@ if __name__ == "__main__":
     res_scaler = "2" #sys.argv[3]
     print("start training", model_name, model_res)
     train_Dt_end_to_end(model_name = "end_to_end_"+model_name, model_res = model_res, res_scaler=int(res_scaler),
-                        logging=False, visualize=True, boundary_c = 'absorbing')
+                        logging=False, visualize=False, boundary_c = 'absorbing', validate=False)
     end_time = time.time()
 
     print('training done:', (end_time - start_time))

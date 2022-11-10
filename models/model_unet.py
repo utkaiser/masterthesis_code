@@ -2,6 +2,7 @@
 # Forked from https://github.com/jvanvugt/pytorch-unet
 
 from torch import nn
+import torch
 
 class UNet(nn.Module):
     '''
@@ -42,7 +43,8 @@ class UNet(nn.Module):
             self.last.append(UNetConvBlock(prev_channels, prev_channels, self.acti_func))
         self.last.append(nn.Conv2d(prev_channels, n_classes, kernel_size=1, bias=False))
 
-    def forward(self, x):
+    def forward(self, x, skip_all=None):
+
         blocks = []
         for i, down in enumerate(self.down_path):
             x = down(x)
@@ -53,8 +55,9 @@ class UNet(nn.Module):
             x = up(x, blocks[-i-2])
 
         for i,layer in enumerate(self.last):
+            if len(self.last) - 1 == i and torch.is_tensor(skip_all):
+                x = skip_all + x  # skip connection is just addition right now TODO: is that ok? batchnorm? convolution?
             x = layer(x)
-
         return x
 
 
@@ -82,8 +85,7 @@ class UNetConvBlock(nn.Module):
         self.block = nn.Sequential(*block)
 
     def forward(self, x):
-        out = self.block(x)
-        return out
+        return self.block(x)
 
 
 class UNetUpBlock(nn.Module):
