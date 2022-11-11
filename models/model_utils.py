@@ -60,8 +60,7 @@ def fetch_data(data_paths, batch_size=1, shuffle=True):
     return train_loaders
 
 
-def fetch_data_end_to_end(data_paths, batch_size, shuffle=True, train_split = .9):
-    global np_array
+def fetch_data_end_to_end(data_paths, batch_size, shuffle=True, train_split = .9,validate=False):
     print("setting up data")
 
     #concatenate
@@ -76,18 +75,21 @@ def fetch_data_end_to_end(data_paths, batch_size, shuffle=True, train_split = .9
 
     full_dataset = torch.utils.data.TensorDataset(tensor)
 
-    train_size = int(train_split * len(full_dataset))
-    val_size = len(full_dataset) - train_size
-    train_dataset, val_dataset = torch.utils.data.random_split(full_dataset, [train_size, val_size])
-    #train_dataset = torch.utils.data.Subset(full_dataset, [0])
+    if validate:
 
-    train_loader = torch.utils.data.DataLoader(train_dataset,
-                                              batch_size=batch_size, shuffle=shuffle, num_workers=1)
+        train_size = int(train_split * len(full_dataset))
+        val_size = len(full_dataset) - train_size
+        train_dataset, val_dataset = torch.utils.data.random_split(full_dataset, [train_size, val_size])
+        train_loader = torch.utils.data.DataLoader(train_dataset,
+                                                   batch_size=batch_size, shuffle=shuffle, num_workers=1)
+        val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=batch_size, shuffle=shuffle, num_workers=1)
+        print("test data points:", len(train_loader) * batch_size, "| train data points:", len(val_loader) * batch_size)
+        return train_loader, val_loader
+    else:
 
-    val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=batch_size, shuffle=shuffle, num_workers=1)
-
-    print("test data points:", len(train_loader) * batch_size, "| train data points:", len(val_loader) * batch_size)
-    return train_loader, val_loader
+        train_loader = torch.utils.data.DataLoader(full_dataset, batch_size=batch_size, shuffle=shuffle, num_workers=1)
+        print("test data points:", len(train_loader) * batch_size)
+        return train_loader, None
 
 def flip_tensors(input_tensor, label, v_flipped, h_flipped):
 

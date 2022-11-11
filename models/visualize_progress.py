@@ -1,16 +1,19 @@
 import torch
 from generate_data import wave_util
 import matplotlib.pyplot as plt
+import numpy as np
 
-def visualize_wavefield(tensor_list, dx = 2.0 / 128.0, f_delta_t=.2, scaler=2):
+def visualize_wavefield(tensor_list, dx = 2.0 / 128.0, f_delta_t=.06, scaler=2):
     # list of tupels with tensors
 
     n_snapshots = len(tensor_list)
-    fig = plt.figure(figsize=(30, 20))
+    fig = plt.figure(figsize=(20, 8))
+    loss_list = []
 
     for i, values in enumerate(tensor_list):
 
         loss, input_idx, label_idx, input, output, label = values
+        loss_list.append(str(round(loss,5)))
 
         combined_data = torch.stack([input[:3,:,:], output[:3,:,:], label])
         _min, _max = torch.min(combined_data), torch.max(combined_data)
@@ -29,7 +32,7 @@ def visualize_wavefield(tensor_list, dx = 2.0 / 128.0, f_delta_t=.2, scaler=2):
         ax2 = fig.add_subplot(4, n_snapshots, i+1 + n_snapshots)
         pos2 = ax2.imshow(wave_util.WaveEnergyField_tensor(u[0, :, :], ut[0, :, :], vel[0, :, :], dx) * dx * dx)#,vmin = _min, vmax = _max)
         plt.axis('off')
-        ax2.set_title('loss: '+str(loss.item())+", input_idx: "+str(input_idx)+", label_idx: "+str(label_idx), fontsize=20)
+        #ax2.set_title('loss: '+str(round(loss,5))+", input_idx: "+str(input_idx)+", label_idx: "+str(label_idx), fontsize=20)
         # plt.colorbar(pos2)
 
         # output
@@ -50,4 +53,5 @@ def visualize_wavefield(tensor_list, dx = 2.0 / 128.0, f_delta_t=.2, scaler=2):
         plt.axis('off')
         # plt.colorbar(pos4)
 
+    fig.suptitle("losses: " + ", ".join(loss_list), fontsize=14)
     plt.show()

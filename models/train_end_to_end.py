@@ -11,32 +11,33 @@ import random
 import torch.utils.tensorboard as tb
 from visualize_progress import visualize_wavefield
 
-def train_Dt_end_to_end(batch_size = 3, lr = .001, res_scaler = 2, n_epochs = 500,
-                        model_name = "unet", model_res = "128", logging=False, validate = False, flipping=False, visualize=False, boundary_c = 'periodic'):
+def train_Dt_end_to_end(batch_size = 10, lr = .001, res_scaler = 2, n_epochs = 500,
+                        model_name = "unet", model_res = "128", logging=False,
+                        validate = False, flipping=False, visualize=False, boundary_c = 'periodic',
+                        data_paths = ['../data/end_to_end_bp_m_200_2000.npz'],
+                        train_logger_path = '../results/run_2/log_train/',
+                        valid_logger_path = '../results/run_2/log_valid/'):
 
     #logger setup
     train_logger, valid_logger = None, None
     if logging:
-        train_logger = tb.SummaryWriter('../results/run_2/log_train/'+ model_name + str(model_res)
+        train_logger = tb.SummaryWriter(train_logger_path + model_name + str(model_res)
                                         + '/{}'.format(time.strftime('%H-%M-%S')) + '_test.npz', flush_secs=1)
-        valid_logger = tb.SummaryWriter('../results/run_2/log_valid/'+ model_name + str(model_res)
+        valid_logger = tb.SummaryWriter(valid_logger_path + model_name + str(model_res)
                                         + '/{}'.format(time.strftime('%H-%M-%S')) + '_test.npz', flush_secs=1)
     global_step = 0
 
     # model setup
-    model = Restriction_nn(res_scaler = res_scaler,boundary_c=boundary_c).double()
-    # model = torch.nn.DataParallel(model)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print("gpu available:", torch.cuda.is_available(), "| n of gpus:", torch.cuda.device_count())
-    model.to(device)
+
+    model = Restriction_nn(res_scaler = res_scaler,boundary_c=boundary_c, delta_t_star=.06, f_delta_x = 2.0 / 128.0).double()
+    model = torch.nn.DataParallel(model).to(device)
     optimizer = optim.AdamW(model.parameters(), lr=lr) #SGD(model.parameters(), lr=lr)
     loss_f = nn.SmoothL1Loss() #nn.MSELoss()
 
     # data setup
-    data_paths = [
-        '../data/end_to_end_bp_m_200_2000_test.npz'
-    ]
-    train_loader, val_loader = fetch_data_end_to_end(data_paths, batch_size=batch_size, shuffle=True)
+    train_loader, val_loader = fetch_data_end_to_end(data_paths, batch_size=batch_size, shuffle=True, validate = validate)
     label_distr_shift = 0
 
     # training
@@ -54,8 +55,8 @@ def train_Dt_end_to_end(batch_size = 3, lr = .001, res_scaler = 2, n_epochs = 50
 
             if epoch % (n_epochs // n_snaps) == 0 and epoch != 0: label_distr_shift += 1
 
-            #for input_idx in random.choices(range(n_snaps-1), k=3):  # randomly shuffle order TODO: change back k to n_snaps-1
-            for input_idx in range(1):
+            for input_idx in random.choices(range(n_snaps-1), k=3):  # randomly shuffle order
+            #for input_idx in range(1):
                 if visualize: visualize_list = []
 
                 input_tensor = data[:, input_idx, :, :, :] # b x 4 x w x h
@@ -64,7 +65,7 @@ def train_Dt_end_to_end(batch_size = 3, lr = .001, res_scaler = 2, n_epochs = 50
                 # randomly sample label idx from normal distribution
                 label_range = sample_label_random(input_idx, label_distr_shift)
 
-                for label_idx in range(input_idx+1, input_idx+2): # randomly decide how long path is
+                for label_idx in range(input_idx+1, label_range): # randomly decide how long path is
 
                     label = data[:, label_idx, :3, :, :] # b x 3 x w x h
 
@@ -78,7 +79,7 @@ def train_Dt_end_to_end(batch_size = 3, lr = .001, res_scaler = 2, n_epochs = 50
 
                     if visualize:
                         # save only first element of batch
-                        visualize_list.append((loss, input_idx, label_idx, input_tensor[0,:,:,:].detach(), output[0,:,:,:].detach(), label[0,:,:,:].detach()))
+                        visualize_list.append((loss.item(), input_idx, label_idx, input_tensor[0,:,:,:].detach(), output[0,:,:,:].detach(), label[0,:,:,:].detach()))
 
                     input_tensor = torch.cat((output, torch.unsqueeze(input_tensor[:, 3, :, :], dim=1)), dim=1).detach()
 
@@ -139,7 +140,8 @@ if __name__ == "__main__":
     res_scaler = "2" #sys.argv[3]
     print("start training", model_name, model_res)
     train_Dt_end_to_end(model_name = "end_to_end_"+model_name, model_res = model_res, res_scaler=int(res_scaler),
-                        logging=False, visualize=False, boundary_c = 'absorbing', validate=False)
+                        logging=False, visualize=True, boundary_c = 'absorbing', validate=False,
+                        data_paths = ['../data/end_to_end_bp_m_200_2000.npz'])
     end_time = time.time()
 
     print('training done:', (end_time - start_time))
