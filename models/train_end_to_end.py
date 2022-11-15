@@ -7,11 +7,10 @@ from model_end_to_end import Restriction_nn
 from model_utils import save_model, fetch_data_end_to_end, flip_tensors, sample_label_random
 import torch
 import random
-
 import torch.utils.tensorboard as tb
 from visualize_progress import visualize_wavefield
 
-def train_Dt_end_to_end(batch_size = 10, lr = .001, res_scaler = 2, n_epochs = 500,
+def train_Dt_end_to_end(batch_size = 15, lr = .001, res_scaler = 2, n_epochs = 500,
                         model_name = "unet", model_res = "128", logging=False,
                         validate = False, flipping=False, visualize=False, boundary_c = 'periodic',
                         data_paths = ['../data/end_to_end_bp_m_200_2000.npz'],
@@ -55,7 +54,7 @@ def train_Dt_end_to_end(batch_size = 10, lr = .001, res_scaler = 2, n_epochs = 5
 
             if epoch % (n_epochs // n_snaps) == 0 and epoch != 0: label_distr_shift += 1
 
-            for input_idx in random.choices(range(n_snaps-1), k=3):  # randomly shuffle order
+            for input_idx in random.choices(range(n_snaps-1), k=n_snaps-1):  # randomly shuffle order
             #for input_idx in range(1):
                 if visualize: visualize_list = []
 
@@ -67,12 +66,12 @@ def train_Dt_end_to_end(batch_size = 10, lr = .001, res_scaler = 2, n_epochs = 5
 
                 for label_idx in range(input_idx+1, label_range): # randomly decide how long path is
 
-                    label = data[:, label_idx, :3, :, :] # b x 3 x w x h
+                    label = data[:, label_idx, :3, :, :].to(device) # b x 3 x w x h
 
                     if flipping:
                         input_tensor, label, v_flipped, h_flipped = flip_tensors(input_tensor, label, v_flipped, h_flipped)
 
-                    output = model(input_tensor)
+                    output = model(input_tensor.to(device))  # b x 3 x w x h
 
                     loss = loss_f(output, label)
                     loss_list.append(loss)

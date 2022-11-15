@@ -1,9 +1,9 @@
 from torch import nn
 import warnings
-import models.model_unet as model_unet
-from generate_data.wave_util import WaveEnergyField
+from models import model_unet
 warnings.filterwarnings("ignore")
-import torch.nn.functional as F
+import torch
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 from generate_data.wave_propagation import velocity_verlet_tensor
 from generate_data.wave_util import WaveEnergyComponentField_tensor, WaveSol_from_EnergyComponent_tensor
 import torch
@@ -54,12 +54,12 @@ class Restriction_nn(nn.Module):
         u_x, u_y, u_t_c, vel = x[:, 0, :, :], x[:, 1, :, :], x[:, 2, :, :], x[:, 3, :, :]
         sumv = torch.sum(torch.sum(u_x))
 
-        u, ut = WaveSol_from_EnergyComponent_tensor(u_x, u_y, u_t_c, vel, self.f_delta_x, sumv)
+        u, ut = WaveSol_from_EnergyComponent_tensor(u_x.to(device), u_y.to(device), u_t_c.to(device), vel.to(device), self.f_delta_x, sumv)
 
         ###### R (restriction) ######
 
         # physical component restriction net
-        phys_input = torch.stack((u, ut), dim=1)
+        phys_input = torch.stack((u, ut), dim=1).to(device)
         phys_output = self.phys_comp_restr_layer1(phys_input)
         skip_all = phys_output
         phys_output = self.phys_comp_restr_layer2(phys_output)
@@ -70,7 +70,7 @@ class Restriction_nn(nn.Module):
         restr_fine_sol_ut = phys_output[:, 1, :, :]  # b x w_c x h_c
 
         # velocity component restriciton net
-        vel = vel.unsqueeze(dim=1)
+        vel = vel.unsqueeze(dim=1).to(device)
         vel_output = self.vel_restr_layer1(vel)
         vel_output = self.vel_restr_layer2(vel_output)
         vel_output = self.vel_restr_layer3(vel_output)
@@ -89,7 +89,7 @@ class Restriction_nn(nn.Module):
                                                       self.f_delta_x)  # b x w_c x h_c, b x w_c x h_c, b x w_c x h_c
 
         # create input for nn
-        inputs = torch.stack((wx, wy, wtc, vel_c), dim=1)  # b x 4 x 64 x 64
+        inputs = torch.stack((wx, wy, wtc, vel_c), dim=1).to(device)  # b x 4 x 64 x 64
 
         ###### upsampling through nn ######
         outputs = self.jnet(inputs, skip_all=skip_all)  # b x 3 x w x h

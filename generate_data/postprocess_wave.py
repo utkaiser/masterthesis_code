@@ -21,11 +21,9 @@ def ApplyJNet2WaveSol(w,wt,c,dx,net,m=2):
     
     c_coarse = resize(c,w.shape,order=4)
     wx,wy,wtc = wave_util.WaveEnergyComponentField(np.expand_dims(w,axis=2),np.expand_dims(wt,axis=2),c_coarse,dx*m)
-
     wx = torch.from_numpy(np.transpose(wx,(2,0,1)))
     wy = torch.from_numpy(np.transpose(wy,(2,0,1)))
     wtc = torch.from_numpy(np.transpose(wtc,(2,0,1)))
-
     ctensor = torch.from_numpy(np.transpose(np.expand_dims(c_coarse,axis=2),(2,0,1)))
     inputs = torch.stack((wx,wy,wtc,ctensor),dim=1)
     
