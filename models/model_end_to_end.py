@@ -31,22 +31,27 @@ class Restriction_nn(nn.Module):
         ##################### restriction nets ####################
 
         #TODO: automate if we want downsample two times
-        self.phys_comp_restr_layer1 = Restr_block(in_channels_wave, 8) #TODO: check if same channel number as unet when skip_all adding
-        self.phys_comp_restr_layer2 = Restr_block(8, 8 * 2, stride=2)
-        self.phys_comp_restr_layer3 = Restr_block(8*2, 8*2)
-        self.phys_comp_restr_layer4 = Restr_block(8*2, 8)
-        self.phys_comp_restr_layer5 = Restr_block(8, in_channels_wave, relu=False, batch_norm=False)
+        self.phys_comp_restr_layer1 = Restr_block(in_channels_wave, 4)
+        self.phys_comp_restr_layer2 = Restr_block(4, 8)
+        self.phys_comp_restr_layer3 = Restr_block(8, 8)
+        self.phys_comp_restr_layer4 = Restr_block(8, 8*2)
+        self.phys_comp_restr_layer5 = Restr_block(8*2, 8 * 2, stride=2)
+        self.phys_comp_restr_layer6 = Restr_block(8*2, 8)
+        self.phys_comp_restr_layer7 = Restr_block(8, 4)
+        self.phys_comp_restr_layer8 = Restr_block(4, in_channels_wave, relu=False, batch_norm=False)
 
-        self.vel_restr_layer1 = Restr_block(in_channels_vel, in_channels_vel * 2)
-        self.vel_restr_layer2 = Restr_block(in_channels_vel * 2, in_channels_vel * 4, stride=2)
-        self.vel_restr_layer3 = Restr_block(in_channels_vel * 4, in_channels_vel * 4)
-        self.vel_restr_layer4 = Restr_block(in_channels_vel * 4, in_channels_vel * 2)
-        self.vel_restr_layer5 = Restr_block(in_channels_vel * 2, in_channels_vel, relu=False, batch_norm=False)
-
+        self.vel_restr_layer1 = Restr_block(in_channels_vel, 2)
+        self.vel_restr_layer2 = Restr_block(2, 4)
+        self.vel_restr_layer3 = Restr_block(4, 4)
+        self.vel_restr_layer4 = Restr_block(4, 4 * 2)
+        self.vel_restr_layer5 = Restr_block(4 * 2, 4 * 2, stride=2)
+        self.vel_restr_layer6 = Restr_block(4 * 2, 4)
+        self.vel_restr_layer7 = Restr_block(4, 2)
+        self.vel_restr_layer8 = Restr_block(2, in_channels_wave, relu=False, batch_norm=False)
 
         ##################### enhancing net ####################
 
-        self.jnet = model_unet.UNet(wf=1, depth=3, scale_factor=res_scaler).double()
+        self.jnet = model_unet.UNet(wf=1, depth=6, scale_factor=res_scaler).double()
 
 
     def forward(self, x):
@@ -61,11 +66,14 @@ class Restriction_nn(nn.Module):
         # physical component restriction net
         phys_input = torch.stack((u, ut), dim=1).to(device)
         phys_output = self.phys_comp_restr_layer1(phys_input)
-        skip_all = phys_output
         phys_output = self.phys_comp_restr_layer2(phys_output)
         phys_output = self.phys_comp_restr_layer3(phys_output)
+        skip_all = phys_output
         phys_output = self.phys_comp_restr_layer4(phys_output)
-        phys_output = self.phys_comp_restr_layer5(phys_output)
+        phys_output = self.phys_comp_restr_layer5(phys_output)  # stride
+        phys_output = self.phys_comp_restr_layer6(phys_output)
+        phys_output = self.phys_comp_restr_layer7(phys_output)
+        phys_output = self.phys_comp_restr_layer8(phys_output)
         restr_fine_sol_u = phys_output[:, 0, :, :]  # b x w_c x h_c
         restr_fine_sol_ut = phys_output[:, 1, :, :]  # b x w_c x h_c
 
@@ -75,7 +83,10 @@ class Restriction_nn(nn.Module):
         vel_output = self.vel_restr_layer2(vel_output)
         vel_output = self.vel_restr_layer3(vel_output)
         vel_output = self.vel_restr_layer4(vel_output)
-        vel_output = self.vel_restr_layer5(vel_output)
+        vel_output = self.vel_restr_layer5(vel_output)  # stride
+        vel_output = self.vel_restr_layer6(vel_output)
+        vel_output = self.vel_restr_layer7(vel_output)
+        vel_output = self.vel_restr_layer8(vel_output)
         vel_c = vel_output[:,0, :, :]  # b x w_c x h_c
 
         ###### G delta t (coarse iteration) ######
@@ -92,7 +103,7 @@ class Restriction_nn(nn.Module):
         inputs = torch.stack((wx, wy, wtc, vel_c), dim=1).to(device)  # b x 4 x 64 x 64
 
         ###### upsampling through nn ######
-        outputs = self.jnet(inputs, skip_all=skip_all)  # b x 3 x w x h
+        outputs = self.jnet(inputs, skip_all=skip_all)*.1  # b x 3 x w x h
 
         # change output back to wave components
         vx = outputs[:, 0, :, :]

@@ -101,9 +101,6 @@ def velocity_verlet_tensor(u0, ut0, vel, dx, dt, delta_t_star, number=0, boundar
 
         for k in range(Nt):
             # wave equation update
-            # for b in range(length):
-            #     u2[b, 1: Ny, 1: Nx] = 2 * u1[b, 1: Ny, 1: Nx] - u0[b, 1: Ny, 1: Nx] + lambdaC2[b, 1: Ny, 1: Nx] * \
-            #                        (u1[b, 2:Ny + 1, 1:Nx] + u1[b, 0: Ny - 1, 1: Nx] + u1[b, 1: Ny, 2: Nx + 1] + u1[b, 1: Ny,0: Nx - 1] - 4 * u1[b, 1: Ny,1: Nx])
             u2[:,1: Ny, 1: Nx] = 2 * u1[:,1: Ny, 1: Nx] - u0[:,1: Ny, 1: Nx] + lambdaC2[:,1: Ny, 1: Nx] * \
                                   (u1[:,2:Ny + 1, 1:Nx] + u1[:,0: Ny - 1, 1: Nx] + u1[:,1: Ny, 2: Nx + 1] + u1[:,1: Ny,0: Nx - 1] - 4 * u1[:,1: Ny,1: Nx])
 
@@ -138,7 +135,6 @@ def velocity_verlet_tensor(u0, ut0, vel, dx, dt, delta_t_star, number=0, boundar
                         .5 * lambda2 * (u0[:,2:Ny + 2, 0] - 2 * u0[:,1:Ny + 1, 0] + u0[:,0:Ny, 0] +
                                         u2[:,2:Ny + 2, 1] - 2 * u2[:,1:Ny + 1, 1] + u2[:,0:Ny, 1]))
 
-            # corners
             # corners
             u2[:,-1, 0] = a * (u1[:,-1, 0] - u2[:,Ny, 0] + u1[:,Ny, 0] +
                              lambda_v * (u2[:,Ny, 0] - u1[:,-1, 0] + u1[:,Ny, 0]))

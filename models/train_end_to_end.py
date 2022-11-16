@@ -10,9 +10,9 @@ import random
 import torch.utils.tensorboard as tb
 from visualize_progress import visualize_wavefield
 
-def train_Dt_end_to_end(batch_size = 15, lr = .001, res_scaler = 2, n_epochs = 500,
+def train_Dt_end_to_end(batch_size = 30, lr = .001, res_scaler = 2, n_epochs = 500,
                         model_name = "unet", model_res = "128", logging=False,
-                        validate = False, flipping=False, visualize=False, boundary_c = 'periodic',
+                        validate = False, flipping=False, visualize=False, vis_param=1, boundary_c = 'periodic',
                         data_paths = ['../data/end_to_end_bp_m_200_2000.npz'],
                         train_logger_path = '../results/run_2/log_train/',
                         valid_logger_path = '../results/run_2/log_valid/'):
@@ -30,7 +30,7 @@ def train_Dt_end_to_end(batch_size = 15, lr = .001, res_scaler = 2, n_epochs = 5
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print("gpu available:", torch.cuda.is_available(), "| n of gpus:", torch.cuda.device_count())
 
-    model = Restriction_nn(res_scaler = res_scaler,boundary_c=boundary_c, delta_t_star=.06, f_delta_x = 2.0 / 128.0).double()
+    model = Restriction_nn(res_scaler = res_scaler,boundary_c=boundary_c, delta_t_star=.06, f_delta_x = (2.0 / 128.0)*2).double()
     model = torch.nn.DataParallel(model).to(device)
     optimizer = optim.AdamW(model.parameters(), lr=lr) #SGD(model.parameters(), lr=lr)
     loss_f = nn.SmoothL1Loss() #nn.MSELoss()
@@ -54,9 +54,9 @@ def train_Dt_end_to_end(batch_size = 15, lr = .001, res_scaler = 2, n_epochs = 5
 
             if epoch % (n_epochs // n_snaps) == 0 and epoch != 0: label_distr_shift += 1
 
-            for input_idx in random.choices(range(n_snaps-1), k=n_snaps-1):  # randomly shuffle order
-            #for input_idx in range(1):
-                if visualize: visualize_list = []
+            #for input_idx in random.choices(range(n_snaps-1), k=n_snaps-1):  # randomly shuffle order
+            for input_idx in range(1):
+                if visualize and epoch % vis_param == 0: visualize_list = []
 
                 input_tensor = data[:, input_idx, :, :, :] # b x 4 x w x h
                 h_flipped, v_flipped = False, False
@@ -64,7 +64,7 @@ def train_Dt_end_to_end(batch_size = 15, lr = .001, res_scaler = 2, n_epochs = 5
                 # randomly sample label idx from normal distribution
                 label_range = sample_label_random(input_idx, label_distr_shift)
 
-                for label_idx in range(input_idx+1, label_range): # randomly decide how long path is
+                for label_idx in range(input_idx+1, input_idx+2): # randomly decide how long path is
 
                     label = data[:, label_idx, :3, :, :].to(device) # b x 3 x w x h
 
@@ -76,13 +76,13 @@ def train_Dt_end_to_end(batch_size = 15, lr = .001, res_scaler = 2, n_epochs = 5
                     loss = loss_f(output, label)
                     loss_list.append(loss)
 
-                    if visualize:
+                    if visualize and epoch % vis_param == 0:
                         # save only first element of batch
                         visualize_list.append((loss.item(), input_idx, label_idx, input_tensor[0,:,:,:].detach(), output[0,:,:,:].detach(), label[0,:,:,:].detach()))
 
                     input_tensor = torch.cat((output, torch.unsqueeze(input_tensor[:, 3, :, :], dim=1)), dim=1).detach()
 
-                if visualize: visualize_wavefield(visualize_list,scaler=res_scaler)
+                if visualize and epoch % vis_param == 0: visualize_wavefield(visualize_list,scaler=res_scaler)
 
             optimizer.zero_grad()
 
@@ -99,7 +99,6 @@ def train_Dt_end_to_end(batch_size = 15, lr = .001, res_scaler = 2, n_epochs = 5
 
         # validation
         if validate:
-            model.eval()
             with torch.no_grad():
                 val_loss_list = []
                 for i, data in enumerate(val_loader):
