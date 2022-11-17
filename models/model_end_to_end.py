@@ -19,17 +19,17 @@ class Restriction_nn(nn.Module):
             y: fine solution
     '''
 
-    def __init__(self, in_channels_wave=2, in_channels_vel=1, res_scaler = 2, delta_t_star = .06, f_delta_x =2.0 / 128.0, boundary_c='periodic', batch_size = 1):
+    def __init__(self, in_channels_wave=2, in_channels_vel=1, param_dict=None):
         super().__init__()
         # https://arxiv.org/abs/1412.6806 why I added stride
 
         # param setup
-        self.delta_t_star = delta_t_star
-        self.c_delta_x = f_delta_x * res_scaler
-        self.c_delta_t = self.c_delta_x / 10
-        self.f_delta_x = f_delta_x
-        self.boundary_c = boundary_c
-        self.batch_size = batch_size
+        self.delta_t_star = param_dict["delta_t_star"]
+        self.res_scaler = param_dict["res_scaler"]
+        self.f_delta_x = param_dict["f_delta_x"]
+        self.c_delta_x = param_dict["c_delta_x"]
+        self.c_delta_t = param_dict["c_delta_t"]
+        self.boundary_c = param_dict["boundary_c"]
 
         ##################### restriction nets ####################
 
@@ -54,7 +54,7 @@ class Restriction_nn(nn.Module):
 
         ##################### enhancing net ####################
 
-        self.jnet = model_unet.UNet(wf=1, depth=3, scale_factor=res_scaler).double()
+        self.jnet = model_unet.UNet(wf=1, depth=3, scale_factor=self.res_scaler).double()
 
 
     def forward(self, x):

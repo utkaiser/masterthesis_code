@@ -9,18 +9,18 @@ import torch
 import random
 import torch.utils.tensorboard as tb
 
-#TODO: get one step after init to work one elapse
-#TODO: get two steps after init to work one elapse
 #TODO: get any step after init to work one elapse
 #TODO: get one step after init to work two elapse
 #TODO: get any step after init to work two elapse
 #TODO: get randomized approach to work
 #goal: .00x
 
-def train_Dt_end_to_end(logging=False, validate = False, visualize=False, vis_param=20, params="0"):
+def train_Dt_end_to_end(logging=False, validate = False, visualize=False, vis_param=20, params="0", visualization_save=True):
 
     data_paths, train_logger_path, valid_logger_path, dir_path_save = get_paths()
-    batch_size, lr, res_scaler, n_epochs, model_name, model_res, flipping, boundary_c, delta_t_star, f_delta_x = get_params(params)
+    param_dict = get_params(params)
+    batch_size, lr, res_scaler, n_epochs, model_name, model_res, flipping, boundary_c, delta_t_star, f_delta_x = \
+        param_dict["batch_size"], param_dict["lr"], param_dict["res_scaler"], param_dict["n_epochs"],param_dict["model_name"],param_dict["model_res"],param_dict["flipping"],param_dict["boundary_c"],param_dict["delta_t_star"],param_dict["f_delta_x"]
 
     #logger setup
     train_logger, valid_logger = None, None
@@ -35,7 +35,7 @@ def train_Dt_end_to_end(logging=False, validate = False, visualize=False, vis_pa
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print("gpu available:", torch.cuda.is_available(), "| n of gpus:", torch.cuda.device_count())
 
-    model = Restriction_nn(res_scaler = res_scaler,boundary_c=boundary_c, delta_t_star=delta_t_star, f_delta_x = f_delta_x).double()
+    model = Restriction_nn(param_dict = param_dict).double()
     model = torch.nn.DataParallel(model).to(device)
     optimizer = optim.AdamW(model.parameters(), lr=lr) #SGD(model.parameters(), lr=lr)
     loss_f = nn.SmoothL1Loss() #nn.MSELoss()
@@ -87,14 +87,14 @@ def train_Dt_end_to_end(logging=False, validate = False, visualize=False, vis_pa
 
                     input_tensor = torch.cat((output, torch.unsqueeze(input_tensor[:, 3, :, :], dim=1)), dim=1).detach()
 
-                if visualize and epoch % vis_param == 0: visualize_wavefield(visualize_list,scaler=res_scaler, save=True)
+                if visualize and epoch % vis_param == 0: visualize_wavefield(visualize_list,scaler=res_scaler, visualization_save=visualization_save)
 
             optimizer.zero_grad()
             sum(loss_list).backward()
             optimizer.step()
 
             if logging: train_logger.add_scalar('loss', sum(loss_list).item(), global_step=global_step)
-            train_loss_list.append(np.array([a.detach().numpy() for a in loss_list]).mean())
+            train_loss_list.append(np.array([a.cpu().detach().numpy() for a in loss_list]).mean())
             global_step += 1
         print("epoch %d | loss: %.5f" % (epoch, np.array(train_loss_list).mean()))
         if logging: train_logger.add_scalar('loss', np.array(train_loss_list).mean(), global_step=global_step)
@@ -132,8 +132,9 @@ def train_Dt_end_to_end(logging=False, validate = False, visualize=False, vis_pa
     save_model(model, model_name + str(model_res), dir_path_save)
 
 
-if __name__ == "__main__":
 
+
+if __name__ == "__main__":
     train_Dt_end_to_end()
 
 

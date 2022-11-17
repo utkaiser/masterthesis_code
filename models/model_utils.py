@@ -119,7 +119,7 @@ from generate_data import wave_util
 import matplotlib.pyplot as plt
 import numpy as np
 
-def visualize_wavefield(tensor_list, dx = 2.0 / 128.0, f_delta_t=.06, scaler=2, save=True):
+def visualize_wavefield(tensor_list, dx = 2.0 / 128.0, f_delta_t=.06, scaler=2, visualization_save=True):
     # list of tupels with tensors
 
     n_snapshots = len(tensor_list)
@@ -173,7 +173,7 @@ def visualize_wavefield(tensor_list, dx = 2.0 / 128.0, f_delta_t=.06, scaler=2, 
 
     fig.suptitle("losses: " + ", ".join(loss_list), fontsize=14)
 
-    if save:
+    if visualization_save:
         plt.savefig('temp.png')
     else:
         plt.show()
@@ -190,20 +190,24 @@ def get_paths():
 
 def get_params(params="0"):
 
+    param_dict = {}
+
     if params == "0":
-        batch_size = 10
-        lr = .001
-        res_scaler = 2
-        n_epochs = 500
-        model_name = "end_to_end_unet3lvl"
-        model_res = "128"
-        flipping = False
-        boundary_c = "absorbing"
-        delta_t_star = .06
-        f_delta_x = 2.0 / 128.0
+        param_dict["batch_size"] = 10
+        param_dict["lr"] = .001
+        param_dict["res_scaler"] = 2
+        param_dict["n_epochs"] = 500
+        param_dict["model_name"] = "end_to_end_unet3lvl"
+        param_dict["model_res"] = "128"
+        param_dict["flipping"] = False
+        param_dict["boundary_c"] = "absorbing"
+        param_dict["delta_t_star"] = .06
+        param_dict["f_delta_x"] = 2.0 / 128.0
+        param_dict["c_delta_x"] = param_dict["f_delta_x"] * param_dict["res_scaler"]
+        param_dict["c_delta_t"] = param_dict["c_delta_x"] / 10
     else:
         raise NotImplementedError("params not defined for params =",params)
 
-    print("start training:", batch_size, lr, res_scaler, n_epochs, model_name, model_res, flipping, boundary_c, delta_t_star, f_delta_x)
+    print("start training:", ", ".join([i +": "+ str(v) for i, v in param_dict.items()]))
 
-    return batch_size, lr, res_scaler, n_epochs, model_name, model_res, flipping, boundary_c, delta_t_star, f_delta_x
+    return param_dict
