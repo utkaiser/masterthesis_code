@@ -9,12 +9,12 @@ import scipy.stats as ss
 environ["TOKENIZERS_PARALLELISM"] = "false"
 environ["OMP_NUM_THREADS"] = "1"
 
-def save_model(model, modelname):
+def save_model(model, modelname, dir_path='results/run_2/'):
     from torch import save
     from os import path
     model.to(torch.device("cpu"))
     for i in range(100):
-        saving_path = path.join(path.dirname(path.dirname(path.abspath(__file__))),'results/run_2/saved_model_' +modelname+ "_"+ str(i) + '.pt')
+        saving_path = path.join(path.dirname(path.dirname(path.abspath(__file__))), dir_path + 'saved_model_' +modelname+ "_"+ str(i) + '.pt')
         if not path.isfile(saving_path):
             return save(model.state_dict(), saving_path)
     raise MemoryError("memory exceeded")
@@ -61,7 +61,6 @@ def fetch_data(data_paths, batch_size=1, shuffle=True):
 
 
 def fetch_data_end_to_end(data_paths, batch_size, shuffle=True, train_split = .9,validate=False):
-    print("setting up data")
 
     #concatenate
     for i, path in enumerate(data_paths):
@@ -114,3 +113,97 @@ def sample_label_random(input_idx, label_distr_shift):
     prob = ss.norm.cdf(possible_label_range + 0.5, scale=3) - ss.norm.cdf(possible_label_range - 0.5, scale=3)
     label_range = list(np.random.choice(possible_label_range + label_distr_shift, size=1, p=prob / prob.sum()))[0]
     return label_range
+
+import torch
+from generate_data import wave_util
+import matplotlib.pyplot as plt
+import numpy as np
+
+def visualize_wavefield(tensor_list, dx = 2.0 / 128.0, f_delta_t=.06, scaler=2, save=True):
+    # list of tupels with tensors
+
+    n_snapshots = len(tensor_list)
+    fig = plt.figure(figsize=(20, 8))
+    loss_list = []
+
+    for i, values in enumerate(tensor_list):
+
+        loss, input_idx, label_idx, input, output, label = values
+        loss_list.append(str(round(loss,5)))
+
+        combined_data = torch.stack([input[:3,:,:], output[:3,:,:], label])
+        _min, _max = torch.min(combined_data), torch.max(combined_data)
+
+        # velocity
+        if i == 0:
+            ax1 = fig.add_subplot(4, n_snapshots, i + 1)
+            pos1 = ax1.imshow(input[3, :, :])
+            plt.axis('off')
+            plt.colorbar(pos1)
+
+        # input
+        u_x, u_y, u_t_c, vel = input[0, :, :].unsqueeze(dim=0), input[1, :, :].unsqueeze(dim=0), input[2, :, :].unsqueeze(dim=0), input[3, :, :].unsqueeze(dim=0)
+        sumv = torch.sum(torch.sum(u_x))
+        u, ut = wave_util.WaveSol_from_EnergyComponent_tensor(u_x, u_y, u_t_c, vel, f_delta_t, sumv)
+        ax2 = fig.add_subplot(4, n_snapshots, i+1 + n_snapshots)
+        pos2 = ax2.imshow(wave_util.WaveEnergyField_tensor(u[0, :, :], ut[0, :, :], vel[0, :, :], dx) * dx * dx)#,vmin = _min, vmax = _max)
+        plt.axis('off')
+        ax2.set_title('input', fontsize=10)
+        plt.colorbar(pos2)
+
+        # output
+        u_x, u_y, u_t_c = output[0, :, :].unsqueeze(dim=0), output[1, :, :].unsqueeze(dim=0), output[2, :,:].unsqueeze(dim=0)
+        sumv = torch.sum(torch.sum(u_x))
+        u, ut = wave_util.WaveSol_from_EnergyComponent_tensor(u_x, u_y, u_t_c, vel, f_delta_t, sumv)
+        ax3 = fig.add_subplot(4, n_snapshots, i + 1 +n_snapshots*2)
+        pos3 = ax3.imshow(wave_util.WaveEnergyField_tensor(u[0, :, :], ut[0, :, :], vel[0, :, :], dx) * dx * dx)#,vmin = _min, vmax = _max)
+        plt.axis('off')
+        ax3.set_title('output', fontsize=10)
+        plt.colorbar(pos3)
+
+        # label
+        u_x, u_y, u_t_c = label[0, :, :].unsqueeze(dim=0), label[1, :, :].unsqueeze(dim=0), label[2, :,:].unsqueeze(dim=0)
+        sumv = torch.sum(torch.sum(u_x))
+        u, ut = wave_util.WaveSol_from_EnergyComponent_tensor(u_x, u_y, u_t_c, vel, f_delta_t, sumv)
+        ax4 = fig.add_subplot(4, n_snapshots, i + 1 + n_snapshots*3)
+        pos4 = ax4.imshow(wave_util.WaveEnergyField_tensor(u[0, :, :], ut[0, :, :], vel[0, :, :], dx) * dx * dx)#,vmin = _min, vmax = _max)
+        plt.axis('off')
+        ax4.set_title('label', fontsize=10)
+        plt.colorbar(pos4)
+
+    fig.suptitle("losses: " + ", ".join(loss_list), fontsize=14)
+
+    if save:
+        plt.savefig('temp.png')
+    else:
+        plt.show()
+
+
+def get_paths():
+
+    data_paths = ['../data/end_to_end_bp_m_200_2000.npz']
+    train_logger_path = '../results/run_2/log_train/'
+    valid_logger_path = '../results/run_2/log_valid/'
+    dir_path_save = 'results/run_2/'
+
+    return data_paths, train_logger_path, valid_logger_path, dir_path_save
+
+def get_params(params="0"):
+
+    if params == "0":
+        batch_size = 10
+        lr = .001
+        res_scaler = 2
+        n_epochs = 500
+        model_name = "end_to_end_unet3lvl"
+        model_res = "128"
+        flipping = False
+        boundary_c = "absorbing"
+        delta_t_star = .06
+        f_delta_x = 2.0 / 128.0
+    else:
+        raise NotImplementedError("params not defined for params =",params)
+
+    print("start training:", batch_size, lr, res_scaler, n_epochs, model_name, model_res, flipping, boundary_c, delta_t_star, f_delta_x)
+
+    return batch_size, lr, res_scaler, n_epochs, model_name, model_res, flipping, boundary_c, delta_t_star, f_delta_x

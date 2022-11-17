@@ -1,13 +1,16 @@
 from torch import nn
 import warnings
-from models import model_unet
+import sys
+sys.path.append("..")
 warnings.filterwarnings("ignore")
+from models import model_unet
 import torch
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 from generate_data.wave_propagation import velocity_verlet_tensor
-from generate_data.wave_util import WaveEnergyComponentField_tensor, WaveSol_from_EnergyComponent_tensor
+from generate_data.wave_util import WaveEnergyComponentField_tensor, WaveSol_from_EnergyComponent_tensor, WaveEnergyField_tensor
 import torch
 import matplotlib.pyplot as plt
+import torch.nn.functional as F
 
 class Restriction_nn(nn.Module):
     '''
@@ -31,27 +34,27 @@ class Restriction_nn(nn.Module):
         ##################### restriction nets ####################
 
         #TODO: automate if we want downsample two times
-        self.phys_comp_restr_layer1 = Restr_block(in_channels_wave, 4)
-        self.phys_comp_restr_layer2 = Restr_block(4, 8)
-        self.phys_comp_restr_layer3 = Restr_block(8, 8)
-        self.phys_comp_restr_layer4 = Restr_block(8, 8*2)
-        self.phys_comp_restr_layer5 = Restr_block(8*2, 8 * 2, stride=2)
-        self.phys_comp_restr_layer6 = Restr_block(8*2, 8)
-        self.phys_comp_restr_layer7 = Restr_block(8, 4)
-        self.phys_comp_restr_layer8 = Restr_block(4, in_channels_wave, relu=False, batch_norm=False)
+        self.phys_comp_restr_layer1 = Restr_block(in_channels_wave, 4).double()
+        self.phys_comp_restr_layer2 = Restr_block(4, 8).double()
+        self.phys_comp_restr_layer3 = Restr_block(8, 8).double()
+        self.phys_comp_restr_layer4 = Restr_block(8, 8*2).double()
+        self.phys_comp_restr_layer5 = Restr_block(8*2, 8 * 2, stride=2).double()
+        self.phys_comp_restr_layer6 = Restr_block(8*2, 8).double()
+        self.phys_comp_restr_layer7 = Restr_block(8, 4).double()
+        self.phys_comp_restr_layer8 = Restr_block(4, in_channels_wave, relu=False, batch_norm=False).double()
 
-        self.vel_restr_layer1 = Restr_block(in_channels_vel, 2)
-        self.vel_restr_layer2 = Restr_block(2, 4)
-        self.vel_restr_layer3 = Restr_block(4, 4)
-        self.vel_restr_layer4 = Restr_block(4, 4 * 2)
-        self.vel_restr_layer5 = Restr_block(4 * 2, 4 * 2, stride=2)
-        self.vel_restr_layer6 = Restr_block(4 * 2, 4)
-        self.vel_restr_layer7 = Restr_block(4, 2)
-        self.vel_restr_layer8 = Restr_block(2, in_channels_wave, relu=False, batch_norm=False)
+        self.vel_restr_layer1 = Restr_block(in_channels_vel, 2).double()
+        self.vel_restr_layer2 = Restr_block(2, 4).double()
+        self.vel_restr_layer3 = Restr_block(4, 4).double()
+        self.vel_restr_layer4 = Restr_block(4, 4 * 2).double()
+        self.vel_restr_layer5 = Restr_block(4 * 2, 4 * 2, stride=2).double()
+        self.vel_restr_layer6 = Restr_block(4 * 2, 4).double()
+        self.vel_restr_layer7 = Restr_block(4, 2).double()
+        self.vel_restr_layer8 = Restr_block(2, in_channels_wave, relu=False, batch_norm=False).double()
 
         ##################### enhancing net ####################
 
-        self.jnet = model_unet.UNet(wf=1, depth=6, scale_factor=res_scaler).double()
+        self.jnet = model_unet.UNet(wf=1, depth=3, scale_factor=res_scaler).double()
 
 
     def forward(self, x):
@@ -64,36 +67,48 @@ class Restriction_nn(nn.Module):
         ###### R (restriction) ######
 
         # physical component restriction net
-        phys_input = torch.stack((u, ut), dim=1).to(device)
-        phys_output = self.phys_comp_restr_layer1(phys_input)
-        phys_output = self.phys_comp_restr_layer2(phys_output)
-        phys_output = self.phys_comp_restr_layer3(phys_output)
-        skip_all = phys_output
-        phys_output = self.phys_comp_restr_layer4(phys_output)
-        phys_output = self.phys_comp_restr_layer5(phys_output)  # stride
-        phys_output = self.phys_comp_restr_layer6(phys_output)
-        phys_output = self.phys_comp_restr_layer7(phys_output)
-        phys_output = self.phys_comp_restr_layer8(phys_output)
-        restr_fine_sol_u = phys_output[:, 0, :, :]  # b x w_c x h_c
-        restr_fine_sol_ut = phys_output[:, 1, :, :]  # b x w_c x h_c
+        # phys_input = torch.stack((u, ut), dim=1).to(device)
+        # phys_output = self.phys_comp_restr_layer1(phys_input)
+        # phys_output = self.phys_comp_restr_layer2(phys_output)
+        # phys_output = self.phys_comp_restr_layer3(phys_output)
+        # skip_all = phys_output
+        # phys_output = self.phys_comp_restr_layer4(phys_output)
+        # phys_output = self.phys_comp_restr_layer5(phys_output)  # stride
+        # phys_output = self.phys_comp_restr_layer6(phys_output)
+        # phys_output = self.phys_comp_restr_layer7(phys_output)
+        # phys_output = self.phys_comp_restr_layer8(phys_output)
+        # restr_fine_sol_u = phys_output[:, 0, :, :]  # b x w_c x h_c
+        # restr_fine_sol_ut = phys_output[:, 1, :, :]  # b x w_c x h_c
+        #
+        # # velocity component restriciton net
+        # vel = vel.unsqueeze(dim=1).to(device)
+        # vel_output = self.vel_restr_layer1(vel)
+        # vel_output = self.vel_restr_layer2(vel_output)
+        # vel_output = self.vel_restr_layer3(vel_output)
+        # vel_output = self.vel_restr_layer4(vel_output)
+        # vel_output = self.vel_restr_layer5(vel_output)  # stride
+        # vel_output = self.vel_restr_layer6(vel_output)
+        # vel_output = self.vel_restr_layer7(vel_output)
+        # vel_output = self.vel_restr_layer8(vel_output)
+        # vel_c = vel_output[:,0, :, :]  # b x w_c x h_c
 
-        # velocity component restriciton net
-        vel = vel.unsqueeze(dim=1).to(device)
-        vel_output = self.vel_restr_layer1(vel)
-        vel_output = self.vel_restr_layer2(vel_output)
-        vel_output = self.vel_restr_layer3(vel_output)
-        vel_output = self.vel_restr_layer4(vel_output)
-        vel_output = self.vel_restr_layer5(vel_output)  # stride
-        vel_output = self.vel_restr_layer6(vel_output)
-        vel_output = self.vel_restr_layer7(vel_output)
-        vel_output = self.vel_restr_layer8(vel_output)
-        vel_c = vel_output[:,0, :, :]  # b x w_c x h_c
+        restr_output = torch.zeros([u.shape[0], 3, 64, 64])
+        restr_output[:,0,:,:] = F.upsample(u[:,:,:].unsqueeze(dim=0), size=(64, 64), mode='bilinear')
+        restr_output[:,1, :, :] = F.upsample(ut[:, :, :].unsqueeze(dim=0), size=(64, 64), mode='bilinear')
+        restr_output[:,2, :, :] = F.upsample(vel[:, :, :].unsqueeze(dim=0), size=(64, 64), mode='bilinear')
+
+        restr_fine_sol_u = torch.Tensor.double(restr_output[:, 0, :, :]) # b x w_c x h_c
+        restr_fine_sol_ut = torch.Tensor.double(restr_output[:, 1, :, :]) # b x w_c x h_c
+        vel_c = torch.Tensor.double(restr_output[:,2, :, :]) # b x w_c x h_c
+
+        # plt.imshow(WaveEnergyField_tensor(restr_fine_sol_u[0, :, :].detach(), restr_fine_sol_ut[0, :, :].detach(), vel_c[0, :, :].detach(), self.f_delta_x) * self.f_delta_x * self.f_delta_x)
+        # plt.show()
 
         ###### G delta t (coarse iteration) ######
         ucx, utcx = velocity_verlet_tensor(
             restr_fine_sol_u, restr_fine_sol_ut,
             vel_c, self.c_delta_x, self.c_delta_t, self.delta_t_star, number=1, boundary_c=self.boundary_c
-        )# b x w_c x h_c, b x w_c x h_c
+        )  # b x w_c x h_c, b x w_c x h_c
 
         # change to energy components
         wx, wy, wtc = WaveEnergyComponentField_tensor(ucx, utcx, vel_c,
@@ -103,7 +118,7 @@ class Restriction_nn(nn.Module):
         inputs = torch.stack((wx, wy, wtc, vel_c), dim=1).to(device)  # b x 4 x 64 x 64
 
         ###### upsampling through nn ######
-        outputs = self.jnet(inputs, skip_all=skip_all)*.1  # b x 3 x w x h
+        outputs = self.jnet(inputs)#, skip_all=skip_all)*.1  # b x 3 x w x h
 
         # change output back to wave components
         vx = outputs[:, 0, :, :]

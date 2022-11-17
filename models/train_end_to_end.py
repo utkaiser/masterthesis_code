@@ -4,18 +4,23 @@ import torch.optim as optim
 import torch.nn as nn
 import datetime
 from model_end_to_end import Restriction_nn
-from model_utils import save_model, fetch_data_end_to_end, flip_tensors, sample_label_random
+from model_utils import save_model, fetch_data_end_to_end, flip_tensors, sample_label_random, visualize_wavefield, get_paths, get_params
 import torch
 import random
 import torch.utils.tensorboard as tb
-from visualize_progress import visualize_wavefield
 
-def train_Dt_end_to_end(batch_size = 30, lr = .001, res_scaler = 2, n_epochs = 500,
-                        model_name = "unet", model_res = "128", logging=False,
-                        validate = False, flipping=False, visualize=False, vis_param=1, boundary_c = 'periodic',
-                        data_paths = ['../data/end_to_end_bp_m_200_2000.npz'],
-                        train_logger_path = '../results/run_2/log_train/',
-                        valid_logger_path = '../results/run_2/log_valid/'):
+#TODO: get one step after init to work one elapse
+#TODO: get two steps after init to work one elapse
+#TODO: get any step after init to work one elapse
+#TODO: get one step after init to work two elapse
+#TODO: get any step after init to work two elapse
+#TODO: get randomized approach to work
+#goal: .00x
+
+def train_Dt_end_to_end(logging=False, validate = False, visualize=False, vis_param=20, params="0"):
+
+    data_paths, train_logger_path, valid_logger_path, dir_path_save = get_paths()
+    batch_size, lr, res_scaler, n_epochs, model_name, model_res, flipping, boundary_c, delta_t_star, f_delta_x = get_params(params)
 
     #logger setup
     train_logger, valid_logger = None, None
@@ -30,7 +35,7 @@ def train_Dt_end_to_end(batch_size = 30, lr = .001, res_scaler = 2, n_epochs = 5
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print("gpu available:", torch.cuda.is_available(), "| n of gpus:", torch.cuda.device_count())
 
-    model = Restriction_nn(res_scaler = res_scaler,boundary_c=boundary_c, delta_t_star=.06, f_delta_x = (2.0 / 128.0)*2).double()
+    model = Restriction_nn(res_scaler = res_scaler,boundary_c=boundary_c, delta_t_star=delta_t_star, f_delta_x = f_delta_x).double()
     model = torch.nn.DataParallel(model).to(device)
     optimizer = optim.AdamW(model.parameters(), lr=lr) #SGD(model.parameters(), lr=lr)
     loss_f = nn.SmoothL1Loss() #nn.MSELoss()
@@ -40,8 +45,8 @@ def train_Dt_end_to_end(batch_size = 30, lr = .001, res_scaler = 2, n_epochs = 5
     label_distr_shift = 0
 
     # training
+    print("-"*20,"start training", "-"*20)
     for epoch in range(n_epochs):
-        print("epoch", epoch, "-"*20)
 
         # training
         model.train()
@@ -54,8 +59,8 @@ def train_Dt_end_to_end(batch_size = 30, lr = .001, res_scaler = 2, n_epochs = 5
 
             if epoch % (n_epochs // n_snaps) == 0 and epoch != 0: label_distr_shift += 1
 
-            #for input_idx in random.choices(range(n_snaps-1), k=n_snaps-1):  # randomly shuffle order
-            for input_idx in range(1):
+            #for input_idx in random.choices(range(n_snaps-1), k=1):  # randomly shuffle order
+            for input_idx in range(10):
                 if visualize and epoch % vis_param == 0: visualize_list = []
 
                 input_tensor = data[:, input_idx, :, :, :] # b x 4 x w x h
@@ -82,18 +87,16 @@ def train_Dt_end_to_end(batch_size = 30, lr = .001, res_scaler = 2, n_epochs = 5
 
                     input_tensor = torch.cat((output, torch.unsqueeze(input_tensor[:, 3, :, :], dim=1)), dim=1).detach()
 
-                if visualize and epoch % vis_param == 0: visualize_wavefield(visualize_list,scaler=res_scaler)
+                if visualize and epoch % vis_param == 0: visualize_wavefield(visualize_list,scaler=res_scaler, save=True)
 
             optimizer.zero_grad()
-
             sum(loss_list).backward()
             optimizer.step()
-            print(sum(loss_list).item())
 
             if logging: train_logger.add_scalar('loss', sum(loss_list).item(), global_step=global_step)
-            train_loss_list.append(sum(loss_list).item())
+            train_loss_list.append(np.array([a.detach().numpy() for a in loss_list]).mean())
             global_step += 1
-
+        print("epoch %d | loss: %.5f" % (epoch, np.array(train_loss_list).mean()))
         if logging: train_logger.add_scalar('loss', np.array(train_loss_list).mean(), global_step=global_step)
 
 
@@ -123,25 +126,14 @@ def train_Dt_end_to_end(batch_size = 30, lr = .001, res_scaler = 2, n_epochs = 5
                       (epoch + 1, np.array(train_loss_list).mean(), np.array(val_loss_list).mean()))
 
         if epoch % 50 == 0:  # saves first model as a test
-            save_model(model, model_name + str(model_res))
+            save_model(model, model_name + str(model_res), dir_path_save)
             model.to(device)
 
-    save_model(model, model_name + str(model_res))
+    save_model(model, model_name + str(model_res), dir_path_save)
 
 
 if __name__ == "__main__":
 
-    start_time = time.time()
-
-    model_name = "unet" #sys.argv[1]
-    model_res = "128" #sys.argv[2]
-    res_scaler = "2" #sys.argv[3]
-    print("start training", model_name, model_res)
-    train_Dt_end_to_end(model_name = "end_to_end_"+model_name, model_res = model_res, res_scaler=int(res_scaler),
-                        logging=False, visualize=True, boundary_c = 'absorbing', validate=False,
-                        data_paths = ['../data/end_to_end_bp_m_200_2000.npz'])
-    end_time = time.time()
-
-    print('training done:', (end_time - start_time))
+    train_Dt_end_to_end()
 
 
