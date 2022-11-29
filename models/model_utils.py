@@ -5,6 +5,7 @@ import torch
 import torchvision.transforms.functional as TF
 import random
 import scipy.stats as ss
+import torchvision.transforms as transforms
 
 environ["TOKENIZERS_PARALLELISM"] = "false"
 environ["OMP_NUM_THREADS"] = "1"
@@ -62,6 +63,28 @@ def fetch_data(data_paths, batch_size=1, shuffle=True):
 
 def fetch_data_end_to_end(data_paths, batch_size, shuffle=True, train_split = .9,validate=False):
 
+    def batch_mean_and_sd(loader):
+
+        cnt=0
+        fst_moment=torch.empty(4)
+        snd_moment=torch.empty(4)
+
+        for images_array in loader:
+            images_array = images_array[0]
+
+            for i in range(images_array.shape[1]):
+                images = images_array[:, i, :, :, :] # images -> b x c x w x h
+                b,c,h,w=images.shape
+                nb_pixels= b * h * w
+                sum_ = torch.sum(images,dim = [0,2,3])
+                sum_of_square=torch.sum(images ** 2,
+                                        dim = [0,2,3])
+                fst_moment=(cnt * fst_moment+sum_) / (cnt+nb_pixels)
+                snd_moment=(cnt * snd_moment+sum_of_square) / (cnt+nb_pixels)
+                cnt += nb_pixels
+
+        return fst_moment, torch.sqrt(snd_moment - fst_moment  **  2)
+
     #concatenate
     for i, path in enumerate(data_paths):
         if i == 0: np_array = np.load(path) # 200 x 11 x 128 x 128
@@ -89,7 +112,14 @@ def fetch_data_end_to_end(data_paths, batch_size, shuffle=True, train_split = .9
         #trainset_1 = torch.utils.data.Subset(full_dataset, [0,1,2])
         train_loader = torch.utils.data.DataLoader(full_dataset, batch_size=batch_size, shuffle=shuffle, num_workers=1)
         print("test data points:", len(train_loader) * batch_size)
-        return train_loader, None
+
+        mean, std = batch_mean_and_sd(train_loader)
+
+        transform = transforms.Compose([
+            transforms.Normalize(mean, std)
+        ])
+
+        return train_loader, None, transform
 
 def flip_tensors(input_tensor, label, v_flipped, h_flipped):
 
@@ -117,7 +147,6 @@ def sample_label_random(input_idx, label_distr_shift):
 import torch
 from generate_data import wave_util
 import matplotlib.pyplot as plt
-import numpy as np
 
 def visualize_wavefield(tensor_list, dx = 2.0 / 128.0, f_delta_t=.06, scaler=2, visualization_save=True):
     # list of tupels with tensors
@@ -125,10 +154,12 @@ def visualize_wavefield(tensor_list, dx = 2.0 / 128.0, f_delta_t=.06, scaler=2, 
     n_snapshots = len(tensor_list)
     fig = plt.figure(figsize=(20, 8))
     loss_list = []
+    f_delta_x = 2.0 / 128.0
 
     for i, values in enumerate(tensor_list):
 
-        loss, input_idx, label_idx, input, output, label = values
+        epoch, loss, input_idx, label_idx, input, output, label = values
+        input, output, label = input.cpu(), output.cpu(), label.cpu()
         loss_list.append(str(round(loss,5)))
 
         combined_data = torch.stack([input[:3,:,:], output[:3,:,:], label])
@@ -144,7 +175,7 @@ def visualize_wavefield(tensor_list, dx = 2.0 / 128.0, f_delta_t=.06, scaler=2, 
         # input
         u_x, u_y, u_t_c, vel = input[0, :, :].unsqueeze(dim=0), input[1, :, :].unsqueeze(dim=0), input[2, :, :].unsqueeze(dim=0), input[3, :, :].unsqueeze(dim=0)
         sumv = torch.sum(torch.sum(u_x))
-        u, ut = wave_util.WaveSol_from_EnergyComponent_tensor(u_x, u_y, u_t_c, vel, f_delta_t, sumv)
+        u, ut = wave_util.WaveSol_from_EnergyComponent_tensor(u_x, u_y, u_t_c, vel, f_delta_x, sumv)
         ax2 = fig.add_subplot(4, n_snapshots, i+1 + n_snapshots)
         pos2 = ax2.imshow(wave_util.WaveEnergyField_tensor(u[0, :, :], ut[0, :, :], vel[0, :, :], dx) * dx * dx)#,vmin = _min, vmax = _max)
         plt.axis('off')
@@ -154,7 +185,7 @@ def visualize_wavefield(tensor_list, dx = 2.0 / 128.0, f_delta_t=.06, scaler=2, 
         # output
         u_x, u_y, u_t_c = output[0, :, :].unsqueeze(dim=0), output[1, :, :].unsqueeze(dim=0), output[2, :,:].unsqueeze(dim=0)
         sumv = torch.sum(torch.sum(u_x))
-        u, ut = wave_util.WaveSol_from_EnergyComponent_tensor(u_x, u_y, u_t_c, vel, f_delta_t, sumv)
+        u, ut = wave_util.WaveSol_from_EnergyComponent_tensor(u_x, u_y, u_t_c, vel, f_delta_x, sumv)
         ax3 = fig.add_subplot(4, n_snapshots, i + 1 +n_snapshots*2)
         pos3 = ax3.imshow(wave_util.WaveEnergyField_tensor(u[0, :, :], ut[0, :, :], vel[0, :, :], dx) * dx * dx)#,vmin = _min, vmax = _max)
         plt.axis('off')
@@ -164,7 +195,7 @@ def visualize_wavefield(tensor_list, dx = 2.0 / 128.0, f_delta_t=.06, scaler=2, 
         # label
         u_x, u_y, u_t_c = label[0, :, :].unsqueeze(dim=0), label[1, :, :].unsqueeze(dim=0), label[2, :,:].unsqueeze(dim=0)
         sumv = torch.sum(torch.sum(u_x))
-        u, ut = wave_util.WaveSol_from_EnergyComponent_tensor(u_x, u_y, u_t_c, vel, f_delta_t, sumv)
+        u, ut = wave_util.WaveSol_from_EnergyComponent_tensor(u_x, u_y, u_t_c, vel, f_delta_x, sumv)
         ax4 = fig.add_subplot(4, n_snapshots, i + 1 + n_snapshots*3)
         pos4 = ax4.imshow(wave_util.WaveEnergyField_tensor(u[0, :, :], ut[0, :, :], vel[0, :, :], dx) * dx * dx)#,vmin = _min, vmax = _max)
         plt.axis('off')
@@ -174,7 +205,11 @@ def visualize_wavefield(tensor_list, dx = 2.0 / 128.0, f_delta_t=.06, scaler=2, 
     fig.suptitle("losses: " + ", ".join(loss_list), fontsize=14)
 
     if visualization_save:
-        plt.savefig('temp.png')
+        for i in range(500):
+            saving_path = '../results/run_2/1/epoch_'+str(epoch)+'img'+str(i)+'.png'
+            if not path.isfile(saving_path):
+                plt.savefig(saving_path)
+                break
     else:
         plt.show()
 
@@ -193,21 +228,24 @@ def get_params(params="0"):
     param_dict = {}
 
     if params == "0":
-        param_dict["batch_size"] = 10
+        param_dict["batch_size"] = 1 #10
         param_dict["lr"] = .001
         param_dict["res_scaler"] = 2
         param_dict["n_epochs"] = 500
         param_dict["model_name"] = "end_to_end_unet3lvl"
-        param_dict["model_res"] = "128"
+        param_dict["model_res"] = 128
+        param_dict["n_snaps"] = 11
         param_dict["flipping"] = False
         param_dict["boundary_c"] = "absorbing"
+        param_dict["total_time"] = .6
         param_dict["delta_t_star"] = .06
         param_dict["f_delta_x"] = 2.0 / 128.0
+        param_dict["f_delta_t"] = param_dict["f_delta_x"] / 20
         param_dict["c_delta_x"] = param_dict["f_delta_x"] * param_dict["res_scaler"]
         param_dict["c_delta_t"] = param_dict["c_delta_x"] / 10
     else:
         raise NotImplementedError("params not defined for params =",params)
 
-    print("start training:", ", ".join([i +": "+ str(v) for i, v in param_dict.items()]))
+    print("param settings:", ", ".join([i +": "+ str(v) for i, v in param_dict.items()]))
 
     return param_dict

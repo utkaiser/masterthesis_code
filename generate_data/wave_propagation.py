@@ -64,6 +64,7 @@ def velocity_verlet_tensor(u0, ut0, vel, dx, dt, delta_t_star, number=0, boundar
     u0 shape: b x w_c x h_c
     vel shape: b x w_c x h_c
     """
+
     Nt = round(abs(delta_t_star / dt))
     c2 = torch.mul(vel, vel)
 
@@ -80,8 +81,8 @@ def velocity_verlet_tensor(u0, ut0, vel, dx, dt, delta_t_star, number=0, boundar
             ut = ut + 0.5 * dt * torch.mul(c2, ddxou + ddxu)
 
         return u,ut
+
     elif boundary_c == 'absorbing':
-        #TODO: first for non-batch case, then add batch case
 
         # shape: u, ut -> b x w_c x h_c
 
