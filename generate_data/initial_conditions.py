@@ -20,14 +20,30 @@ def first_guess_integration(u_elapse, ut_elapse, vel, f_delta_x, f_delta_t, delt
 
     return up, utp
 
-def init_cond_gaussian(xx, yy, width, center):
+def init_cond_gaussian(it, init_res_f, res_f, absorbing_bc=True):
     """
     Gaussian pulse wavefield
     """
 
+    centers, widths = np.random.rand(1, 2) * 1. - 0.5, 250 + np.random.randn(1) * 10
+
+    if absorbing_bc:
+        res_f = 300  # math.ceil((init_res_f + math.ceil(np.amax(vel) * delta_t_star * (n_snaps+1) * init_res_f) + 5) / 2.) * 2 # max value the wave can propagate for delta t star, plus rounding errors into account
+
+    widths_scaler = 3 + (res_f ** 1.28 / 1000) if absorbing_bc else 1
+    curr_centers, curr_widths = centers / (res_f / init_res_f), widths * widths_scaler * (
+                res_f / init_res_f)  # scale init condition
+    grid_x, grid_y = np.meshgrid(np.linspace(-1, 1, res_f), np.linspace(-1, 1, res_f))
+
+    xx = grid_x
+    yy = grid_y
+    width = curr_widths[0]
+    center = curr_centers[0]
+
     u0 = np.exp(-width * ((xx - center[0]) ** 2 + (yy - center[1]) ** 2))
     ut0 = np.zeros([np.size(xx, axis=1), np.size(yy, axis=0)])
-    return u0, ut0
+
+    return u0, ut0, res_f
 
 
 def init_cond_ricker(xx, yy, width, center):

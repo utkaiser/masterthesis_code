@@ -99,8 +99,10 @@ def WaveSol_from_EnergyComponent_tensor(wx, wy, wtc, c, dx, sumv):
     # Compute wave solution components from energy component
 
     u = torch.zeros((wx.shape[0], 128, 128))
+
     for b in range(wx.shape[0]):
         u[b, :, :] = grad2func_tensor(wx[b, :, :], wy[b, :, :], dx, sumv)
+
 
     ut = torch.multiply(wtc, c)
 
@@ -121,7 +123,8 @@ def grad2func_tensor(vx, vy, dx, sumv):
     xii = 2 * torch.pi / (dx * nx) * torch.fft.fftshift(torch.linspace(-round(nx / 2), round(nx / 2 - 1), nx))
     yii = 2 * torch.pi / (dx * ny) * torch.fft.fftshift(torch.linspace(-round(ny / 2), round(ny / 2 - 1), ny))
 
-    yiyi, xixi = torch.meshgrid(xii, yii)
+    yiyi, xixi = torch.meshgrid(xii, yii,indexing="xy")
+
     radsq = torch.multiply(xixi, xixi) + torch.multiply(yiyi, yiyi)
     radsq[0, 0] = 1
     hatv = -1j * torch.divide(
