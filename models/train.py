@@ -66,7 +66,7 @@ def train(epochs = 500, lr = .001, nlayer = 3, wf = 1, continue_training = False
                 if random.random() > 0.5:
                     inputs = TF.vflip(inputs)
                     labels = TF.vflip(labels)
-
+                print(inputs.shape)
                 optimizer.zero_grad()
                 outputs = model(inputs)
                 loss = loss_f(outputs, labels)
@@ -78,7 +78,7 @@ def train(epochs = 500, lr = .001, nlayer = 3, wf = 1, continue_training = False
                     loss_f(nn.functional.upsample(inputs[:, :3, :, :], scale_factor=scaler, mode='bilinear'),
                            labels).item()
                 )
-                print("worked")
+
         #scheduler.step()
 
         mean_loss = np.array(loss_list).mean()

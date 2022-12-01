@@ -66,7 +66,7 @@ class Restriction_nn(nn.Module):
 
         ###### R (restriction) ######
 
-        # physical component restriction net
+        # # physical component restriction net
         # phys_input = torch.stack((u, ut), dim=1).to(device)
         # phys_output = self.phys_comp_restr_layer1(phys_input)
         # phys_output = self.phys_comp_restr_layer2(phys_output)
@@ -92,59 +92,40 @@ class Restriction_nn(nn.Module):
         # vel_output = self.vel_restr_layer8(vel_output)
         # vel_c = vel_output[:,0, :, :]  # b x w_c x h_c
 
-        # restr_output = torch.zeros([u.shape[0], 3, 64, 64])
-        # restr_output[:,0,:,:] = F.upsample(u[:,:,:].unsqueeze(dim=0), size=(64, 64), mode='bilinear')
-        # restr_output[:,1, :, :] = F.upsample(ut[:, :, :].unsqueeze(dim=0), size=(64, 64), mode='bilinear')
-        # restr_output[:,2, :, :] = F.upsample(vel[:, :, :].unsqueeze(dim=0), size=(64, 64), mode='bilinear')
-        #
-        # restr_fine_sol_u = torch.Tensor.double(restr_output[:, 0, :, :]) # b x w_c x h_c
-        # restr_fine_sol_ut = torch.Tensor.double(restr_output[:, 1, :, :]) # b x w_c x h_c
-        # vel_c = torch.Tensor.double(restr_output[:,2, :, :]) # b x w_c x h_c
+        restr_output = torch.zeros([u.shape[0], 3, 64, 64])
+        restr_output[:,0,:,:] = F.upsample(u[:,:,:].unsqueeze(dim=0), size=(64, 64), mode='bilinear')
+        restr_output[:,1, :, :] = F.upsample(ut[:, :, :].unsqueeze(dim=0), size=(64, 64), mode='bilinear')
+        restr_output[:,2, :, :] = F.upsample(vel[:, :, :].unsqueeze(dim=0), size=(64, 64), mode='bilinear')
 
-        # plt.imshow(WaveEnergyField_tensor(restr_fine_sol_u[0, :, :].detach(), restr_fine_sol_ut[0, :, :].detach(), vel_c[0, :, :].detach(), self.f_delta_x) * self.f_delta_x * self.f_delta_x)
-        # plt.show()
+        restr_fine_sol_u = torch.Tensor.double(restr_output[:, 0, :, :])  # b x w_c x h_c
+        restr_fine_sol_ut = torch.Tensor.double(restr_output[:, 1, :, :])  # b x w_c x h_c
+        vel_c = torch.Tensor.double(restr_output[:,2, :, :])  # b x w_c x h_c
 
         ###### G delta t (coarse iteration) ######
-
-        # plt.imshow(WaveEnergyField_tensor(u[0], ut[0], vel[0], self.f_delta_x))
-        # plt.title("a")
-        # plt.show()
-        #
-
-
+        #TODO: get all to work with jnet only, then just restriction, then combined
         ucx, utcx = velocity_verlet_tensor(
-            u, ut,
-            vel, self.f_delta_x, self.f_delta_t, #self.c_delta_x, self.c_delta_t,
-            self.delta_t_star, number=1, boundary_c="periodic"#self.boundary_c
+            restr_fine_sol_u, restr_fine_sol_ut,
+            vel_c, self.c_delta_x, self.c_delta_t,
+            self.delta_t_star, number=1, boundary_c=self.boundary_c
         )  # b x w_c x h_c, b x w_c x h_c
 
-        print("here", ucx.squeeze().shape, utcx.squeeze().shape, vel.squeeze().shape)
-
-        plt.imshow(WaveEnergyField_tensor(ucx.squeeze(), utcx.squeeze(), vel.squeeze(), self.f_delta_x))
-        plt.title("b")
-        plt.show()
-
         # change to energy components
-        wx, wy, wtc = WaveEnergyComponentField_tensor(ucx, utcx, vel,
+        wx, wy, wtc = WaveEnergyComponentField_tensor(ucx, utcx, vel_c,
                                                       self.f_delta_x)  # b x w_c x h_c, b x w_c x h_c, b x w_c x h_c
 
-        inputs = torch.stack((wx, wy, wtc), dim=1)
+        # res = torch.zeros([wx.shape[0], 3, 128, 128])  # b x c x h x w
+        # res[:,0, :, :] = F.upsample(wx[:, :, :].unsqueeze(dim=1), size=(128, 128), mode='bilinear').squeeze()
+        # res[:,1, :, :] = F.upsample(wy[:, :, :].unsqueeze(dim=1), size=(128, 128), mode='bilinear').squeeze()
+        # res[:,2, :, :] = F.upsample(wtc[:, :, :].unsqueeze(dim=1), size=(128, 128), mode='bilinear').squeeze()
+
 
         # create input for nn
-        #inputs = torch.stack((wx, wy, wtc, vel_c), dim=1).to(device)  # b x 4 x 64 x 64
+        inputs = torch.stack((wx, wy, wtc, vel_c), dim=1).to(device)  # b x 4 x 64 x 64
 
-        ###### upsampling through nn ######
-        #outputs = self.jnet(inputs)#, skip_all=skip_all)*.1  # b x 3 x w x h
+        ##### upsampling through nn ######
+        outputs = self.jnet(inputs) #, skip_all=skip_all)  # b x 3 x w x h
 
-        # change output back to wave components
-        # vx = outputs[:, 0, :, :]
-        # vy = outputs[:, 1, :, :]
-        # vtc = outputs[:, 2, :, :]
-
-        # plt.imshow(WaveEnergyField(restr_fine_sol_u[0,:,:].detach().numpy(),restr_fine_sol_ut[0,:,:].detach().numpy(),vel_c[0,:,:].detach().numpy(),self.f_delta_x))
-        # plt.show()
-
-        return inputs #torch.stack((vx, vy, vtc), dim=1)
+        return outputs #res
 
 
 class Restr_block(nn.Module):

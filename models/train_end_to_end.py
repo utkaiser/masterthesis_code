@@ -1,32 +1,23 @@
 import numpy as np
-import time
 import torch.optim as optim
 import torch.nn as nn
 import datetime
 from model_end_to_end import Restriction_nn
-from model_utils import save_model, fetch_data_end_to_end, flip_tensors, sample_label_random, visualize_wavefield, get_paths, get_params
+from model_utils import save_model, fetch_data_end_to_end, flip_tensors, sample_label_random, visualize_wavefield, get_paths, get_params, setup_logger
 import torch
 import random
-import torch.utils.tensorboard as tb
-import matplotlib.pyplot as plt
-from generate_data.wave_util import WaveSol_from_EnergyComponent_tensor, WaveEnergyField_tensor
 
-def train_Dt_end_to_end(logging=False, validate = False, visualize=True, vis_param=1, params="0", visualization_save=True):
+
+def train_Dt_end_to_end(logging=False, validate = False, visualize=True, vis_param=1, params="0", vis_save=True):
 
     # params setup
-    data_paths, train_logger_path, valid_logger_path, dir_path_save = get_paths()
+    data_paths, train_logger_path, valid_logger_path, dir_path_save, vis_path = get_paths()
     param_dict = get_params(params)
     batch_size, lr, res_scaler, n_epochs, model_name, model_res, flipping, boundary_c, delta_t_star, f_delta_x = \
         param_dict["batch_size"], param_dict["lr"], param_dict["res_scaler"], param_dict["n_epochs"],param_dict["model_name"],param_dict["model_res"],param_dict["flipping"],param_dict["boundary_c"],param_dict["delta_t_star"],param_dict["f_delta_x"]
 
     # logger setup
-    train_logger, valid_logger = None, None
-    if logging:
-        train_logger = tb.SummaryWriter(train_logger_path + model_name + str(model_res)
-                                        + '/{}'.format(time.strftime('%H-%M-%S')) + '_test.npz', flush_secs=1)
-        valid_logger = tb.SummaryWriter(valid_logger_path + model_name + str(model_res)
-                                        + '/{}'.format(time.strftime('%H-%M-%S')) + '_test.npz', flush_secs=1)
-    global_step = 0
+    train_logger, valid_logger, global_step = setup_logger(logging, train_logger_path, valid_logger_path, model_name, model_res)
 
     # model setup
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -37,35 +28,35 @@ def train_Dt_end_to_end(logging=False, validate = False, visualize=True, vis_par
     loss_f = nn.SmoothL1Loss() #nn.MSELoss()
 
     # data setup
-    train_loader, val_loader, transform = fetch_data_end_to_end(data_paths, batch_size=batch_size, shuffle=True, validate = validate)
+    train_loader, val_loader = fetch_data_end_to_end(data_paths, batch_size=batch_size, shuffle=True, validate = validate)
     label_distr_shift = 0
 
     # training
     print("-"*20,"start training", "-"*20)
     for epoch in range(n_epochs):
 
-        #model.train()
+        model.train()
         train_loss_list = []
         for i, data in enumerate(train_loader):
 
             n_snaps = data[0].shape[1]
             data = data[0].to(device) # b x n_snaps x 4 x w x h
-            #data = transform(data)
+
             loss_list = []
 
             if epoch % (n_epochs // n_snaps) == 0 and epoch != 0: label_distr_shift += 1
 
-            for it, input_idx in enumerate(random.choices(range(n_snaps-1), k=1)):  # randomly shuffle order TODO: change back to k=n_snaps
+            for it, input_idx in enumerate(random.choices(range(n_snaps-1), k=10)):  # randomly shuffle order TODO: change back to k=n_snaps
 
                 if visualize and (epoch + 1) % vis_param == 0 and i == 0 and it == 0: visualize_list = []
 
-                input_tensor = data[:, input_idx, :, :, :] # b x 4 x w x h
+                input_tensor = data[:, input_idx, :, :, :]  # b x 4 x w x h
                 h_flipped, v_flipped = False, False
 
                 # randomly sample label idx from normal distribution
-                label_range = sample_label_random(input_idx, label_distr_shift)
+                #label_range = sample_label_random(input_idx, label_distr_shift)
 
-                for label_idx in range(input_idx+1, input_idx+2): # randomly decide how long path is
+                for label_idx in range(input_idx+1, input_idx+2):  # randomly decide how long path is
 
                     label = data[:, label_idx, :3, :, :].to(device) # b x 3 x w x h
 
@@ -81,20 +72,14 @@ def train_Dt_end_to_end(logging=False, validate = False, visualize=True, vis_par
                         # save only first element of batch
                         visualize_list.append((epoch, loss.item(), input_idx, label_idx, input_tensor[0,:,:,:].detach(), output[0,:,:,:].detach(), label[0,:,:,:].detach()))
 
-                    #input_tensor = torch.cat((output, torch.unsqueeze(input_tensor[:, 3, :, :], dim=1)), dim=1).detach()
+                    input_tensor = torch.cat((output, torch.unsqueeze(input_tensor[:, 3, :, :], dim=1)), dim=1).detach()
 
-                #if visualize and (epoch + 1) % vis_param == 0 and i == 0 and it == 0:
-                    #visualize_wavefield(visualize_list,scaler=res_scaler, visualization_save=visualization_save)
-                    # u_x, u_y, u_t_c, vel = output[:,0,:,:].detach(), output[:,1,:,:].detach(), output[:,2,:,:].detach(), input_tensor[:,3,:,:].detach()
-                    # sumv = torch.sum(torch.sum(u_x))
-                    # dx = param_dict["f_delta_x"]
-                    # u, ut = WaveSol_from_EnergyComponent_tensor(u_x, u_y, u_t_c, vel, f_delta_x, sumv)
-                    # plt.imshow(WaveEnergyField_tensor(u[0], ut[0], vel[0], dx) * dx * dx)
-                    # plt.show()
+                if visualize and (epoch + 1) % vis_param == 0 and i == 0 and it == 0:
+                    visualize_wavefield(visualize_list, scaler=res_scaler, vis_save=vis_save, vis_path = vis_path)
 
             optimizer.zero_grad()
-            #sum(loss_list).backward() TODO: change back
-            #optimizer.step()
+            sum(loss_list).backward()
+            optimizer.step()
 
             if logging: train_logger.add_scalar('loss', sum(loss_list).item(), global_step=global_step)
             train_loss_list.append(np.array([a.cpu().detach().numpy() for a in loss_list]).mean())

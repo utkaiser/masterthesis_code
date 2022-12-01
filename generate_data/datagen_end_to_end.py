@@ -1,9 +1,9 @@
 import sys
 sys.path.append("..")
 import numpy as np
-from wave_propagation import pseudo_spectral, velocity_verlet, velocity_verlet_tensor
+from wave_propagation import pseudo_spectral
 import initial_conditions as init_cond
-from wave_util import WaveEnergyComponentField_end_to_end, crop_center, WaveEnergyField, WaveSol_from_EnergyComponent
+from wave_util import WaveEnergyComponentField_end_to_end, crop_center
 from models.model_utils import get_params
 from visualize_datagen import visualize_wavefield
 
@@ -21,7 +21,7 @@ def generate_wave_from_medium(input_path, output_path, init_res_f = 128, absorbi
 
     # data setup
     velocities = np.load(input_path)['wavespeedlist']
-    n_it = velocities.shape[0]  # define the amount of data to generate
+    n_it = 10#velocities.shape[0]  # define the amount of data to generate
 
     # tensors for fine solutions in energy components form
     Ux = np.zeros([n_it, n_snaps + 1, init_res_f, init_res_f])
@@ -70,13 +70,12 @@ def generate_wave_from_medium(input_path, output_path, init_res_f = 128, absorbi
 
 
 if __name__ == "__main__":
-    import sys
 
     #res_f = ""  # -> will be target resolution
     #res_f = sys.argv[2]
 
     generate_wave_from_medium(input_path="../data/crops_bp_m_200_2000.npz",
-                              output_path="../data/end_to_end_bp_m_200_2000.npz",
+                              output_path="../data/end_to_end_bp_m_10_2000.npz",
                               init_res_f=128, absorbing_bc = True, visualize = False)
 
 

@@ -63,28 +63,6 @@ def fetch_data(data_paths, batch_size=1, shuffle=True):
 
 def fetch_data_end_to_end(data_paths, batch_size, shuffle=True, train_split = .9,validate=False):
 
-    def batch_mean_and_sd(loader):
-
-        cnt=0
-        fst_moment=torch.empty(4)
-        snd_moment=torch.empty(4)
-
-        for images_array in loader:
-            images_array = images_array[0]
-
-            for i in range(images_array.shape[1]):
-                images = images_array[:, i, :, :, :] # images -> b x c x w x h
-                b,c,h,w=images.shape
-                nb_pixels= b * h * w
-                sum_ = torch.sum(images,dim = [0,2,3])
-                sum_of_square=torch.sum(images ** 2,
-                                        dim = [0,2,3])
-                fst_moment=(cnt * fst_moment+sum_) / (cnt+nb_pixels)
-                snd_moment=(cnt * snd_moment+sum_of_square) / (cnt+nb_pixels)
-                cnt += nb_pixels
-
-        return fst_moment, torch.sqrt(snd_moment - fst_moment  **  2)
-
     #concatenate
     for i, path in enumerate(data_paths):
         if i == 0: np_array = np.load(path) # 200 x 11 x 128 x 128
@@ -113,13 +91,7 @@ def fetch_data_end_to_end(data_paths, batch_size, shuffle=True, train_split = .9
         train_loader = torch.utils.data.DataLoader(full_dataset, batch_size=batch_size, shuffle=shuffle, num_workers=1)
         print("test data points:", len(train_loader) * batch_size)
 
-        mean, std = batch_mean_and_sd(train_loader)
-
-        transform = transforms.Compose([
-            transforms.Normalize(mean, std)
-        ])
-
-        return train_loader, None, transform
+        return train_loader, None
 
 def flip_tensors(input_tensor, label, v_flipped, h_flipped):
 
@@ -148,7 +120,7 @@ import torch
 from generate_data import wave_util
 import matplotlib.pyplot as plt
 
-def visualize_wavefield(tensor_list, dx = 2.0 / 128.0, f_delta_t=.06, scaler=2, visualization_save=True):
+def visualize_wavefield(tensor_list, dx = 2.0 / 128.0, f_delta_t=.06, scaler=2, vis_save=True, vis_path='../results/run_2'):
     # list of tupels with tensors
 
     n_snapshots = len(tensor_list)
@@ -204,9 +176,9 @@ def visualize_wavefield(tensor_list, dx = 2.0 / 128.0, f_delta_t=.06, scaler=2, 
 
     fig.suptitle("losses: " + ", ".join(loss_list), fontsize=14)
 
-    if visualization_save:
+    if vis_save:
         for i in range(500):
-            saving_path = '../results/run_2/1/epoch_'+str(epoch)+'img'+str(i)+'.png'
+            saving_path = vis_path + "epoch_" + str(epoch) + "_img_" + str(i) + ".png"
             if not path.isfile(saving_path):
                 plt.savefig(saving_path)
                 break
@@ -216,23 +188,26 @@ def visualize_wavefield(tensor_list, dx = 2.0 / 128.0, f_delta_t=.06, scaler=2, 
 
 def get_paths():
 
-    data_paths = ['../data/end_to_end_bp_m_200_2000.npz']
-    train_logger_path = '../results/run_2/log_train/'
-    valid_logger_path = '../results/run_2/log_valid/'
-    dir_path_save = 'results/run_2/'
+    add = "1/"
 
-    return data_paths, train_logger_path, valid_logger_path, dir_path_save
+    data_paths = ['../data/end_to_end_bp_m_200_2000.npz'] #['../data/end_to_end_bp_m_200_2000.npz']
+    train_logger_path = '../results/run_2/' + add + 'log_train/'
+    valid_logger_path = '../results/run_2/' + add + 'log_valid/'
+    dir_path_save = 'results/run_2/' + add
+    vis_path = '../results/run_2/' + add
+
+    return data_paths, train_logger_path, valid_logger_path, dir_path_save, vis_path
 
 def get_params(params="0"):
 
     param_dict = {}
 
     if params == "0":
-        param_dict["batch_size"] = 1 #10
+        param_dict["batch_size"] = 30
         param_dict["lr"] = .001
         param_dict["res_scaler"] = 2
         param_dict["n_epochs"] = 500
-        param_dict["model_name"] = "end_to_end_unet3lvl"
+        param_dict["model_name"] = "end_to_end_only_unet3lvl"
         param_dict["model_res"] = 128
         param_dict["n_snaps"] = 11
         param_dict["flipping"] = False
@@ -241,11 +216,26 @@ def get_params(params="0"):
         param_dict["delta_t_star"] = .06
         param_dict["f_delta_x"] = 2.0 / 128.0
         param_dict["f_delta_t"] = param_dict["f_delta_x"] / 20
-        param_dict["c_delta_x"] = param_dict["f_delta_x"] * param_dict["res_scaler"]
-        param_dict["c_delta_t"] = param_dict["c_delta_x"] / 10
+        param_dict["c_delta_x"] = 2.0 / 64.0
+        param_dict["c_delta_t"] = param_dict["c_delta_x"] / 12
     else:
         raise NotImplementedError("params not defined for params =",params)
 
     print("param settings:", ", ".join([i +": "+ str(v) for i, v in param_dict.items()]))
 
     return param_dict
+
+
+import torch.utils.tensorboard as tb
+import time
+
+def setup_logger(logging=False, train_logger_path=None, valid_logger_path=None, model_name=None, model_res=None):
+    train_logger, valid_logger = None, None
+    if logging:
+        train_logger = tb.SummaryWriter(train_logger_path + model_name + str(model_res)
+                                        + '/{}'.format(time.strftime('%H-%M-%S')) + '_test.npz', flush_secs=1)
+        valid_logger = tb.SummaryWriter(valid_logger_path + model_name + str(model_res)
+                                        + '/{}'.format(time.strftime('%H-%M-%S')) + '_test.npz', flush_secs=1)
+    global_step = 0
+
+    return train_logger, valid_logger, global_step

@@ -27,7 +27,7 @@ def compare_end_to_end_gpu():
     Nx, Ny = 128, 128
     c_Nx, c_Ny = 64, 64
 
-    path = "../data/end_to_end_bp_m_200_2000.npz"
+    path = "../data/end_to_end_bp_m_10_2000.npz"
     loaders = fetch_data_end_to_end([path], shuffle=False, batch_size=1)
 
     # set up models
