@@ -2,6 +2,9 @@ import numpy as np
 import torch
 from skimage.transform import resize # for coarsening
 from scipy import fft
+from generate_data.wave_util import WaveEnergyField_tensor
+import matplotlib.pyplot as plt
+
 
 def parallel_compute(u, ut, vel, vel_c, f_delta_x, c_delta_x, f_delta_t, c_delta_t, delta_t_star):
 
@@ -54,7 +57,7 @@ def velocity_verlet(u0, ut0, vel, dx, dt, delta_t_star):
 
 
 
-def velocity_verlet_tensor(u0, ut0, vel, dx, dt, delta_t_star, number=0, boundary_c='periodic'):
+def velocity_verlet_tensor(u0, ut0, vel, dx, dt, delta_t_star, number=0, boundary_c='periodic',tj=0):
     """
     Wave solution propagator
     propagate wavefield using velocity Verlet in time and the second order
@@ -68,9 +71,10 @@ def velocity_verlet_tensor(u0, ut0, vel, dx, dt, delta_t_star, number=0, boundar
     Nt = round(abs(delta_t_star / dt))
     c2 = torch.mul(vel, vel)
 
-    if boundary_c == 'periodic':
+    u, ut = u0, ut0
+    f_delta_t = 2.0 / 128.0
 
-        u, ut = u0, ut0
+    if boundary_c == 'periodic':
 
         for i in range(Nt):
             # Velocity Verlet
@@ -79,6 +83,12 @@ def velocity_verlet_tensor(u0, ut0, vel, dx, dt, delta_t_star, number=0, boundar
             u = u + dt * ut + 0.5 * dt ** 2 * torch.mul(c2, ddxou)
             ddxu = periLaplacian_tensor(u, dx, number)
             ut = ut + 0.5 * dt * torch.mul(c2, ddxou + ddxu)
+
+            if i % 2 == 0:
+                plt.imshow(WaveEnergyField_tensor(u.squeeze(), ut.squeeze(), vel.squeeze(), f_delta_t) * f_delta_t * f_delta_t,vmin=.0005)
+                plt.axis('off')
+                plt.show()
+                # plt.savefig("../analysis/vis_abc2/"+boundary_c+"_it_"+str(tj)+"_"+str(i)+".png")
 
         return u,ut
 
@@ -151,6 +161,12 @@ def velocity_verlet_tensor(u0, ut0, vel, dx, dt, delta_t_star, number=0, boundar
             u0 = u1.clone()
             u1 = u2.clone()
             Ny, Nx = Ny + 1, Nx + 1
+
+            if k % 2 == 0:
+                plt.imshow(WaveEnergyField_tensor(u.squeeze(), ut.squeeze(), vel.squeeze(), f_delta_t) * f_delta_t * f_delta_t,vmin=.0005)
+                plt.axis('off')
+                # plt.show()
+                plt.savefig("../analysis/vis_abc3/" + boundary_c + "_it_" + str(tj) + "_" + str(k) + ".png")
 
         return u, ut
 

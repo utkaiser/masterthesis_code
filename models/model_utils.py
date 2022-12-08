@@ -188,9 +188,9 @@ def visualize_wavefield(tensor_list, dx = 2.0 / 128.0, f_delta_t=.06, scaler=2, 
 
 def get_paths():
 
-    add = "1/"
+    add = "2/"
 
-    data_paths = ['../data/end_to_end_bp_m_200_2000.npz'] #['../data/end_to_end_bp_m_200_2000.npz']
+    data_paths = ['../data/end_to_end_bp_m_10_2000.npz']
     train_logger_path = '../results/run_2/' + add + 'log_train/'
     valid_logger_path = '../results/run_2/' + add + 'log_valid/'
     dir_path_save = 'results/run_2/' + add
@@ -203,12 +203,13 @@ def get_params(params="0"):
     param_dict = {}
 
     if params == "0":
-        param_dict["batch_size"] = 30
+        param_dict["batch_size"] = 1
         param_dict["lr"] = .001
         param_dict["res_scaler"] = 2
         param_dict["n_epochs"] = 500
         param_dict["model_name"] = "end_to_end_only_unet3lvl"
         param_dict["model_res"] = 128
+        param_dict["coarse_res"] = param_dict["model_res"] / param_dict["res_scaler"]
         param_dict["n_snaps"] = 11
         param_dict["flipping"] = False
         param_dict["boundary_c"] = "absorbing"
