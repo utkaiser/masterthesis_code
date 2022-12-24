@@ -84,12 +84,6 @@ def velocity_verlet_tensor(u0, ut0, vel, dx, dt, delta_t_star, number=0, boundar
             ddxu = periLaplacian_tensor(u, dx, number)
             ut = ut + 0.5 * dt * torch.mul(c2, ddxou + ddxu)
 
-            if i % 2 == 0:
-                plt.imshow(WaveEnergyField_tensor(u.squeeze(), ut.squeeze(), vel.squeeze(), f_delta_t) * f_delta_t * f_delta_t,vmin=.0005)
-                plt.axis('off')
-                plt.show()
-                # plt.savefig("../analysis/vis_abc2/"+boundary_c+"_it_"+str(tj)+"_"+str(i)+".png")
-
         return u,ut
 
     elif boundary_c == 'absorbing':
@@ -161,12 +155,6 @@ def velocity_verlet_tensor(u0, ut0, vel, dx, dt, delta_t_star, number=0, boundar
             u0 = u1.clone()
             u1 = u2.clone()
             Ny, Nx = Ny + 1, Nx + 1
-
-            if k % 2 == 0:
-                plt.imshow(WaveEnergyField_tensor(u.squeeze(), ut.squeeze(), vel.squeeze(), f_delta_t) * f_delta_t * f_delta_t,vmin=.0005)
-                plt.axis('off')
-                # plt.show()
-                plt.savefig("../analysis/vis_abc3/" + boundary_c + "_it_" + str(tj) + "_" + str(k) + ".png")
 
         return u, ut
 

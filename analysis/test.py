@@ -86,3 +86,4 @@ if __name__ == '__main__':
         u, ut =  wav.velocity_verlet_tensor(u,ut,boundary_c='absorbing',vel=torch.ones((3,128,128)), dx=2.0/128.0, dt=(2.0/128.0) / 20, delta_t_star=.2)
 
         #solution_unten(u, ut, vel)
+

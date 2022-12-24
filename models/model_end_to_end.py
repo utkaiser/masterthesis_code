@@ -19,7 +19,7 @@ class Restriction_nn(nn.Module):
             y: fine solution
     '''
 
-    def __init__(self, in_channels_wave=2, in_channels_vel=1, param_dict=None):
+    def __init__(self, in_channels_wave=3, param_dict=None):
         super().__init__()
         # https://arxiv.org/abs/1412.6806 why I added stride
 
@@ -31,27 +31,19 @@ class Restriction_nn(nn.Module):
         self.c_delta_x = param_dict["c_delta_x"]
         self.c_delta_t = param_dict["c_delta_t"]
         self.boundary_c = param_dict["boundary_c"]
+        self.downsampling_net = param_dict["downsampling_net"]
 
         ##################### restriction nets ####################
 
         #TODO: automate if we want downsample two times
-        self.phys_comp_restr_layer1 = Restr_block(in_channels_wave, 4,groups=2).double()
-        self.phys_comp_restr_layer2 = Restr_block(4, 8,groups=2).double()
-        self.phys_comp_restr_layer3 = Restr_block(8, 8,groups=2).double()
-        self.phys_comp_restr_layer4 = Restr_block(8, 8*2,groups=2).double()
-        self.phys_comp_restr_layer5 = Restr_block(8*2, 8 * 2, stride=2,groups=2).double()
-        self.phys_comp_restr_layer6 = Restr_block(8*2, 8,groups=2).double()
-        self.phys_comp_restr_layer7 = Restr_block(8, 4,groups=2).double()
-        self.phys_comp_restr_layer8 = Restr_block(4, in_channels_wave, relu=False, batch_norm=False,groups=2).double()
-
-        self.vel_restr_layer1 = Restr_block(in_channels_vel, 2).double()
-        self.vel_restr_layer2 = Restr_block(2, 4).double()
-        self.vel_restr_layer3 = Restr_block(4, 4).double()
-        self.vel_restr_layer4 = Restr_block(4, 4 * 2).double()
-        self.vel_restr_layer5 = Restr_block(4 * 2, 4 * 2, stride=2).double()
-        self.vel_restr_layer6 = Restr_block(4 * 2, 4).double()
-        self.vel_restr_layer7 = Restr_block(4, 2).double()
-        self.vel_restr_layer8 = Restr_block(2, in_channels_vel, relu=False, batch_norm=False).double()
+        self.restr_layer1 = Restr_block(in_channels_wave, 6,groups=3).double()
+        self.restr_layer2 = Restr_block(6, 6*2,groups=3).double()
+        self.restr_layer3 = Restr_block(6*2, 6*2,groups=3).double()
+        self.restr_layer4 = Restr_block(6*2, 6*4,groups=3).double()
+        self.restr_layer5 = Restr_block(6*4, 6*4,groups=3,stride=2).double()
+        self.restr_layer6 = Restr_block(6*4, 6*2,groups=3).double()
+        self.restr_layer7 = Restr_block(6*2, 6,groups=3).double()
+        self.restr_layer8 = Restr_block(6, in_channels_wave, relu=False, batch_norm=False,groups=3).double()
 
         ##################### enhancing net ####################
 
@@ -66,57 +58,41 @@ class Restriction_nn(nn.Module):
 
         ###### R (restriction) ######
 
-        # physical component restriction net
-        phys_input = torch.stack((u.to(device), ut.to(device)), dim=1).to(device)
-        phys_output = self.phys_comp_restr_layer1(phys_input)
-        phys_output = self.phys_comp_restr_layer2(phys_output)
-        phys_output = self.phys_comp_restr_layer3(phys_output)
-        #skip_all = phys_output
-        phys_output = self.phys_comp_restr_layer4(phys_output)
-        phys_output = self.phys_comp_restr_layer5(phys_output)  # stride
-        phys_output = self.phys_comp_restr_layer6(phys_output)
-        phys_output = self.phys_comp_restr_layer7(phys_output)
-        phys_output = self.phys_comp_restr_layer8(phys_output)
-        restr_fine_sol_u = phys_output[:, 0, :, :]  # b x w_c x h_c
-        restr_fine_sol_ut = phys_output[:, 1, :, :]  # b x w_c x h_c
+        if self.downsampling_net:
+            restr_input = torch.stack((u.to(device), ut.to(device),vel.to(device)), dim=1).to(device)
+            restr_output = self.restr_layer1(restr_input)
+            restr_output = self.restr_layer2(restr_output)
+            restr_output = self.restr_layer3(restr_output)
+            #skip_all = phys_output #TODO: change this
+            restr_output = self.restr_layer4(restr_output)
+            restr_output = self.restr_layer5(restr_output)  # stride
+            restr_output = self.restr_layer6(restr_output)
+            restr_output = self.restr_layer7(restr_output)
+            restr_output = self.restr_layer8(restr_output)
 
-        # velocity component restriction net
-        vel = vel.unsqueeze(dim=1).to(device)
-        vel_output = self.vel_restr_layer1(vel)
-        vel_output = self.vel_restr_layer2(vel_output)
-        vel_output = self.vel_restr_layer3(vel_output)
-        vel_output = self.vel_restr_layer4(vel_output)
-        vel_output = self.vel_restr_layer5(vel_output)  # stride
-        vel_output = self.vel_restr_layer6(vel_output)
-        vel_output = self.vel_restr_layer7(vel_output)
-        vel_output = self.vel_restr_layer8(vel_output)
-        vel_c = vel_output[:,0, :, :]  # b x w_c x h_c
+        else:
+            restr_output = torch.zeros([u.shape[0], 3, 64, 64])
+            restr_output[:,0,:,:] = F.upsample(u[:,:,:].unsqueeze(dim=0), size=(64, 64), mode='bilinear')
+            restr_output[:,1, :, :] = F.upsample(ut[:, :, :].unsqueeze(dim=0), size=(64, 64), mode='bilinear')
+            restr_output[:,2, :, :] = F.upsample(vel[:, :, :].unsqueeze(dim=0), size=(64, 64), mode='bilinear')
 
-        # restr_output = torch.zeros([u.shape[0], 3, 64, 64])
-        # restr_output[:,0,:,:] = F.upsample(u[:,:,:].unsqueeze(dim=0), size=(64, 64), mode='bilinear')
-        # restr_output[:,1, :, :] = F.upsample(ut[:, :, :].unsqueeze(dim=0), size=(64, 64), mode='bilinear')
-        # restr_output[:,2, :, :] = F.upsample(vel[:, :, :].unsqueeze(dim=0), size=(64, 64), mode='bilinear')
-        #
-        # restr_fine_sol_u = torch.Tensor.double(restr_output[:, 0, :, :])  # b x w_c x h_c
-        # restr_fine_sol_ut = torch.Tensor.double(restr_output[:, 1, :, :])  # b x w_c x h_c
-        # vel_c = torch.Tensor.double(restr_output[:,2, :, :])  # b x w_c x h_c
+        restr_fine_sol_u = torch.Tensor.double(restr_output[:, 0, :, :])  # b x w_c x h_c
+        restr_fine_sol_ut = torch.Tensor.double(restr_output[:, 1, :, :])  # b x w_c x h_c
+        vel_c = torch.Tensor.double(restr_output[:,2, :, :])  # b x w_c x h_c
+
+        #TODO: print out before
 
         ###### G delta t (coarse iteration) ######
-
         ucx, utcx = velocity_verlet_tensor(
             restr_fine_sol_u, restr_fine_sol_ut,
             vel_c, self.c_delta_x, self.c_delta_t,
             self.delta_t_star, number=1, boundary_c=self.boundary_c
         )  # b x w_c x h_c, b x w_c x h_c
 
+        # TODO: print out after
+
         # change to energy components
         wx, wy, wtc = WaveEnergyComponentField_tensor(ucx, utcx, vel_c, self.f_delta_x)  # b x w_c x h_c, b x w_c x h_c, b x w_c x h_c
-
-        # res = torch.zeros([wx.shape[0], 3, 128, 128])  # b x c x h x w
-        # res[:,0, :, :] = F.upsample(wx[:, :, :].unsqueeze(dim=1), size=(128, 128), mode='bilinear').squeeze()
-        # res[:,1, :, :] = F.upsample(wy[:, :, :].unsqueeze(dim=1), size=(128, 128), mode='bilinear').squeeze()
-        # res[:,2, :, :] = F.upsample(wtc[:, :, :].unsqueeze(dim=1), size=(128, 128), mode='bilinear').squeeze()
-
 
         # create input for nn
         inputs = torch.stack((wx.to(device), wy.to(device), wtc.to(device), vel_c.to(device)), dim=1).to(device)  # b x 4 x 64 x 64
@@ -124,7 +100,7 @@ class Restriction_nn(nn.Module):
         ##### upsampling through nn ######
         outputs = self.jnet(inputs) #, skip_all=skip_all)  # b x 3 x w x h
 
-        return outputs #res
+        return outputs
 
 
 class Restr_block(nn.Module):
@@ -141,8 +117,6 @@ class Restr_block(nn.Module):
 
     def forward(self, x):
         return self.restr(x)
-
-
 
 
 
@@ -196,3 +170,9 @@ class Restr_block(nn.Module):
         # # vx = outputs[:, 0, :, :]
         # # vy = outputs[:, 1, :, :]
         # # vtc = outputs[:, 2, :, :]
+
+
+        # res = torch.zeros([wx.shape[0], 3, 128, 128])  # b x c x h x w
+        # res[:,0, :, :] = F.upsample(wx[:, :, :].unsqueeze(dim=1), size=(128, 128), mode='bilinear').squeeze()
+        # res[:,1, :, :] = F.upsample(wy[:, :, :].unsqueeze(dim=1), size=(128, 128), mode='bilinear').squeeze()
+        # res[:,2, :, :] = F.upsample(wtc[:, :, :].unsqueeze(dim=1), size=(128, 128), mode='bilinear').squeeze()

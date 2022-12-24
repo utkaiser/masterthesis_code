@@ -20,8 +20,9 @@ def generate_wave_from_medium(input_path, output_path, init_res_f = 128, absorbi
         param_dict["total_time"], param_dict["delta_t_star"], param_dict["f_delta_x"], param_dict["f_delta_t"], param_dict["n_snaps"], param_dict["res_scaler"]
 
     # data setup
-    velocities = np.load(input_path)['wavespeedlist']
-    n_it = 10#velocities.shape[0]  # define the amount of data to generate
+    # velocities = np.load(input_path)['wavespeedlist']
+    n_it = 20 #velocities.shape[0]  # define the amount of data to generate
+    velocities = init_cond.diagonal_ray(n_it)
 
     # tensors for fine solutions in energy components form
     Ux = np.zeros([n_it, n_snaps + 1, init_res_f, init_res_f])
@@ -45,13 +46,13 @@ def generate_wave_from_medium(input_path, output_path, init_res_f = 128, absorbi
 
         # velocity crop
         vel = crop_center(vel, res_padded, res_padded, scaler)
-        if absorbing_bc: vel_crop = crop_center(vel, init_res_f, init_res_f,scaler)
+        if absorbing_bc: vel_crop = crop_center(vel, init_res_f, init_res_f, scaler)
         else: vel_crop = vel
         V[it, :, :, :] = np.repeat(vel_crop[np.newaxis, :, :], n_snaps + 1, axis=0) # save velocity model
 
         if visualize: visualize_wavefield((WaveEnergyComponentField_end_to_end(u_elapse, ut_elapse, vel, f_delta_x)), vel = vel, init_res_f=init_res_f, frame=True)
 
-        for s in range(0, n_snaps+1):
+        for s in range(n_snaps+1):
             # integrate delta t star step size n_snaps times
 
             if absorbing_bc:
@@ -59,10 +60,11 @@ def generate_wave_from_medium(input_path, output_path, init_res_f = 128, absorbi
                 u_elapse_crop, ut_elapse_crop = crop_center(u_elapse, init_res_f, init_res_f,scaler), crop_center(ut_elapse, init_res_f, init_res_f,scaler)
                 Ux[it, s, :, :], Uy[it, s, :, :], Utc[it, s, :, :] = WaveEnergyComponentField_end_to_end(u_elapse_crop, ut_elapse_crop, vel_crop, f_delta_x)
 
-                if s < n_snaps+1: u_elapse, ut_elapse = pseudo_spectral(u_elapse, ut_elapse, vel, f_delta_x, f_delta_t, delta_t_star)
             else:
                 # save current snapshot
                 Ux[it, s, :, :], Uy[it, s, :, :], Utc[it, s, :, :] = WaveEnergyComponentField_end_to_end(u_elapse, ut_elapse, vel_crop, f_delta_x)
+
+            if s < n_snaps + 1: u_elapse, ut_elapse = pseudo_spectral(u_elapse, ut_elapse, vel, f_delta_x, f_delta_t, delta_t_star)
 
             if visualize: visualize_wavefield((WaveEnergyComponentField_end_to_end(u_elapse, ut_elapse, vel, f_delta_x)), vel=vel, init_res_f=init_res_f, frame=True)
 
@@ -75,7 +77,7 @@ if __name__ == "__main__":
     #res_f = sys.argv[2]
 
     generate_wave_from_medium(input_path="../data/crops_bp_m_200_2000.npz",
-                              output_path="../data/end_to_end_bp_m_10_2000.npz",
+                              output_path="../data/end_to_end_bp_m_20_diagonal_ray.npz",
                               init_res_f=128, absorbing_bc = True, visualize = False)
 
 

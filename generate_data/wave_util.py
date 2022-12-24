@@ -21,7 +21,7 @@ def WaveEnergyField_tensor(u, ut, c, dx):
     ux, uy = torch.gradient(u, spacing=dx)
     absux = torch.abs(ux)
     absuy = torch.abs(uy)
-    absutc = torch.divide(np.abs(ut), c)
+    absutc = torch.divide(torch.abs(ut), c)
     w = torch.multiply(absux, absux) + torch.multiply(absuy, absuy) + torch.multiply(absutc, absutc)
 
     return w
@@ -151,4 +151,5 @@ def crop_center(img, cropx, cropy, scaler = 2):
     y, x = img.shape
     startx = x // scaler - (cropx // scaler)
     starty = y // scaler - (cropy // scaler)
+
     return img[starty:starty + cropy, startx:startx + cropx]

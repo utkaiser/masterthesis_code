@@ -6,6 +6,7 @@ import torchvision.transforms.functional as TF
 import random
 import scipy.stats as ss
 import torchvision.transforms as transforms
+from datetime import datetime
 
 environ["TOKENIZERS_PARALLELISM"] = "false"
 environ["OMP_NUM_THREADS"] = "1"
@@ -15,7 +16,7 @@ def save_model(model, modelname, dir_path='results/run_2/'):
     from os import path
     model.to(torch.device("cpu"))
     for i in range(100):
-        saving_path = path.join(path.dirname(path.dirname(path.abspath(__file__))), dir_path + 'saved_model_' +modelname+ "_"+ str(i) + '.pt')
+        saving_path = dir_path + 'saved_model_' + modelname + "_"+ str(i) + '.pt'
         if not path.isfile(saving_path):
             return save(model.state_dict(), saving_path)
     raise MemoryError("memory exceeded")
@@ -61,37 +62,45 @@ def fetch_data(data_paths, batch_size=1, shuffle=True):
     return train_loaders
 
 
-def fetch_data_end_to_end(data_paths, batch_size, shuffle=True, train_split = .9,validate=False):
+def fetch_data_end_to_end(data_paths, batch_size, shuffle=True, train_split = .9, validate=False, val_paths = None):
 
-    #concatenate
-    for i, path in enumerate(data_paths):
-        if i == 0: np_array = np.load(path) # 200 x 11 x 128 x 128
-        else: np_array = np.concatenate((np_array, np.load(path)), axis=0)
+    def get_datasets(data_paths):
 
-    tensor = torch.stack((torch.from_numpy(np_array['Ux']),
-                          torch.from_numpy(np_array['Uy']),
-                          torch.from_numpy(np_array['Utc']),
-                          torch.from_numpy(np_array['vel'])), dim=2)
+        #concatenate paths
+        datasets = []
+        for i, path in enumerate(data_paths):
+            np_array = np.load(path)  # 200 x 11 x 128 x 128
+            datasets.append(
+                torch.utils.data.TensorDataset(
+                    torch.stack((torch.from_numpy(np_array['Ux']),
+                                 torch.from_numpy(np_array['Uy']),
+                                 torch.from_numpy(np_array['Utc']),
+                                 torch.from_numpy(np_array['vel'])), dim=2)
+            ))
 
-    full_dataset = torch.utils.data.TensorDataset(tensor)
+        return torch.utils.data.ConcatDataset(datasets)
 
-    if validate:
+    full_dataset = get_datasets(data_paths)
 
+    if val_paths != None:
+
+        train_loader = torch.utils.data.DataLoader(full_dataset, batch_size=batch_size, shuffle=shuffle, num_workers=1)
+        val_loader = torch.utils.data.DataLoader(get_datasets(val_paths), batch_size=batch_size, shuffle=shuffle, num_workers=1)
+
+        print("train data points:", len(train_loader) * batch_size, "| test data points:", len(val_loader) * batch_size)
+        return train_loader, val_loader
+
+    else:
         train_size = int(train_split * len(full_dataset))
         val_size = len(full_dataset) - train_size
         train_dataset, val_dataset = torch.utils.data.random_split(full_dataset, [train_size, val_size])
-        train_loader = torch.utils.data.DataLoader(train_dataset,
-                                                   batch_size=batch_size, shuffle=shuffle, num_workers=1)
+        train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=shuffle,
+                                                   num_workers=1)
         val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=batch_size, shuffle=shuffle, num_workers=1)
-        print("test data points:", len(train_loader) * batch_size, "| train data points:", len(val_loader) * batch_size)
+        print("train data points:", len(train_loader) * batch_size, "| test data points:", len(val_loader) * batch_size)
         return train_loader, val_loader
-    else:
 
-        #trainset_1 = torch.utils.data.Subset(full_dataset, [0,1,2])
-        train_loader = torch.utils.data.DataLoader(full_dataset, batch_size=batch_size, shuffle=shuffle, num_workers=1)
-        print("test data points:", len(train_loader) * batch_size)
 
-        return train_loader, None
 
 def flip_tensors(input_tensor, label, v_flipped, h_flipped):
 
@@ -127,6 +136,8 @@ def visualize_wavefield(tensor_list, dx = 2.0 / 128.0, f_delta_t=.06, scaler=2, 
     fig = plt.figure(figsize=(20, 8))
     loss_list = []
     f_delta_x = 2.0 / 128.0
+    label_font_size = 5
+
 
     for i, values in enumerate(tensor_list):
 
@@ -142,7 +153,8 @@ def visualize_wavefield(tensor_list, dx = 2.0 / 128.0, f_delta_t=.06, scaler=2, 
             ax1 = fig.add_subplot(4, n_snapshots, i + 1)
             pos1 = ax1.imshow(input[3, :, :])
             plt.axis('off')
-            plt.colorbar(pos1)
+            c_v = plt.colorbar(pos1)
+            c_v.ax.tick_params(labelsize=label_font_size)
 
         # input
         u_x, u_y, u_t_c, vel = input[0, :, :].unsqueeze(dim=0), input[1, :, :].unsqueeze(dim=0), input[2, :, :].unsqueeze(dim=0), input[3, :, :].unsqueeze(dim=0)
@@ -152,7 +164,8 @@ def visualize_wavefield(tensor_list, dx = 2.0 / 128.0, f_delta_t=.06, scaler=2, 
         pos2 = ax2.imshow(wave_util.WaveEnergyField_tensor(u[0, :, :], ut[0, :, :], vel[0, :, :], dx) * dx * dx)#,vmin = _min, vmax = _max)
         plt.axis('off')
         ax2.set_title('input', fontsize=10)
-        plt.colorbar(pos2)
+        c_i = plt.colorbar(pos2)
+        c_i.ax.tick_params(labelsize=label_font_size)
 
         # output
         u_x, u_y, u_t_c = output[0, :, :].unsqueeze(dim=0), output[1, :, :].unsqueeze(dim=0), output[2, :,:].unsqueeze(dim=0)
@@ -162,7 +175,8 @@ def visualize_wavefield(tensor_list, dx = 2.0 / 128.0, f_delta_t=.06, scaler=2, 
         pos3 = ax3.imshow(wave_util.WaveEnergyField_tensor(u[0, :, :], ut[0, :, :], vel[0, :, :], dx) * dx * dx)#,vmin = _min, vmax = _max)
         plt.axis('off')
         ax3.set_title('output', fontsize=10)
-        plt.colorbar(pos3)
+        c_o = plt.colorbar(pos3)
+        c_o.ax.tick_params(labelsize=label_font_size)
 
         # label
         u_x, u_y, u_t_c = label[0, :, :].unsqueeze(dim=0), label[1, :, :].unsqueeze(dim=0), label[2, :,:].unsqueeze(dim=0)
@@ -172,7 +186,8 @@ def visualize_wavefield(tensor_list, dx = 2.0 / 128.0, f_delta_t=.06, scaler=2, 
         pos4 = ax4.imshow(wave_util.WaveEnergyField_tensor(u[0, :, :], ut[0, :, :], vel[0, :, :], dx) * dx * dx)#,vmin = _min, vmax = _max)
         plt.axis('off')
         ax4.set_title('label', fontsize=10)
-        plt.colorbar(pos4)
+        c_l = plt.colorbar(pos4)
+        c_l.ax.tick_params(labelsize=label_font_size)
 
     fig.suptitle("losses: " + ", ".join(loss_list), fontsize=14)
 
@@ -185,18 +200,28 @@ def visualize_wavefield(tensor_list, dx = 2.0 / 128.0, f_delta_t=.06, scaler=2, 
     else:
         plt.show()
 
+import os
 
 def get_paths():
 
-    add = "2/"
+    main_branch = '../results/run_2/'
+    now = datetime.now()
+    add = now.strftime("%d_%m_%Y____%H_%M_%S") + "/"
 
-    data_paths = ['../data/end_to_end_bp_m_10_2000.npz']
-    train_logger_path = '../results/run_2/' + add + 'log_train/'
-    valid_logger_path = '../results/run_2/' + add + 'log_valid/'
-    dir_path_save = 'results/run_2/' + add
-    vis_path = '../results/run_2/' + add
+    if not os.path.exists(main_branch + add):
+        os.makedirs(main_branch + add)
 
-    return data_paths, train_logger_path, valid_logger_path, dir_path_save, vis_path
+    data_paths = ['../data/end_to_end_bp_m_10_2000.npz'] #TODO: change this back
+    val_paths = ['../data/end_to_end_bp_m_20_diagonal_ray.npz',
+                 '../data/end_to_end_bp_m_10_2000.npz']
+    train_logger_path = main_branch + add + 'log_train/'
+    valid_logger_path = main_branch + add + 'log_valid/'
+    dir_path_save = main_branch + add
+    vis_path = main_branch + add
+
+    print("data settings:", ", ".join(data_paths))
+
+    return data_paths, train_logger_path, valid_logger_path, dir_path_save, vis_path, val_paths
 
 def get_params(params="0"):
 
@@ -219,6 +244,7 @@ def get_params(params="0"):
         param_dict["f_delta_t"] = param_dict["f_delta_x"] / 20
         param_dict["c_delta_x"] = 2.0 / 64.0
         param_dict["c_delta_t"] = param_dict["c_delta_x"] / 12
+        param_dict["downsampling_net"] = False
     else:
         raise NotImplementedError("params not defined for params =",params)
 
@@ -240,3 +266,45 @@ def setup_logger(logging=False, train_logger_path=None, valid_logger_path=None, 
     global_step = 0
 
     return train_logger, valid_logger, global_step
+
+
+def min_max_scale(data, new_min = -1, new_max = 1):
+    '''
+
+    Parameters
+    ----------
+    data : tensor, b x n_snaps x 4 x w x h
+
+    Returns
+    -------
+    tensor, b x n_snaps x 4 x w x h
+    scaled data with values ranging from -1 to 1 image-wise
+    '''
+
+    batch_size, n_snaps, channels, w, h = data.shape
+    new_data = torch.zeros(batch_size, n_snaps, channels, w, h)
+
+    for b in range(batch_size):
+        for s in range(n_snaps):
+            for c in range(channels-1): #we do not rescale velocity
+
+                var = data[b,s,c,:,:]
+
+                if s == 0 and c == 2:
+                    var_p = var
+                else:
+                    var_min, var_max = var.min(), var.max()
+                    var_p = (var - var_min) / (var_max - var_min) * (new_max - new_min) + new_min
+
+                new_data[b,s,c,:,:] = var_p
+            new_data[b, s, 3, :, :] = data[b, s, 3, :, :]
+
+    return new_data
+
+
+
+
+
+
+
+
