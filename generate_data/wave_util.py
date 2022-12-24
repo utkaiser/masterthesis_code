@@ -98,7 +98,7 @@ def gradient2Per(v, dx, dy):
 def WaveSol_from_EnergyComponent_tensor(wx, wy, wtc, c, dx, sumv):
     # Compute wave solution components from energy component
 
-    u = torch.zeros((wx.shape[0], 128, 128))
+    u = torch.zeros((wx.shape[0], wx.shape[-1], wx.shape[-1]))
 
     for b in range(wx.shape[0]):
         u[b, :, :] = grad2func_tensor(wx[b, :, :], wy[b, :, :], dx, sumv)

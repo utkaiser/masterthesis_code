@@ -6,8 +6,6 @@ from model_end_to_end import Restriction_nn
 from model_utils import save_model, fetch_data_end_to_end, flip_tensors, sample_label_random, visualize_wavefield, get_paths, get_params, setup_logger, min_max_scale
 import torch
 import random
-from generate_data.initial_conditions import diagonal_ray
-
 
 def train_Dt_end_to_end(logging=False, visualize=True, vis_param=1, params="0", vis_save=True):
 
@@ -48,7 +46,7 @@ def train_Dt_end_to_end(logging=False, visualize=True, vis_param=1, params="0", 
 
             if epoch % (n_epochs // n_snaps) == 0 and epoch != 0: label_distr_shift += 1
 
-            for it, input_idx in enumerate(random.choices(range(n_snaps-1), k=10)):  # randomly shuffle order TODO: change back to k=n_snaps
+            for input_idx in random.choices(range(n_snaps-1), k=10):  # randomly shuffle order TODO: change back to k=n_snaps
 
                 input_tensor = data[:, input_idx, :, :, :]  # b x 4 x w x h
                 h_flipped, v_flipped = False, False
@@ -58,11 +56,9 @@ def train_Dt_end_to_end(logging=False, visualize=True, vis_param=1, params="0", 
 
                 for label_idx in range(input_idx+1, input_idx+2):  # randomly decide how long path is
 
-
                     label = data[:, label_idx, :3, :, :].to(device) # b x 3 x w x h
 
-                    if flipping:
-                        input_tensor, label, v_flipped, h_flipped = flip_tensors(input_tensor, label, v_flipped, h_flipped)
+                    if flipping: input_tensor, label, v_flipped, h_flipped = flip_tensors(input_tensor, label, v_flipped, h_flipped)
 
                     output = model(input_tensor.to(device))  # b x 3 x w x h
 
@@ -130,5 +126,3 @@ def train_Dt_end_to_end(logging=False, visualize=True, vis_param=1, params="0", 
 
 if __name__ == "__main__":
     train_Dt_end_to_end()
-
-
