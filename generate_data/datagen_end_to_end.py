@@ -6,12 +6,21 @@ import initial_conditions as init_cond
 from wave_util import WaveEnergyComponentField_end_to_end, crop_center
 from models.model_utils import get_params
 from visualize_datagen import visualize_wavefield
+import logging
 
-def generate_wave_from_medium(input_path, output_path, init_res_f = 128, absorbing_bc = False, visualize=False):
+def generate_wave_from_medium(input_path, output_path, init_res_f = 128, absorbing_bc = False, visualize=False, index="0"):
 
     # vel: n_it x n_snaps w x h -> 200 x 10 x 128 x 128
 
     ################################### setup ###################################
+
+    #logger setup
+    logging.basicConfig(filename="../results/run_2/"+index+".log",
+                        filemode='a',
+                        format='%(asctime)s %(message)s',
+                        datefmt='%H:%M:%S',
+                        level=logging.DEBUG)
+    logging.info("start logging")
 
     # parameter setup
     res_padded = init_res_f
@@ -20,9 +29,9 @@ def generate_wave_from_medium(input_path, output_path, init_res_f = 128, absorbi
         param_dict["total_time"], param_dict["delta_t_star"], param_dict["f_delta_x"], param_dict["f_delta_t"], param_dict["n_snaps"], param_dict["res_scaler"]
 
     # data setup
-    # velocities = np.load(input_path)['wavespeedlist']
-    n_it = 20 #velocities.shape[0]  # define the amount of data to generate
-    velocities = init_cond.diagonal_ray(n_it)
+    velocities = np.load(input_path)['wavespeedlist']
+    n_it = velocities.shape[0]  # define the amount of data to generate
+    # velocities = init_cond.diagonal_ray(n_it)
 
     # tensors for fine solutions in energy components form
     Ux = np.zeros([n_it, n_snaps + 1, init_res_f, init_res_f])
@@ -35,10 +44,10 @@ def generate_wave_from_medium(input_path, output_path, init_res_f = 128, absorbi
 
     ################################# training #################################
 
-    print("start end to end training data generation, amount of data to generate:", n_it)
+    logging.info("start end to end training data generation, amount of data to generate:", n_it)
 
     for it in range(n_it):
-        print('sample:', it)
+        logging.info(" ".join(['sample:', it]))
 
         #initialization of wave field
         u_elapse, ut_elapse, res_padded = init_cond.init_cond_gaussian(it, init_res_f, res_padded, absorbing_bc=True)
@@ -73,12 +82,12 @@ def generate_wave_from_medium(input_path, output_path, init_res_f = 128, absorbi
 
 if __name__ == "__main__":
 
-    #res_f = ""  # -> will be target resolution
     #res_f = sys.argv[2]
+    index = "0"
 
     generate_wave_from_medium(input_path="../data/crops_bp_m_200_2000.npz",
-                              output_path="../data/end_to_end_bp_m_20_diagonal_ray.npz",
-                              init_res_f=128, absorbing_bc = True, visualize = False)
+                              output_path="../data/end_to_end_bp_m_200_2000_"+index+".npz",
+                              init_res_f=128, absorbing_bc = True, visualize = True, index=index)
 
 
 

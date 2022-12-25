@@ -5,8 +5,8 @@ import torch
 import torchvision.transforms.functional as TF
 import random
 import scipy.stats as ss
-import torchvision.transforms as transforms
 from datetime import datetime
+import logging
 
 environ["TOKENIZERS_PARALLELISM"] = "false"
 environ["OMP_NUM_THREADS"] = "1"
@@ -39,7 +39,7 @@ def npdat2Tensor_tensor(nda):
 
 
 def fetch_data(data_paths, batch_size=1, shuffle=True):
-    print("setting up data")
+    logging.info("setting up data")
 
     total_n_datapoints = 0
     train_loaders = []
@@ -58,8 +58,9 @@ def fetch_data(data_paths, batch_size=1, shuffle=True):
         total_n_datapoints += len(data_loader)
         train_loaders.append(data_loader)
 
-    print("total number of data points:", total_n_datapoints * batch_size)
+    logging.info(" ".join(["total number of data points:", total_n_datapoints * batch_size]))
     return train_loaders
+
 
 
 def fetch_data_end_to_end(data_paths, batch_size, shuffle=True, train_split = .9, validate=False, val_paths = None):
@@ -81,13 +82,14 @@ def fetch_data_end_to_end(data_paths, batch_size, shuffle=True, train_split = .9
         return torch.utils.data.ConcatDataset(datasets)
 
     full_dataset = get_datasets(data_paths)
+    val_dataset = get_datasets(val_paths)
 
     if val_paths != None:
 
         train_loader = torch.utils.data.DataLoader(full_dataset, batch_size=batch_size, shuffle=shuffle, num_workers=1)
-        val_loader = torch.utils.data.DataLoader(get_datasets(val_paths), batch_size=batch_size, shuffle=shuffle, num_workers=1)
+        val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=batch_size, shuffle=shuffle, num_workers=1)
 
-        print("train data points:", len(train_loader) * batch_size, "| test data points:", len(val_loader) * batch_size)
+        logging.info(" ".join(["train data points:", str(len(train_loader) * batch_size), "| test data points:", str(len(val_loader) * batch_size)]))
         return train_loader, val_loader
 
     else:
@@ -97,7 +99,7 @@ def fetch_data_end_to_end(data_paths, batch_size, shuffle=True, train_split = .9
         train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=shuffle,
                                                    num_workers=1)
         val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=batch_size, shuffle=shuffle, num_workers=1)
-        print("train data points:", len(train_loader) * batch_size, "| test data points:", len(val_loader) * batch_size)
+        logging.info(" ".join(["train data points:", len(train_loader) * batch_size, "| test data points:", len(val_loader) * batch_size]))
         return train_loader, val_loader
 
 
@@ -211,15 +213,13 @@ def get_paths():
     if not os.path.exists(main_branch + add):
         os.makedirs(main_branch + add)
 
-    data_paths = ['../data/end_to_end_bp_m_10_2000.npz'] #TODO: change this back
+    data_paths = ['../data/end_to_end_bp_m_200_2000.npz']
     val_paths = ['../data/end_to_end_bp_m_20_diagonal_ray.npz',
                  '../data/end_to_end_bp_m_10_2000.npz']
     train_logger_path = main_branch + add + 'log_train/'
     valid_logger_path = main_branch + add + 'log_valid/'
     dir_path_save = main_branch + add
     vis_path = main_branch + add
-
-    print("data settings:", ", ".join(data_paths))
 
     return data_paths, train_logger_path, valid_logger_path, dir_path_save, vis_path, val_paths
 
@@ -228,7 +228,7 @@ def get_params(params="0"):
     param_dict = {}
 
     if params == "0":
-        param_dict["batch_size"] = 1
+        param_dict["batch_size"] = 50
         param_dict["lr"] = .001
         param_dict["res_scaler"] = 2
         param_dict["n_epochs"] = 500
@@ -248,17 +248,23 @@ def get_params(params="0"):
     else:
         raise NotImplementedError("params not defined for params =",params)
 
-    print("param settings:", ", ".join([i +": "+ str(v) for i, v in param_dict.items()]))
-
     return param_dict
 
 
 import torch.utils.tensorboard as tb
 import time
 
-def setup_logger(logging=False, train_logger_path=None, valid_logger_path=None, model_name=None, model_res=None):
+def setup_logger(logging_bool, train_logger_path, valid_logger_path, model_name, model_res, vis_path):
+
+    logging.basicConfig(filename=vis_path + "out.log",
+                        filemode='a',
+                        format='%(asctime)s %(message)s',
+                        datefmt='%H:%M:%S',
+                        level=logging.DEBUG)
+
+
     train_logger, valid_logger = None, None
-    if logging:
+    if logging_bool:
         train_logger = tb.SummaryWriter(train_logger_path + model_name + str(model_res)
                                         + '/{}'.format(time.strftime('%H-%M-%S')) + '_test.npz', flush_secs=1)
         valid_logger = tb.SummaryWriter(valid_logger_path + model_name + str(model_res)

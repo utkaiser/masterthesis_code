@@ -9,9 +9,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 from generate_data.wave_propagation import velocity_verlet_tensor
 from generate_data.wave_util import WaveEnergyComponentField_tensor, WaveSol_from_EnergyComponent_tensor, WaveEnergyField_tensor
 import torch
-import matplotlib.pyplot as plt
 import torch.nn.functional as F
-from generate_data import wave_util
 
 class Restriction_nn(nn.Module):
     '''
@@ -88,13 +86,13 @@ class Restriction_nn(nn.Module):
 
         ###### G delta t (coarse iteration) ######
         ucx, utcx = velocity_verlet_tensor(
-            restr_fine_sol_u, restr_fine_sol_ut,
-            vel_c, self.c_delta_x, self.c_delta_t,
+            restr_fine_sol_u.to(device), restr_fine_sol_ut.to(device),
+            vel_c.to(device), self.c_delta_x, self.c_delta_t,
             self.delta_t_star, number=1, boundary_c=self.boundary_c
         )  # b x w_c x h_c, b x w_c x h_c
 
         # change to energy components
-        wx, wy, wtc = WaveEnergyComponentField_tensor(ucx, utcx, vel_c, self.c_delta_x)  # b x w_c x h_c, b x w_c x h_c, b x w_c x h_c
+        wx, wy, wtc = WaveEnergyComponentField_tensor(ucx.to(device), utcx.to(device), vel_c.to(device), self.c_delta_x)  # b x w_c x h_c, b x w_c x h_c, b x w_c x h_c
 
         # create input for nn
         inputs = torch.stack((wx.to(device), wy.to(device), wtc.to(device), vel_c.to(device)), dim=1).to(device)  # b x 4 x 64 x 64
@@ -102,7 +100,7 @@ class Restriction_nn(nn.Module):
         ##### upsampling through nn ######
         outputs = self.jnet(inputs) #, skip_all=skip_all)  # b x 3 x w x h
 
-        return outputs
+        return outputs.to(device)
 
 
 class Restr_block(nn.Module):

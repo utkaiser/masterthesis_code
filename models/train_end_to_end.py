@@ -6,22 +6,23 @@ from model_end_to_end import Restriction_nn
 from model_utils import save_model, fetch_data_end_to_end, flip_tensors, sample_label_random, visualize_wavefield, get_paths, get_params, setup_logger, min_max_scale
 import torch
 import random
+import logging
 
-def train_Dt_end_to_end(logging=False, visualize=True, vis_param=1, params="0", vis_save=True):
+def train_Dt_end_to_end(logging_bool=False, visualize=True, vis_param=1, params="0", vis_save=True):
 
-    # params setup
+    # params and logger setup
     data_paths, train_logger_path, valid_logger_path, dir_path_save, vis_path, val_paths = get_paths()
     param_dict = get_params(params)
     batch_size, lr, res_scaler, n_epochs, model_name, model_res, flipping, boundary_c, delta_t_star, f_delta_x = \
         param_dict["batch_size"], param_dict["lr"], param_dict["res_scaler"], param_dict["n_epochs"],param_dict["model_name"],\
         param_dict["model_res"],param_dict["flipping"],param_dict["boundary_c"],param_dict["delta_t_star"],param_dict["f_delta_x"]
-
-    # logger setup
-    train_logger, valid_logger, global_step = setup_logger(logging, train_logger_path, valid_logger_path, model_name, model_res)
+    train_logger, valid_logger, global_step = setup_logger(logging_bool, train_logger_path, valid_logger_path, model_name, model_res, vis_path)
+    logging.info(" ".join(["data settings:", ", ".join(data_paths)]))
+    logging.info(" ".join(["param settings:", ", ".join([i + ": " + str(v) for i, v in param_dict.items()])]))
 
     # model setup
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print("gpu available:", torch.cuda.is_available(), "| n of gpus:", torch.cuda.device_count())
+    logging.info(" ".join(["gpu available:", str(torch.cuda.is_available()), "| n of gpus:", str(torch.cuda.device_count())]))
     model = Restriction_nn(param_dict = param_dict).double()
     model = torch.nn.DataParallel(model).to(device) #multi-GPU use
     optimizer = optim.AdamW(model.parameters(), lr=lr) #SGD(model.parameters(), lr=lr)
@@ -32,7 +33,7 @@ def train_Dt_end_to_end(logging=False, visualize=True, vis_param=1, params="0", 
     label_distr_shift = 0
 
     # training
-    print("-"*20,"start training", "-"*20)
+    logging.info(" ".join(["-"*20,"start training", "-"*20]))
     for epoch in range(n_epochs):
 
         model.train()
@@ -46,7 +47,7 @@ def train_Dt_end_to_end(logging=False, visualize=True, vis_param=1, params="0", 
 
             if epoch % (n_epochs // n_snaps) == 0 and epoch != 0: label_distr_shift += 1
 
-            for input_idx in random.choices(range(n_snaps-1), k=10):  # randomly shuffle order TODO: change back to k=n_snaps
+            for input_idx in random.sample(range(n_snaps-1), k=n_snaps-1):
 
                 input_tensor = data[:, input_idx, :, :, :]  # b x 4 x w x h
                 h_flipped, v_flipped = False, False
@@ -72,7 +73,7 @@ def train_Dt_end_to_end(logging=False, visualize=True, vis_param=1, params="0", 
             sum(loss_list).backward()
             optimizer.step()
 
-            if logging: train_logger.add_scalar('loss', np.array(loss_list).mean(), global_step=global_step)
+            if logging_bool: train_logger.add_scalar('loss', np.array(loss_list).mean(), global_step=global_step)
             train_loss_list.append(np.array([l.cpu().detach().numpy() for l in loss_list]).mean())
             global_step += 1
 
@@ -108,13 +109,13 @@ def train_Dt_end_to_end(logging=False, visualize=True, vis_param=1, params="0", 
                     if visualize and (epoch + 1) % vis_param == 0 and i==0 and input_idx == 0:
                         visualize_wavefield(visualize_list, scaler=res_scaler, vis_save=vis_save, vis_path=vis_path)
 
-            if logging:
+            if logging_bool:
                 train_logger.add_scalar('loss', np.array(train_loss_list).mean(), global_step=global_step)
                 valid_logger.add_scalar('loss', np.array(val_loss_list).mean() ,global_step=global_step)
 
             if epoch % 1 == 0:
-                print(datetime.datetime.now().strftime("%H:%M:%S"), 'epoch %d , train loss: %.5f, test loss: %.5f' %
-                      (epoch + 1, np.array(train_loss_list).mean(), np.array(val_loss_list).mean()))
+                logging.info(" ".join([datetime.datetime.now().strftime("%H:%M:%S"), 'epoch %d , train loss: %.5f, test loss: %.5f' %
+                      (epoch + 1, np.array(train_loss_list).mean(), np.array(val_loss_list).mean())]))
 
         if epoch % 50 == 0:  # saves first model as a test
             save_model(model, model_name + str(model_res), dir_path_save)
