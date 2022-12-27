@@ -68,10 +68,10 @@ def train_Dt_end_to_end(logging_bool=False, visualize=True, vis_param=1, params=
 
                     input_tensor = torch.cat((output, torch.unsqueeze(input_tensor[:, 3, :, :], dim=1)), dim=1)
 
-            optimizer.zero_grad()
-
-            sum(loss_list).backward()
-            optimizer.step()
+            # optimizer.zero_grad()
+            #
+            # sum(loss_list).backward()
+            # optimizer.step()
 
             if logging_bool: train_logger.add_scalar('loss', np.array(loss_list).mean(), global_step=global_step)
             train_loss_list.append(np.array([l.cpu().detach().numpy() for l in loss_list]).mean())

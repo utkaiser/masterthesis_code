@@ -15,7 +15,7 @@ def generate_wave_from_medium(input_path, output_path, init_res_f = 128, absorbi
     ################################### setup ###################################
 
     #logger setup
-    logging.basicConfig(filename="../results/run_2/"+index+".log",
+    logging.basicConfig(filename="../results/run_2/datagen_"+index+".log",
                         filemode='a',
                         format='%(asctime)s %(message)s',
                         datefmt='%H:%M:%S',
@@ -44,10 +44,10 @@ def generate_wave_from_medium(input_path, output_path, init_res_f = 128, absorbi
 
     ################################# training #################################
 
-    logging.info("start end to end training data generation, amount of data to generate:", n_it)
+    logging.info(" ".join(["start end to end training data generation, amount of data to generate:", str(n_it)]))
 
     for it in range(n_it):
-        logging.info(" ".join(['sample:', it]))
+        logging.info(" ".join(['sample:', str(it)]))
 
         #initialization of wave field
         u_elapse, ut_elapse, res_padded = init_cond.init_cond_gaussian(it, init_res_f, res_padded, absorbing_bc=True)
@@ -82,12 +82,13 @@ def generate_wave_from_medium(input_path, output_path, init_res_f = 128, absorbi
 
 if __name__ == "__main__":
 
-    #res_f = sys.argv[2]
-    index = "0"
+    for index in range(3,8):
 
-    generate_wave_from_medium(input_path="../data/crops_bp_m_200_2000.npz",
-                              output_path="../data/end_to_end_bp_m_200_2000_"+index+".npz",
-                              init_res_f=128, absorbing_bc = True, visualize = True, index=index)
+        generate_wave_from_medium(input_path="../data/crops_bp_m_200_2000.npz",
+                                  output_path="../data/end_to_end_bp_m_200_2000_"+str(index)+".npz",
+                                  init_res_f=128, absorbing_bc = True, visualize = False, index=str(index))
+
+        logging.info("-"*50)
 
 
 

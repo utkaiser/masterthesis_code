@@ -7,7 +7,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from models import model_end_to_end
 from skimage.transform import resize
-from models.model_utils import fetch_data_end_to_end
+from models.model_utils import fetch_data_end_to_end, get_params
 from generate_data.wave_propagation import velocity_verlet_tensor, pseudo_spectral, velocity_verlet
 
 def compare_end_to_end_gpu():
@@ -19,21 +19,20 @@ def compare_end_to_end_gpu():
     boundary_c = 'absorbing'
     dx = 2.0 / 128.0
     dt = dx / 20
-    dX = dx * 2
-    dT = dt * 4
+    dX = 2./64.
+    dT = 1./300.
     delta_t_star = .06
     scaler = 2
-    n_snaps = 11
+    n_snaps = 12
     Nx, Ny = 128, 128
     c_Nx, c_Ny = 64, 64
 
-    path = "../data/end_to_end_bp_m_10_2000.npz"
-    loaders = fetch_data_end_to_end([path], shuffle=False, batch_size=1)
+    path = ['../data/end_to_end_bp_m_10_2000.npz']
+    loader, _ = fetch_data_end_to_end(path, val_paths=path, shuffle=False, batch_size=1)
 
     # set up models
-
-    restr_model1 = model_end_to_end.Restriction_nn(res_scaler=scaler, boundary_c=boundary_c, delta_t_star=delta_t_star,
-                                                   f_delta_x=dX).double().to(device)
+    param_dict = get_params("0")
+    restr_model1 = model_end_to_end.Restriction_nn(param_dict = param_dict).double().to(device)
     # restr_model1 = torch.nn.DataParallel(restr_model1)
     # restr_model1.load_state_dict(torch.load('../results/run_2/saved_model_end_to_end_unet128_29.pt'))
     # restr_model1.eval()
@@ -47,115 +46,112 @@ def compare_end_to_end_gpu():
         params = sum([np.prod(p.size()) for p in model_parameters])
         print(netname, 'number of trainable parameters', params)
 
-    uc, utc = np.zeros([n_snaps - 1, Nx, Ny]), np.zeros([n_snaps - 1, Nx, Ny])
-    uf, utf = np.zeros([n_snaps - 1, Nx, Ny]), np.zeros([n_snaps - 1, Nx, Ny])
-    uo, uto = np.zeros([n_snaps - 1, Nx, Ny]), np.zeros([n_snaps - 1, Nx, Ny])
+    uc, utc = np.zeros([n_snaps, Nx, Ny]), np.zeros([n_snaps, Nx, Ny])
+    uf, utf = np.zeros([n_snaps, Nx, Ny]), np.zeros([n_snaps, Nx, Ny])
+    uo, uto = np.zeros([n_snaps, Nx, Ny]), np.zeros([n_snaps, Nx, Ny])
     e_time_fine, s_time_fine = [], []
     e_time_coarse, s_time_coarse = [], []
     e_time_endtoend, s_time_endtoend = [], []
 
     with torch.no_grad():
-        for loader in loaders:
-            for i, data in enumerate(loader):
+        for i, data in enumerate(loader):
 
-                input = data[0].squeeze()  # n_snaps x 4 x w x h
-                fig = plt.figure(figsize=(35, 8))
+            input = data[0].squeeze()  # n_snaps x 4 x w x h
+            fig = plt.figure(figsize=(35, 8))
 
-                # initial condition visualization
-                u_x, u_y, u_t_c, vel = input[0, 0, :, :], input[0, 1, :, :], input[0, 2, :, :], input[0, 3, :, :]
+            # initial condition visualization
+            u_x, u_y, u_t_c, vel = input[0, 0, :, :], input[0, 1, :, :], input[0, 2, :, :], input[0, 3, :, :]
+            sumv = torch.sum(torch.sum(u_x))
+            u, ut = wave_util.WaveSol_from_EnergyComponent_tensor(u_x.unsqueeze(dim=0), u_y.unsqueeze(dim=0),
+                                                                  u_t_c.unsqueeze(dim=0), vel.unsqueeze(dim=0), dx,
+                                                                  sumv)
+
+            ax2 = fig.add_subplot(3, 11, 1)
+            pos2 = ax2.imshow(wave_util.WaveEnergyField_tensor(u.squeeze(), ut.squeeze(), vel, dx) * dx * dx)
+            ax2.set_title('init condition', fontsize=10)
+            plt.colorbar(pos2)
+            plt.axis('off')
+
+            # velocity visualization
+            ax1 = fig.add_subplot(3, 11, 12)
+            vel_img = input[0, 3, :, :]
+            pos1 = ax1.imshow(vel_img)
+            plt.colorbar(pos1)
+            plt.axis('off')
+
+            # fine solver iteration
+            for j in range(1, input.shape[0]):
+                u_x, u_y, u_t_c, vel = input[j, 0, :, :], input[j, 1, :, :], input[j, 2, :, :], input[j, 3, :,
+                                                                                                :]  # w x h
                 sumv = torch.sum(torch.sum(u_x))
                 u, ut = wave_util.WaveSol_from_EnergyComponent_tensor(u_x.unsqueeze(dim=0), u_y.unsqueeze(dim=0),
-                                                                      u_t_c.unsqueeze(dim=0), vel.unsqueeze(dim=0), dx,
-                                                                      sumv)
+                                                                      u_t_c.unsqueeze(dim=0), vel.unsqueeze(dim=0),
+                                                                      dx, sumv)
+                uf[j - 1, :, :], utf[j - 1, :, :] = u.squeeze(), ut.squeeze()
+                ax = fig.add_subplot(3, 12, 1 + j)
+                pos = ax.imshow(wave_util.WaveEnergyField_tensor(u.squeeze(), ut.squeeze(), vel, dx) * dx * dx)
+                ax.set_title('it' + str(j), fontsize=10)
+                plt.colorbar(pos)
+                plt.axis('off')
 
-                ax2 = fig.add_subplot(3, 11, 1)
-                pos2 = ax2.imshow(wave_util.WaveEnergyField_tensor(u.squeeze(), ut.squeeze(), vel, dx) * dx * dx)
-                ax2.set_title('init condition', fontsize=10)
+            ufx, ufcx = wave_util.WaveSol_from_EnergyComponent_tensor(input[0, 0, :, :].unsqueeze(dim=0),
+                                                                      input[0, 1, :, :].unsqueeze(dim=0),
+                                                                      input[0, 2, :, :].unsqueeze(dim=0),
+                                                                      input[0, 3, :, :].unsqueeze(dim=0), dx, sumv)
+            for j in range(1, input.shape[0]):
+                s_time_fine.append(time.process_time())
+                ufx, ufcx = velocity_verlet_tensor(ufx, ufcx, vel.unsqueeze(dim=0), dx, dt, delta_t_star, number=1, boundary_c="absorbing") #number=1,
+                                                   #boundary_c=boundary_c)  # pseudo_spectral
+                e_time_fine.append(time.process_time())
+                # ax = fig.add_subplot(3,11,1+j)
+                # pos = ax.imshow(wave_util.WaveEnergyField_tensor(ufx.squeeze(),ufcx.squeeze(),vel,dx)*dx*dx)
+                # plt.colorbar(pos)
+                # plt.axis('off')
+
+            # coarse solver
+            ucx, utcx = wave_util.WaveSol_from_EnergyComponent_tensor(input[0, 0, :, :].unsqueeze(dim=0),
+                                                                      input[0, 1, :, :].unsqueeze(dim=0),
+                                                                      input[0, 2, :, :].unsqueeze(dim=0),
+                                                                      input[0, 3, :, :].unsqueeze(dim=0), dx, sumv)
+            ucx, utcx = ucx.squeeze(), utcx.squeeze()
+            for j in range(1, input.shape[0]):
+                ucx, utcx, vel_c = torch.from_numpy(resize(ucx.cpu(), [c_Nx, c_Nx], order=4)), torch.from_numpy(
+                    resize(utcx.cpu(), [c_Nx, c_Nx], order=4)), torch.from_numpy(resize(vel.cpu(), [c_Nx, c_Nx], order=4))
+                ucx, utcx, vel_c = ucx.unsqueeze(dim=0).to(device), utcx.unsqueeze(dim=0).to(device), vel_c.unsqueeze(dim=0).to(device)
+                s_time_coarse.append(time.process_time())
+                ucx, utcx = velocity_verlet_tensor(
+                    ucx, utcx,
+                    vel_c, dX, dT, delta_t_star, number=1, boundary_c=boundary_c
+                )
+                e_time_coarse.append(time.process_time())
+                ucx, utcx = ucx.squeeze(), utcx.squeeze()
+                ucx, utcx = torch.from_numpy(resize(ucx.cpu(), [Nx, Nx], order=4)), torch.from_numpy(
+                    resize(utcx.cpu(), [Nx, Nx], order=4))
+                uc[j - 1, :, :], utc[j - 1, :, :] = ucx, utcx
+                ax2 = fig.add_subplot(3, 12, 13 + j)
+                pos2 = ax2.imshow(wave_util.WaveEnergyField_tensor(ucx, utcx, vel.cpu(), dx) * dx * dx)
                 plt.colorbar(pos2)
                 plt.axis('off')
 
-                # velocity visualization
-                ax1 = fig.add_subplot(3, 11, 12)
-                vel_img = input[0, 3, :, :]
-                pos1 = ax1.imshow(vel_img)
-                plt.colorbar(pos1)
+            # restriction
+            input_restr = input[0, :3, :, :].unsqueeze(dim=0)
+            for j in range(1, input.shape[0]):
+                input_restr = torch.concat([input_restr.cpu(), vel_img.unsqueeze(dim=0).unsqueeze(0).cpu()], dim=1)
+                input_restr = input_restr.to(device)
+                vel = vel.to(device)
+                s_time_endtoend.append(time.process_time())
+                output = restr_model1(input_restr)  # b x 3 x w x h
+                e_time_endtoend.append(time.process_time())
+                u_x, u_y, u_t_c = output[:, 0, :, :], output[:, 1, :, :], output[:, 2, :, :]
+                sumv = torch.sum(torch.sum(u_x))
+                u, ut = wave_util.WaveSol_from_EnergyComponent_tensor(u_x, u_y, u_t_c, vel, dt, sumv)
+                uo[j - 1, :, :], uto[j - 1, :, :] = u.squeeze().cpu(), ut.squeeze().cpu()
+                ax3 = fig.add_subplot(3, 12, 25 + j)
+                pos3 = ax3.imshow(wave_util.WaveEnergyField_tensor(u.squeeze().cpu(), ut.squeeze().cpu(), vel.cpu(), dx) * dx * dx)
+                plt.colorbar(pos3)
                 plt.axis('off')
+                input_restr = output.clone()
 
-                # fine solver iteration
-                for j in range(1, input.shape[0]):
-                    u_x, u_y, u_t_c, vel = input[j, 0, :, :], input[j, 1, :, :], input[j, 2, :, :], input[j, 3, :,
-                                                                                                    :]  # w x h
-                    sumv = torch.sum(torch.sum(u_x))
-                    u, ut = wave_util.WaveSol_from_EnergyComponent_tensor(u_x.unsqueeze(dim=0), u_y.unsqueeze(dim=0),
-                                                                          u_t_c.unsqueeze(dim=0), vel.unsqueeze(dim=0),
-                                                                          dx, sumv)
-                    uf[j - 1, :, :], utf[j - 1, :, :] = u.squeeze(), ut.squeeze()
-                    ax = fig.add_subplot(3, 11, 1 + j)
-                    pos = ax.imshow(wave_util.WaveEnergyField_tensor(u.squeeze(), ut.squeeze(), vel, dx) * dx * dx)
-                    ax.set_title('it' + str(j), fontsize=10)
-                    plt.colorbar(pos)
-                    plt.axis('off')
-
-                ufx, ufcx = wave_util.WaveSol_from_EnergyComponent_tensor(input[0, 0, :, :].unsqueeze(dim=0),
-                                                                          input[0, 1, :, :].unsqueeze(dim=0),
-                                                                          input[0, 2, :, :].unsqueeze(dim=0),
-                                                                          input[0, 3, :, :].unsqueeze(dim=0), dx, sumv)
-                ufx, ufcx = ufx.numpy(), ufcx.numpy()
-                for j in range(1, input.shape[0]):
-                    s_time_fine.append(time.time())
-                    ufx, ufcx = pseudo_spectral(ufx, ufcx, vel.unsqueeze(dim=0).numpy(), dx, dt, delta_t_star) #number=1,
-                                                       #boundary_c=boundary_c)  # pseudo_spectral
-                    # ax = fig.add_subplot(3,11,1+j)
-                    # pos = ax.imshow(wave_util.WaveEnergyField_tensor(ufx.squeeze(),ufcx.squeeze(),vel,dx)*dx*dx)
-                    # plt.colorbar(pos)
-                    # plt.axis('off')
-                    e_time_fine.append(time.time())
-
-                # coarse solver
-                ucx, utcx = wave_util.WaveSol_from_EnergyComponent_tensor(input[0, 0, :, :].unsqueeze(dim=0),
-                                                                          input[0, 1, :, :].unsqueeze(dim=0),
-                                                                          input[0, 2, :, :].unsqueeze(dim=0),
-                                                                          input[0, 3, :, :].unsqueeze(dim=0), dx, sumv)
-                ucx, utcx = ucx.squeeze(), utcx.squeeze()
-                for j in range(1, input.shape[0]):
-                    ucx, utcx, vel_c = torch.from_numpy(resize(ucx.cpu(), [c_Nx, c_Nx], order=4)), torch.from_numpy(
-                        resize(utcx.cpu(), [c_Nx, c_Nx], order=4)), torch.from_numpy(resize(vel.cpu(), [c_Nx, c_Nx], order=4))
-                    ucx, utcx, vel_c = ucx.to(device), utcx.to(device), vel_c.to(device)
-                    s_time_coarse.append(time.time())
-                    ucx, utcx = velocity_verlet_tensor(
-                        ucx.unsqueeze(dim=0), utcx.unsqueeze(dim=0),
-                        vel_c.unsqueeze(dim=0), dX, dT, delta_t_star, number=1, boundary_c=boundary_c
-                    )
-                    e_time_coarse.append(time.time())
-                    ucx, utcx = ucx.squeeze(), utcx.squeeze()
-                    ucx, utcx = torch.from_numpy(resize(ucx.cpu(), [Nx, Nx], order=4)), torch.from_numpy(
-                        resize(utcx.cpu(), [Nx, Nx], order=4))
-                    uc[j - 1, :, :], utc[j - 1, :, :] = ucx, utcx
-                    ax2 = fig.add_subplot(3, 11, 12 + j)
-                    pos2 = ax2.imshow(wave_util.WaveEnergyField_tensor(ucx, utcx, vel.cpu(), dx) * dx * dx)
-                    plt.colorbar(pos2)
-                    plt.axis('off')
-
-                # restriction
-                input_restr = input[0, :3, :, :].unsqueeze(dim=0)
-                for j in range(1, input.shape[0]):
-                    input_restr = torch.concat([input_restr.cpu(), vel_img.unsqueeze(dim=0).unsqueeze(0).cpu()], dim=1)
-                    input_restr = input_restr.to(device)
-                    vel = vel.to(device)
-                    s_time_endtoend.append(time.time())
-                    output = restr_model1(input_restr)  # b x 3 x w x h
-                    e_time_endtoend.append(time.time())
-                    u_x, u_y, u_t_c = output[:, 0, :, :], output[:, 1, :, :], output[:, 2, :, :]
-                    sumv = torch.sum(torch.sum(u_x))
-                    u, ut = wave_util.WaveSol_from_EnergyComponent_tensor(u_x, u_y, u_t_c, vel, dt, sumv)
-                    uo[j - 1, :, :], uto[j - 1, :, :] = u.squeeze().cpu(), ut.squeeze().cpu()
-                    ax3 = fig.add_subplot(3, 11, 23 + j)
-                    pos3 = ax3.imshow(wave_util.WaveEnergyField_tensor(u.squeeze().cpu(), ut.squeeze().cpu(), vel.cpu(), dx) * dx * dx)
-                    plt.colorbar(pos3)
-                    plt.axis('off')
-                    input_restr = output.clone()
-
-                break
             break
 
 

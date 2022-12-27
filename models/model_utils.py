@@ -213,9 +213,9 @@ def get_paths():
     if not os.path.exists(main_branch + add):
         os.makedirs(main_branch + add)
 
-    data_paths = ['../data/end_to_end_bp_m_200_2000.npz']
-    val_paths = ['../data/end_to_end_bp_m_20_diagonal_ray.npz',
-                 '../data/end_to_end_bp_m_10_2000.npz']
+    data_paths = ['../data/end_to_end_bp_m_10_2000.npz']
+    val_paths = ['../data/end_to_end_bp_m_20_diagonal_ray.npz']
+                 #'../data/end_to_end_bp_m_10_2000.npz']
     train_logger_path = main_branch + add + 'log_train/'
     valid_logger_path = main_branch + add + 'log_valid/'
     dir_path_save = main_branch + add
@@ -242,8 +242,8 @@ def get_params(params="0"):
         param_dict["delta_t_star"] = .06
         param_dict["f_delta_x"] = 2.0 / 128.0
         param_dict["f_delta_t"] = param_dict["f_delta_x"] / 20
-        param_dict["c_delta_x"] = 2.0 / 64.0
-        param_dict["c_delta_t"] = param_dict["c_delta_x"] / 12
+        param_dict["c_delta_x"] = 2./64.
+        param_dict["c_delta_t"] = 1./300. #param_dict["c_delta_x"] / 12
         param_dict["downsampling_net"] = False
     else:
         raise NotImplementedError("params not defined for params =",params)
@@ -260,7 +260,7 @@ def setup_logger(logging_bool, train_logger_path, valid_logger_path, model_name,
                         filemode='a',
                         format='%(asctime)s %(message)s',
                         datefmt='%H:%M:%S',
-                        level=logging.DEBUG)
+                        level=logging.INFO)
 
 
     train_logger, valid_logger = None, None

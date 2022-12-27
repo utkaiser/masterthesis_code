@@ -51,24 +51,21 @@ class Restriction_nn(nn.Module):
 
     def forward(self, x):
 
-        u_x, u_y, u_t_c, vel = x[:, 0, :, :], x[:, 1, :, :], x[:, 2, :, :], x[:, 3, :, :]  # b x w x h
-
         ###### R (restriction) ######
 
         if self.downsampling_net:
-            # restr_input = torch.stack((u.to(device), ut.to(device),vel.to(device)), dim=1).to(device)
-            # restr_output = self.restr_layer1(restr_input)
-            # restr_output = self.restr_layer2(restr_output)
-            # restr_output = self.restr_layer3(restr_output)
-            # #skip_all = phys_output #TODO: change this
-            # restr_output = self.restr_layer4(restr_output)
-            # restr_output = self.restr_layer5(restr_output)  # stride
-            # restr_output = self.restr_layer6(restr_output)
-            # restr_output = self.restr_layer7(restr_output)
-            # restr_output = self.restr_layer8(restr_output)
-            pass
+            restr_output = self.restr_layer1(x)
+            restr_output = self.restr_layer2(restr_output)
+            restr_output = self.restr_layer3(restr_output)
+            #skip_all = phys_output #TODO: change this
+            restr_output = self.restr_layer4(restr_output)
+            restr_output = self.restr_layer5(restr_output)  # stride
+            restr_output = self.restr_layer6(restr_output)
+            restr_output = self.restr_layer7(restr_output)
+            restr_output = self.restr_layer8(restr_output)
 
         else:
+            u_x, u_y, u_t_c, vel = x[:, 0, :, :], x[:, 1, :, :], x[:, 2, :, :], x[:, 3, :, :]  # b x w x h
             restr_output = torch.zeros([u_x.shape[0], 4, 64, 64])
             restr_output[:,0,:,:] = F.upsample(u_x[:,:,:].unsqueeze(dim=0), size=(64, 64), mode='bilinear')
             restr_output[:,1, :, :] = F.upsample(u_y[:, :, :].unsqueeze(dim=0), size=(64, 64), mode='bilinear')
@@ -99,6 +96,11 @@ class Restriction_nn(nn.Module):
 
         ##### upsampling through nn ######
         outputs = self.jnet(inputs) #, skip_all=skip_all)  # b x 3 x w x h
+
+        # outputs = torch.zeros([u_x.shape[0], 3, 128, 128])
+        # outputs[:, 0, :, :] = F.upsample(wx[:, :, :].unsqueeze(dim=0), size=(128, 128), mode='bilinear')
+        # outputs[:, 1, :, :] = F.upsample(wy[:, :, :].unsqueeze(dim=0), size=(128, 128), mode='bilinear')
+        # outputs[:, 2, :, :] = F.upsample(wtc[:, :, :].unsqueeze(dim=0), size=(128, 128), mode='bilinear')
 
         return outputs.to(device)
 

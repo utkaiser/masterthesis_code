@@ -83,7 +83,6 @@ class FCDenseNet(nn.Module):
 
             if i == len(self.up_blocks) - 1:
                 out = self.rescale[0](out)
-                print("here", out.shape)
             out = self.denseBlocksUp[i](out)
 
         out = self.finalConv(out)
