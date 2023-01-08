@@ -25,8 +25,6 @@ class Restriction_nn(nn.Module):
         # param setup
         self.delta_t_star = param_dict["delta_t_star"]
         self.res_scaler = param_dict["res_scaler"]
-        self.f_delta_x = param_dict["f_delta_x"]
-        self.f_delta_t = param_dict["f_delta_t"]
         self.c_delta_x = param_dict["c_delta_x"]
         self.c_delta_t = param_dict["c_delta_t"]
         self.boundary_c = param_dict["boundary_c"]
@@ -97,7 +95,7 @@ class Restriction_nn(nn.Module):
         ##### upsampling through nn ######
         outputs = self.jnet(inputs) #, skip_all=skip_all)  # b x 3 x w x h
 
-        # outputs = torch.zeros([u_x.shape[0], 3, 128, 128])
+        # outputs = torch.zeros([wx.shape[0], 3, 128, 128])
         # outputs[:, 0, :, :] = F.upsample(wx[:, :, :].unsqueeze(dim=0), size=(128, 128), mode='bilinear')
         # outputs[:, 1, :, :] = F.upsample(wy[:, :, :].unsqueeze(dim=0), size=(128, 128), mode='bilinear')
         # outputs[:, 2, :, :] = F.upsample(wtc[:, :, :].unsqueeze(dim=0), size=(128, 128), mode='bilinear')

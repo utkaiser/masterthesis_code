@@ -11,15 +11,15 @@ import logging
 environ["TOKENIZERS_PARALLELISM"] = "false"
 environ["OMP_NUM_THREADS"] = "1"
 
-def save_model(model, modelname, dir_path='results/run_2/'):
+def save_model(model, modelname, dir_path='results/run_2/', epoch = "0"):
     from torch import save
     from os import path
     model.to(torch.device("cpu"))
-    for i in range(100):
-        saving_path = dir_path + 'saved_model_' + modelname + "_"+ str(i) + '.pt'
-        if not path.isfile(saving_path):
-            return save(model.state_dict(), saving_path)
-    raise MemoryError("memory exceeded")
+    saving_path = dir_path + 'saved_model_' + modelname + "_" + str(epoch) + '.pt'
+    if not path.isfile(saving_path):
+        return save(model.state_dict(), saving_path)
+    else:
+        raise MemoryError("File (.pt) already exists.")
 
 
 def load_model(load_path, model):
@@ -122,7 +122,7 @@ def flip_tensors(input_tensor, label, v_flipped, h_flipped):
     return input_tensor, label, v_flipped, h_flipped
 
 def sample_label_random(input_idx, label_distr_shift):
-    possible_label_range = np.arange(input_idx + 2 - label_distr_shift, 12 - label_distr_shift)  # [a,b-1]
+    possible_label_range = np.arange(input_idx + 2 - label_distr_shift, 13 - label_distr_shift)  # [a,b-1]
     prob = ss.norm.cdf(possible_label_range + 0.5, scale=3) - ss.norm.cdf(possible_label_range - 0.5, scale=3)
     label_range = list(np.random.choice(possible_label_range + label_distr_shift, size=1, p=prob / prob.sum()))[0]
     return label_range
@@ -213,9 +213,19 @@ def get_paths():
     if not os.path.exists(main_branch + add):
         os.makedirs(main_branch + add)
 
-    data_paths = ['../data/end_to_end_bp_m_10_2000.npz']
-    val_paths = ['../data/end_to_end_bp_m_20_diagonal_ray.npz']
-                 #'../data/end_to_end_bp_m_10_2000.npz']
+    data_paths = [
+        #'../data/end_to_end_bp_m_10_2000.npz'
+        '../data/end_to_end_bp_m_200_2000.npz',
+        '../data/end_to_end_bp_m_200_2000_0.npz',
+        '../data/end_to_end_bp_m_200_2000_2.npz',
+        '../data/end_to_end_bp_m_200_2000_3.npz',
+        '../data/end_to_end_bp_m_200_2000_4.npz',
+        '../data/end_to_end_bp_m_200_2000_5.npz'
+    ]
+    val_paths = [
+        '../data/end_to_end_bp_m_20_diagonal_ray.npz',
+        '../data/end_to_end_bp_m_10_2000.npz'
+    ]
     train_logger_path = main_branch + add + 'log_train/'
     valid_logger_path = main_branch + add + 'log_valid/'
     dir_path_save = main_branch + add
@@ -231,7 +241,7 @@ def get_params(params="0"):
         param_dict["batch_size"] = 50
         param_dict["lr"] = .001
         param_dict["res_scaler"] = 2
-        param_dict["n_epochs"] = 500
+        param_dict["n_epochs"] = 50 #TODO: change back
         param_dict["model_name"] = "end_to_end_only_unet3lvl"
         param_dict["model_res"] = 128
         param_dict["coarse_res"] = param_dict["model_res"] / param_dict["res_scaler"]
@@ -243,8 +253,9 @@ def get_params(params="0"):
         param_dict["f_delta_x"] = 2.0 / 128.0
         param_dict["f_delta_t"] = param_dict["f_delta_x"] / 20
         param_dict["c_delta_x"] = 2./64.
-        param_dict["c_delta_t"] = 1./300. #param_dict["c_delta_x"] / 12
+        param_dict["c_delta_t"] = 1./400. #param_dict["c_delta_x"] / 12
         param_dict["downsampling_net"] = False
+        param_dict["n_epochs_save_model"] = 10
     else:
         raise NotImplementedError("params not defined for params =",params)
 
