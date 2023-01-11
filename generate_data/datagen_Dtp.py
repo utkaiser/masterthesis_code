@@ -111,7 +111,7 @@ def generate_wave_from_medium(input_path, output_path, res_c = 64, res_f = 128):
                                                                resize(UtcX[:, :, seq_it], vel.shape, order=4),
                                                                vel, f_delta_x, (P, S, Q))
 
-                    # coupling between fine and coarse solution, add and substract parareal coupling
+                    # coupling between fine and coarse solution, add and subtract parareal coupling
                     up[:, :, seq_it, p_it + 1] = UfX[:, :, seq_it] + uX - vX
                     utp[:, :, seq_it, p_it + 1] = UtfX[:, :, seq_it] + utX - vtX
 

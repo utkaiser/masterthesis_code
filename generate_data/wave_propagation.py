@@ -214,6 +214,7 @@ def pseudo_spectral(u0, ut0, vel, dx, dt, Tf):
 
     return np.real(u), np.real(ut)
 
+
 def spectral_del(v, dx):
     """
     evaluate the discrete Laplacian using spectral method

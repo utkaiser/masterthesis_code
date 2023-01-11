@@ -4,7 +4,7 @@ import torch.nn as nn
 import datetime
 from model_end_to_end import Restriction_nn
 from model_utils import save_model, fetch_data_end_to_end, flip_tensors, sample_label_random, visualize_wavefield, \
-    get_paths, get_params, setup_logger, min_max_scale
+    get_paths, get_params, setup_logger, z_score_reference
 import torch
 import random
 import logging
@@ -18,7 +18,7 @@ def train_Dt_end_to_end(logging_bool=False, visualize=True, vis_param=1, params=
         param_dict["batch_size"], param_dict["lr"], param_dict["res_scaler"], param_dict["n_epochs"], param_dict[
             "model_name"], \
         param_dict["model_res"], param_dict["flipping"], param_dict["boundary_c"], param_dict["delta_t_star"], \
-        param_dict["f_delta_x"] , param_dict["n_epochs_save_model"]
+        param_dict["f_delta_x"], param_dict["n_epochs_save_model"]
     train_logger, valid_logger, global_step = setup_logger(logging_bool, train_logger_path, valid_logger_path,
                                                            model_name, model_res, vis_path)
     logging.info(" ".join(["data settings:", ", ".join(data_paths)]))
@@ -37,13 +37,13 @@ def train_Dt_end_to_end(logging_bool=False, visualize=True, vis_param=1, params=
     train_loader, val_loader = fetch_data_end_to_end(data_paths, batch_size=batch_size, shuffle=True,
                                                      val_paths=val_paths)
     label_distr_shift = 0
-
     # training
     logging.info(" ".join(["-" * 20, "start training", "-" * 20]))
     for epoch in range(n_epochs):
 
         model.train()
         train_loss_list = []
+
         for i, data in enumerate(train_loader):
 
             n_snaps = data[0].shape[1]
@@ -59,7 +59,8 @@ def train_Dt_end_to_end(logging_bool=False, visualize=True, vis_param=1, params=
                 h_flipped, v_flipped = False, False
 
                 # randomly sample label idx from normal distribution
-                label_range = sample_label_random(input_idx, label_distr_shift)
+                label_range = sample_label_random(input_idx, label_distr_shift, epoch, n_snaps)
+                # label_range = random.choice(range(input_idx + 2, n_snaps + 1))
 
                 for label_idx in range(input_idx + 1, label_range):  # randomly decide how long path is
 
@@ -68,7 +69,9 @@ def train_Dt_end_to_end(logging_bool=False, visualize=True, vis_param=1, params=
                     if flipping: input_tensor, label, v_flipped, h_flipped = flip_tensors(input_tensor, label,
                                                                                           v_flipped, h_flipped)
 
-                    output = model(input_tensor.to(device))  # b x 3 x w x h
+                    input_tensor, label = z_score_reference(input_tensor, label) # b x 4 x w x h, b x 3 x w x h
+
+                    output = model(input_tensor)  # b x 3 x w x h
 
                     loss = loss_f(output, label)
                     loss_list.append(loss)
@@ -100,6 +103,9 @@ def train_Dt_end_to_end(logging_bool=False, visualize=True, vis_param=1, params=
 
                     for label_idx in range(input_idx + 1, n_snaps):
                         label = data[:, label_idx, :3, :, :]  # b x 3 x w x h
+
+                        input_tensor, label = z_score_reference(input_tensor, label)  # b x 4 x w x h, # b x 3 x w x h
+
                         output = model(input_tensor)
                         val_loss = loss_f(output, label)
                         val_loss_list.append(val_loss.item())
@@ -121,7 +127,7 @@ def train_Dt_end_to_end(logging_bool=False, visualize=True, vis_param=1, params=
 
             if epoch % 1 == 0:
                 logging.info(" ".join(
-                    [datetime.datetime.now().strftime("%H:%M:%S"), 'epoch %d , train loss: %.5f, test loss: %.5f' %
+                    ['epoch %d, train loss: %.5f, test loss: %.5f' %
                      (epoch + 1, np.array(train_loss_list).mean(), np.array(val_loss_list).mean())]))
 
         if epoch % n_epochs_save_model == 0:  # saves first model as a test
