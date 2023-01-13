@@ -20,6 +20,16 @@ def first_guess_integration(u_elapse, ut_elapse, vel, f_delta_x, f_delta_t, delt
 
     return up, utp
 
+def init_cond_gaussian_old(xx, yy, width, center):
+    """
+    Gaussian pulse wavefield
+    """
+
+    u0 = np.exp(-width * ((xx - center[0]) ** 2 + (yy - center[1]) ** 2))
+    ut0 = np.zeros([np.size(xx, axis=1), np.size(yy, axis=0)])
+    return u0, ut0
+
+
 def init_cond_gaussian(it, init_res_f, res_f, absorbing_bc=True):
     """
     Gaussian pulse wavefield

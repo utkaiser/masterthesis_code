@@ -259,7 +259,7 @@ def get_params(params="0"):
         param_dict["f_delta_t"] = param_dict["f_delta_x"] / 20
         param_dict["c_delta_x"] = 2./64.
         param_dict["c_delta_t"] = 1./400. #param_dict["c_delta_x"] / 12
-        param_dict["n_epochs_save_model"] = 10
+        param_dict["n_epochs_save_model"] = 5
         param_dict["restriction_type"] = "interpolation"  # options: cnn, interpolation, simple
     else:
         raise NotImplementedError("params not defined for params =",params)

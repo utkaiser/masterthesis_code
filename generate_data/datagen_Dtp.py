@@ -50,7 +50,7 @@ def generate_wave_from_medium(input_path, output_path, res_c = 64, res_f = 128):
         print('-'*20,'sample', it,'-'*20)
 
         #initialization of wave field
-        u_init, ut_init = init_cond.init_cond_gaussian(grid_x, grid_y, widths[it], centers[it])
+        u_init, ut_init = init_cond.init_cond_gaussian_old(grid_x, grid_y, widths[it], centers[it])
         vel, vel_c = velocities[it, :, :], resize(velocities[it, :, :], [res_c, res_c], order=4)
 
         #integrate initial conditions once using coarse solver/ first guess of parareal scheme
@@ -97,8 +97,8 @@ def generate_wave_from_medium(input_path, output_path, res_c = 64, res_f = 128):
                 # Serial update, sequential step, compute my solution
                 for seq_it in range(1, n_snaps):
                     # another way to compute velocity verlet
-                    w0, wt0  = resize(up[:, :, seq_it - 1, p_it + 1], [res_c, res_c], order=4),\
-                               resize(utp[:, :, seq_it - 1, p_it + 1], [res_c, res_c], order=4)
+                    w0, wt0  = resize(up[:, :, seq_it - 1, p_it], [res_c, res_c], order=4),\
+                               resize(utp[:, :, seq_it - 1, p_it], [res_c, res_c], order=4)
 
                     #requirement of convergence of parareal scheme, solver has to match with earlier parareal
                     wX, wtX = pseudo_spectral(w0, wt0, vel_c, c_delta_x, c_delta_t, delta_t_star)

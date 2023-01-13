@@ -94,7 +94,7 @@ def serial_numpy_stack(ux,uy,utc):
     suy = np.reshape(uy,(ny*nx,ns))
     sutc = np.reshape(utc,(ny*nx,ns))
     udat = np.concatenate((sux,suy,sutc),axis=0)
-    
+
     return udat
 
 def deserial_numpy_stack(udat,ny,nx,ns):
