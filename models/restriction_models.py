@@ -3,17 +3,18 @@ import torch.nn.functional as F
 
 
 class Interpolation_net(torch.nn.Module):
-    def __init__(self, size=64):
+    def __init__(self, sizing_factor=2):
         super(Interpolation_net, self).__init__()
-        self.size = size
+        self.sizing_factor = sizing_factor
 
     def forward(self, x):
         u_x, u_y, u_t_c, vel = x[:, 0, :, :], x[:, 1, :, :], x[:, 2, :, :], x[:, 3, :, :]  # b x w x h
-        restr_output = torch.zeros([u_x.shape[0], 4, self.size, self.size])
-        restr_output[:, 0, :, :] = F.upsample(u_x[:, :, :].unsqueeze(dim=0), size=(self.size, self.size), mode='bilinear')
-        restr_output[:, 1, :, :] = F.upsample(u_y[:, :, :].unsqueeze(dim=0), size=(self.size, self.size), mode='bilinear')
-        restr_output[:, 2, :, :] = F.upsample(u_t_c[:, :, :].unsqueeze(dim=0), size=(self.size, self.size), mode='bilinear')
-        restr_output[:, 3, :, :] = F.upsample(vel[:, :, :].unsqueeze(dim=0), size=(self.size, self.size), mode='bilinear')
+        new_res = x.shape[-1] // self.sizing_factor
+        restr_output = torch.zeros([u_x.shape[0], 4, new_res, new_res])
+        restr_output[:, 0, :, :] = F.upsample(u_x[:, :, :].unsqueeze(dim=0), size=(new_res, new_res), mode='bilinear')
+        restr_output[:, 1, :, :] = F.upsample(u_y[:, :, :].unsqueeze(dim=0), size=(new_res, new_res), mode='bilinear')
+        restr_output[:, 2, :, :] = F.upsample(u_t_c[:, :, :].unsqueeze(dim=0), size=(new_res, new_res), mode='bilinear')
+        restr_output[:, 3, :, :] = F.upsample(vel[:, :, :].unsqueeze(dim=0), size=(new_res, new_res), mode='bilinear')
         return restr_output, None
 
 

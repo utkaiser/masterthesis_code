@@ -30,7 +30,7 @@ def generate_wave_from_medium(input_path, output_path, init_res_f = 128, absorbi
 
     # data setup
     velocities = np.load(input_path)['wavespeedlist']
-    n_it = velocities.shape[0]  # define the amount of data to generate
+    n_it = 10 # velocities.shape[0]  # define the amount of data to generate
     # velocities = init_cond.diagonal_ray(n_it)
 
     # tensors for fine solutions in energy components form
@@ -57,6 +57,7 @@ def generate_wave_from_medium(input_path, output_path, init_res_f = 128, absorbi
         vel = crop_center(vel, res_padded, res_padded, scaler)
         if absorbing_bc: vel_crop = crop_center(vel, init_res_f, init_res_f, scaler)
         else: vel_crop = vel
+        print(vel_crop.shape)
         V[it, :, :, :] = np.repeat(vel_crop[np.newaxis, :, :], n_snaps + 1, axis=0) # save velocity model
 
         if visualize: visualize_wavefield((WaveEnergyComponentField_end_to_end(u_elapse, ut_elapse, vel, f_delta_x)), vel = vel, init_res_f=init_res_f, frame=True)
@@ -85,11 +86,8 @@ if __name__ == "__main__":
     for index in range(3,8):
 
         generate_wave_from_medium(input_path="../data/crops_bp_m_200_2000.npz",
-                                  output_path="../data/end_to_end_bp_m_200_2000_"+str(index)+".npz",
-                                  init_res_f=128, absorbing_bc = True, visualize = False, index=str(index))
-
-        logging.info("-"*50)
-
+                                  output_path="../data/end_to_end_bp_m_10_2000_"+str(index)+"_500.npz",
+                                  init_res_f=500, absorbing_bc = True, visualize = True, index=str(index))
 
 
 

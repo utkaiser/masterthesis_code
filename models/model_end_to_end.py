@@ -70,7 +70,7 @@ def choose_restriction(restriction_type):
     elif restriction_type == "cnn":
         return CNN_restriction(in_channels=4)
     elif restriction_type == "interpolation":
-        return Interpolation_net(size=64)
+        return Interpolation_net(sizing_factor=2)
     else:
         raise NotImplementedError("This downsampling network has not been implemented yet!")
 

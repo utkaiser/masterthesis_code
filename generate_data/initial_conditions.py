@@ -1,5 +1,7 @@
 import numpy as np
 from generate_data import wave_propagation
+from generate_data.wave_util import WaveEnergyComponentField_end_to_end, WaveEnergyComponentField_tensor
+
 
 def first_guess_integration(u_elapse, ut_elapse, vel, f_delta_x, f_delta_t, delta_t_star, n_snapshots, n_parareal_it,
                   resolution_f):
@@ -55,6 +57,26 @@ def init_cond_gaussian(it, init_res_f, res_f, absorbing_bc=True):
 
     return u0, ut0, res_f
 
+def init_gaussian_parareal(res,vel):
+    if res == 128:
+        dx = 2.0 / 128.0
+        width = 700
+        center = .09
+
+    else:  # res == 500
+        dx = 2.0 / 256.0
+        width = 2000
+        center = .05
+
+    xx, yy = np.meshgrid(np.linspace(-1, 1, res), np.linspace(-1, 1, res))
+
+    u0 = torch.from_numpy(np.exp(-width * ((xx - center) ** 2 + (yy - center) ** 2))).unsqueeze(dim=0)
+    ut0 = torch.from_numpy(np.zeros([np.size(xx, axis=1), np.size(yy, axis=0)])).unsqueeze(dim=0)
+
+    wx,wy,wtc = WaveEnergyComponentField_tensor(u0,ut0,vel.unsqueeze(dim=0),dx=dx)
+
+    return torch.stack([wx,wy,wtc],dim=1)
+
 
 def init_cond_ricker(xx, yy, width, center):
     """
@@ -75,5 +97,5 @@ def diagonal_ray(n_it, res = 300):
     y = np.linspace(-1, 1, res)
     xx, yy = np.meshgrid(x, y)
 
-    vel_profile = torch.from_numpy(3. + 0.0 * yy - 1.5 * (np.abs(yy + xx - 0.) > 0.2))
+    vel_profile = torch.from_numpy(3. + 0.0 * yy - 1.5 * (np.abs(yy + xx - 0.) > 0.5))
     return vel_profile.unsqueeze(dim=0).repeat(n_it,1,1).numpy()
