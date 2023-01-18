@@ -2,13 +2,16 @@ import scipy
 import torch
 from scipy.io import loadmat
 from skimage.filters import gaussian
-from generate_data.initial_conditions import init_cond_gaussian, init_gaussian_parareal, diagonal_ray
+from generate_data.initial_conditions import init_cond_gaussian, init_gaussian_parareal, diagonal_ray, three_layers, \
+    crack_profile, high_frequency
 from models import model_end_to_end
 from generate_data.wave_propagation import pseudo_spectral, velocity_verlet_tensor
 from generate_data.wave_util import WaveEnergyComponentField_tensor, WaveSol_from_EnergyComponent_tensor, \
     WaveEnergyField_tensor, crop_center
 import matplotlib.pyplot as plt
 from models.model_utils import fetch_data_end_to_end, get_params
+from scipy.io import savemat
+import numpy as np
 
 def parareal_scheme(model, u_0, big_vel, n_parareal = 4, n_snapshots = 11):
 
@@ -36,9 +39,10 @@ def parareal_scheme(model, u_0, big_vel, n_parareal = 4, n_snapshots = 11):
         parareal_tensor[k, 0] = smaller_crop(u_0[:, :3].clone())
         parareal_terms = get_parareal_terms(model, big_tensor, n_snapshots, vel) # n_snapshots x b x c x w x h
         new_big_tensor = torch.zeros([n_snapshots, batch_size, channel - 1, width, height])
+        new_big_tensor[0] = u_0[:, :3].clone()
 
         for n in range(n_snapshots-1):
-            u_n_k1 = torch.cat((parareal_tensor[k,n], vel), dim=1)
+            u_n_k1 = torch.cat((new_big_tensor[n], vel), dim=1)
             u_n1_k1 = model(u_n_k1) + parareal_terms[n]
             parareal_tensor[k, n+1] = smaller_crop(u_n1_k1)
             new_big_tensor[n+1] = u_n1_k1
@@ -122,15 +126,37 @@ def one_iteration_velocity_verlet(u_n_k, f_delta_x = 2.0 / 128.0, f_delta_t = (2
     return torch.stack([u_x, u_y, u_t_c], dim=1)
 
 
-def get_velocity_crop(resolution, diagonal=False):
+def get_velocity_crop(resolution, velocity_profile):
 
-    if diagonal:
+    if velocity_profile == "diagonal":
         img = diagonal_ray(1,res=resolution).squeeze()
 
-    else:
+    elif velocity_profile == "marmousi":
         datamat = loadmat('../data/marm1nonsmooth.mat')  # velocity models Marmousi dataset
         img = gaussian(datamat['marm1larg'], 4)  # to make smoother
         img = img[200:200+resolution,200:200+resolution]
+
+    elif velocity_profile == "marmousi2":
+        datamat = loadmat('../data/marm1nonsmooth.mat')  # velocity models Marmousi dataset
+        img = gaussian(datamat['marm1larg'], 4)  # to make smoother
+        img = img[300:300+resolution,300:300+resolution]
+
+    elif velocity_profile == "bp":
+        databp = loadmat('../data/bp2004.mat')  # velocity models BP dataset
+        img = gaussian(databp['V'], 4) / 1000  # to make smoother (and different order of magnitude)
+        img = img[1100:1100 + resolution, 1100:1100 + resolution]
+
+    elif velocity_profile == "three_layers":
+        img = three_layers(1, res=resolution).squeeze()
+
+    elif velocity_profile == "crack_profile":
+        img = crack_profile(1, res=resolution).squeeze()
+
+    elif velocity_profile == "high_frequency":
+        img = high_frequency(1, res=resolution).squeeze()
+
+    else:
+        raise NotImplementedError("Velocity model not implemented.")
 
     return img
 
@@ -139,8 +165,14 @@ def round_loss(number):
     return number #str(round(number*(10**7),5))+"e-7"
 
 def smaller_crop(matrix):
-    # matrix -> b x c x w x h
-    return matrix  # [:,:,v:-v, v:-v]
+    # matrix -> b? x c x w x h
+    v = 64
+    if len(matrix.shape) == 4:
+        return matrix[:,:,v:-v, v:-v]
+    elif len(matrix.shape) == 3:
+        return matrix[:, v:-v, v:-v]
+    else:
+        raise NotImplementedError("This dimensionality has not been implemented yet.")
 
 
 def get_wavefield(tensor, vel, f_delta_x = 2.0 / 128.0, f_delta_t=(2.0 / 128.0) / 20):
@@ -156,11 +188,10 @@ def get_solver_solution(u_n_k, n_snapshots, vel, solver="coarse"):
     # u_0_k -> b x c x w x h
     # vel -> b x w x h
 
-    b, c, w, h = u_n_k.shape
-    sol = torch.zeros([n_snapshots, b, c, w, h])
-
     if solver == "coarse":
         small_res_scale = 2
+        b, c, w, h = u_n_k.shape
+        sol = torch.zeros([n_snapshots, b, c, w, h])
 
         for s in range(n_snapshots):
 
@@ -183,30 +214,39 @@ def get_solver_solution(u_n_k, n_snapshots, vel, solver="coarse"):
 
 
     elif solver == "fine":
+        b, c, w, h = u_n_k.shape
+        sol = torch.zeros([n_snapshots, b, c, w//2, h//2])
+
         for s in range(n_snapshots):
-            sol[s] = u_n_k
+            sol[s] = smaller_crop(u_n_k)
             u_n_k = torch.concat([u_n_k,vel], dim=1)
             u_n_k = one_iteration_pseudo_spectral(u_n_k)
+
+    else:
+        raise NotImplementedError("This solver has not been implemented yet.")
 
     return sol
 
 
-def vis_parareal():
+def get_ticks_fine(tensor, vel):
+    # tensor -> s x b x c x w x h
 
-    big_vel = torch.from_numpy(get_velocity_crop(128, diagonal=True))
-    vel = crop_center(big_vel,128,128)
-    u_0 = torch.concat([init_gaussian_parareal(128,big_vel), big_vel.unsqueeze(dim=0).unsqueeze(dim=0)],dim=1)
+    ticks = []
+    for s in range(1,tensor.shape[0]):
+        img = get_wavefield(tensor[s],vel)
+        ticks.append([0, img.mean().item() ,img.max().item()])
+    return ticks  # s-1 x 3
+
+
+def vis_parareal(vel_name, big_vel):
 
     # data
-    f_delta_x = 2.0 / 128.0
-    f_delta_t = f_delta_x / 20
-    param_dict = get_params("0")
-    # path = ['../data/end_to_end_bp_m_10_2000.npz']
-    # loader, _ = fetch_data_end_to_end(path, val_paths=path, shuffle=True, batch_size=1)
+    vel = crop_center(big_vel,128,128)
+    u_0 = torch.concat([init_gaussian_parareal(256,big_vel), big_vel.unsqueeze(dim=0).unsqueeze(dim=0)],dim=1)
 
     # param
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = model_end_to_end.Restriction_nn(param_dict=param_dict).double().to(device)
+    model = model_end_to_end.Restriction_nn(param_dict=get_params("0")).double().to(device)
     model = torch.nn.DataParallel(model)
     model.load_state_dict(torch.load('../results/run_2/good_one/saved_model_end_to_end_only_unet3lvl128_10_2.pt'))
     model.eval()
@@ -215,8 +255,9 @@ def vis_parareal():
     fig = plt.figure(figsize=(35, 15))
 
     with torch.no_grad():
-        coarse_solver_tensor = get_solver_solution(u_0[:, :3, :, :], 11,u_0[:, 3, :,:].unsqueeze(dim=0), solver="coarse")  # s x b x c x w x h
+        coarse_solver_tensor = get_solver_solution(smaller_crop(u_0[:, :3, :, :]), 11,smaller_crop(u_0[:, 3, :,:]).unsqueeze(dim=0), solver="coarse")  # s x b x c x w x h
         fine_solver_tensor = get_solver_solution(u_0[:, :3, :, :], 11,u_0[:, 3, :, :].unsqueeze(dim=0), solver="fine")  # s x b x c x w x h
+        ticks = get_ticks_fine(fine_solver_tensor, vel)  # s-1 x 3
         parareal_tensor = parareal_scheme(model, u_0, big_vel)  # k x s x b x c x w_big x h_big
 
         # coarse solver solution
@@ -225,7 +266,7 @@ def vis_parareal():
             wave_field = get_wavefield(coarse_solver_tensor[s], vel)
             pos = ax.imshow(wave_field)
             if s!=0:
-                plt.colorbar(pos)
+                plt.colorbar(pos, ticks = ticks[s-1])
                 ax.set_title(round_loss(MSE_loss(get_wavefield(fine_solver_tensor[s,:3], vel), wave_field).item()), fontdict={'fontsize': 9})
             plt.axis('off')
 
@@ -236,7 +277,7 @@ def vis_parareal():
                 ax = fig.add_subplot(7, 11, 11 + 11*k + s + 1)
                 pos = ax.imshow(wave_field)
                 if s != 0:
-                    plt.colorbar(pos)
+                    plt.colorbar(pos, ticks=ticks[s-1])
                     ax.set_title(round_loss(MSE_loss(get_wavefield(fine_solver_tensor[s,:3], vel), wave_field).item()), fontdict={'fontsize': 9})
                 plt.axis('off')
 
@@ -245,18 +286,36 @@ def vis_parareal():
             ax = fig.add_subplot(7, 11, 67 + s)
             wave_field = get_wavefield(fine_solver_tensor[s], vel)
             pos = ax.imshow(wave_field)
-            if s != 0: plt.colorbar(pos)
+            if s != 0: plt.colorbar(pos, ticks=ticks[s-1])
             ax.set_title("fine solver it " + str(s),fontdict={'fontsize': 9})
             plt.axis('off')
 
         fig.suptitle("coarse solver (row 0), parareal end to end (k=0,...4) (row 1-5), fine solver (last row); titles represent MSE between result and fine solver")
-        plt.show()
+        plt.savefig('../results/parareal/check_stability/'+vel_name+'.pdf')
+        np.save('../results/parareal/check_stability/'+vel_name+'_coarse.npy', coarse_solver_tensor.numpy())
+        np.save('../results/parareal/check_stability/' + vel_name + '_fine.npy', fine_solver_tensor.numpy())
+        np.save('../results/parareal/check_stability/' + vel_name + '_parareal.npy', parareal_tensor.numpy())
+        fig.show()
 
 
+
+def vis_multiple_init_cond():
+    velocities = {
+        "diagonal": torch.from_numpy(get_velocity_crop(256, "diagonal")),
+        "marmousi": torch.from_numpy(get_velocity_crop(256, "marmousi")),
+        "marmousi2": torch.from_numpy(get_velocity_crop(256, "marmousi2")),
+        "bp": torch.from_numpy(get_velocity_crop(256, "bp")),
+        "three_layers": torch.from_numpy(get_velocity_crop(256, "three_layers")),
+        "crack_profile": torch.from_numpy(get_velocity_crop(256, "crack_profile")),
+        "high_frequency": torch.from_numpy(get_velocity_crop(256, "high_frequency"))
+    }
+    for key, vel in velocities.items():
+        print(key,"-"*20)
+        vis_parareal(key, vel)
 
 
 if __name__ == '__main__':
-    vis_parareal()
+    vis_multiple_init_cond()
 
 
 

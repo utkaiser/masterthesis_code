@@ -97,5 +97,49 @@ def diagonal_ray(n_it, res = 300):
     y = np.linspace(-1, 1, res)
     xx, yy = np.meshgrid(x, y)
 
-    vel_profile = torch.from_numpy(3. + 0.0 * yy - 1.5 * (np.abs(yy + xx - 0.) > 0.5))
+    vel_profile = torch.from_numpy(3. + 0.0 * yy - 1.5 * (np.abs(yy + xx - 0.) > 0.3))
+    return vel_profile.unsqueeze(dim=0).repeat(n_it,1,1).numpy()
+
+def three_layers(n_it, res = 300):
+    #  x+pi/3.1*y-l_k
+
+    x = np.linspace(-1, 1, res)
+    y = np.linspace(-1, 1, res)
+    xx, yy = np.meshgrid(x, y)
+
+    vel_profile = torch.from_numpy(3. + 0.0 * yy - 1 * (yy + xx - 0. > -.4) - 1 * (yy + xx - 0. > .6))
+    return vel_profile.unsqueeze(dim=0).repeat(n_it,1,1).numpy()
+
+def crack_profile(n_it, res = 300):
+    #  x+pi/3.1*y-l_k
+
+    x = np.linspace(-1, 1, res)
+    y = np.linspace(-1, 1, res)
+    xx, yy = np.meshgrid(x, y)
+
+    vel_profile = torch.from_numpy(1. + 0.0 * yy)
+    k = 0.1
+    vel_profile[120:180,100:200] = k
+    vel_profile[180:200, 120:180] = k
+    vel_profile[200:210, 150:170] = k
+    vel_profile[180:190, 180:190] = k
+    vel_profile[130:170, 80:100] = k
+    return vel_profile.unsqueeze(dim=0).repeat(n_it,1,1).numpy()
+
+
+def high_frequency(n_it, res = 300):
+    #  x+pi/3.1*y-l_k
+
+    x = np.linspace(-1, 1, res)
+    y = np.linspace(-1, 1, res)
+    xx, yy = np.meshgrid(x, y)
+
+    vel_profile = torch.from_numpy(1. + 0.0 * yy)
+    k = 0.05
+    for i in range(res):
+        if i < 100:
+            vel_profile[i:,i:] += k
+        else:
+            vel_profile[i:, i:] -= k
+
     return vel_profile.unsqueeze(dim=0).repeat(n_it,1,1).numpy()
