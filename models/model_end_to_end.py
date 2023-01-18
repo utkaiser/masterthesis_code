@@ -10,6 +10,7 @@ from generate_data.wave_propagation import velocity_verlet_tensor
 from generate_data.wave_util import WaveEnergyComponentField_tensor, WaveSol_from_EnergyComponent_tensor, WaveEnergyField_tensor
 import torch
 from models.restriction_models import CNN_restriction, Simple_restriction, Interpolation_net
+import torch.nn.functional as F
 
 
 class Restriction_nn(nn.Module):
@@ -75,6 +76,11 @@ def choose_restriction(restriction_type):
         raise NotImplementedError("This downsampling network has not been implemented yet!")
 
 
-
+# upsample_shape = wx.shape[-1] * 2
+#
+# outputs = torch.zeros([wx.shape[0], 3, upsample_shape, upsample_shape])
+# outputs[:, 0, :, :] = F.upsample(wx[:, :, :].unsqueeze(dim=0), size=(upsample_shape, upsample_shape), mode='bilinear')
+# outputs[:, 1, :, :] = F.upsample(wy[:, :, :].unsqueeze(dim=0), size=(upsample_shape, upsample_shape), mode='bilinear')
+# outputs[:, 2, :, :] = F.upsample(wtc[:, :, :].unsqueeze(dim=0), size=(upsample_shape, upsample_shape), mode='bilinear')
 
 

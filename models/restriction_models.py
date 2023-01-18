@@ -79,9 +79,3 @@ class Restr_block(torch.nn.Module):
 
     def forward(self, x):
         return self.restr(x)
-
-
-# outputs = torch.zeros([wx.shape[0], 3, 128, 128])
-# outputs[:, 0, :, :] = F.upsample(wx[:, :, :].unsqueeze(dim=0), size=(128, 128), mode='bilinear')
-# outputs[:, 1, :, :] = F.upsample(wy[:, :, :].unsqueeze(dim=0), size=(128, 128), mode='bilinear')
-# outputs[:, 2, :, :] = F.upsample(wtc[:, :, :].unsqueeze(dim=0), size=(128, 128), mode='bilinear')
