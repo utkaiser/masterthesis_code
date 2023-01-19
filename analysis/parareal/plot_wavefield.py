@@ -16,7 +16,7 @@ def get_wavefield(tensor, vel, f_delta_x = 2.0 / 128.0, f_delta_t=(2.0 / 128.0) 
                                            f_delta_x) * f_delta_x * f_delta_x
 
 
-def plot_wavefield_results(coarse_solver_tensor, fine_solver_tensor, parareal_tensor, ticks, MSE_loss, vel, vel_name):
+def plot_wavefield_results(coarse_solver_tensor, fine_solver_tensor, parareal_tensor, ticks, MSE_loss, vel, vel_name, folder_name):
     fig = plt.figure(figsize=(35, 15))
 
     # coarse solver solution
@@ -52,7 +52,7 @@ def plot_wavefield_results(coarse_solver_tensor, fine_solver_tensor, parareal_te
         plt.axis('off')
 
     fig.suptitle("coarse solver (row 0), parareal end to end (k=0,...4) (row 1-5), fine solver (last row); titles represent MSE between result and fine solver")
-    plt.savefig('../../results/parareal/check_stability/' + vel_name + '_wavefield_plot.pdf')
+    plt.savefig('../../results/parareal/'+folder_name+'/' + vel_name + '_wavefield_plot.pdf')
     plt.close(fig)
 
 

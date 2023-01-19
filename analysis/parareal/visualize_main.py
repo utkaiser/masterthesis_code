@@ -14,10 +14,11 @@ import torch
 import numpy as np
 from models import model_end_to_end
 from models.model_utils import get_params
-from models.parallel_scheme import parareal_scheme, smaller_crop, one_iteration_pseudo_spectral
+from models.parallel_scheme import smaller_crop, one_iteration_pseudo_spectral
+from models.parallel_procrustes_scheme import parareal_procrustes_scheme
 
 
-def vis_parareal(vel_name, big_vel):
+def vis_parareal(vel_name, big_vel, folder_name):
 
     # data
     vel = crop_center(big_vel,128,128)
@@ -35,29 +36,15 @@ def vis_parareal(vel_name, big_vel):
     with torch.no_grad():
         coarse_solver_tensor = get_solver_solution(smaller_crop(u_0[:, :3, :, :]), 11,smaller_crop(u_0[:, 3, :,:]).unsqueeze(dim=0), solver="coarse")  # s x b x c x w x h
         fine_solver_tensor = get_solver_solution(u_0[:, :3, :, :], 11,u_0[:, 3, :, :].unsqueeze(dim=0), solver="fine")  # s x b x c x w x h
-        parareal_tensor = parareal_scheme(model, u_0, big_vel)  # k x s x b x c x w x h
+        parareal_tensor = parareal_procrustes_scheme(model, u_0, big_vel)  # k x s x b x c x w x h
         ticks = get_ticks_fine(fine_solver_tensor, vel)  # s x 3
 
-        plot_wavefield_results(coarse_solver_tensor, fine_solver_tensor, parareal_tensor, ticks, MSE_loss, vel, vel_name)
-        plot_wavefield_heatmap(coarse_solver_tensor, fine_solver_tensor, parareal_tensor, ticks, MSE_loss, vel, vel_name)
+        plot_wavefield_results(coarse_solver_tensor, fine_solver_tensor, parareal_tensor, ticks, MSE_loss, vel, vel_name, folder_name)
+        plot_wavefield_heatmap(coarse_solver_tensor, fine_solver_tensor, parareal_tensor, ticks, MSE_loss, vel, vel_name, folder_name)
 
-        np.save('../../results/parareal/check_stability/'+vel_name+'_coarse.npy', coarse_solver_tensor.numpy())
-        np.save('../../results/parareal/check_stability/' + vel_name + '_fine.npy', fine_solver_tensor.numpy())
-        np.save('../../results/parareal/check_stability/' + vel_name + '_parareal.npy', parareal_tensor.numpy())
-
-def vis_multiple_init_cond():
-    velocities = {
-        "diagonal": torch.from_numpy(get_velocity_crop(256, "diagonal")),
-        "marmousi": torch.from_numpy(get_velocity_crop(256, "marmousi")),
-        "marmousi2": torch.from_numpy(get_velocity_crop(256, "marmousi2")),
-        "bp": torch.from_numpy(get_velocity_crop(256, "bp")),
-        "three_layers": torch.from_numpy(get_velocity_crop(256, "three_layers")),
-        "crack_profile": torch.from_numpy(get_velocity_crop(256, "crack_profile")),
-        "high_frequency": torch.from_numpy(get_velocity_crop(256, "high_frequency"))
-    }
-    for key, vel in velocities.items():
-        print(key,"-"*20)
-        vis_parareal(key, vel)
+        np.save('../../results/parareal/' + folder_name+ "/"+vel_name + '_coarse.npy', coarse_solver_tensor.numpy())
+        np.save('../../results/parareal/' + folder_name+ "/"+vel_name + '_fine.npy', fine_solver_tensor.numpy())
+        np.save('../../results/parareal/' + folder_name+ "/"+vel_name + '_parareal.npy', parareal_tensor.numpy())
 
 
 def get_solver_solution(u_n_k, n_snapshots, vel, solver="coarse"):
@@ -158,7 +145,19 @@ def one_iteration_velocity_verlet(u_n_k, f_delta_x = 2.0 / 128.0, f_delta_t = (2
     return torch.stack([u_x, u_y, u_t_c], dim=1)
 
 
-
+def vis_multiple_init_cond():
+    velocities = {
+        "diagonal": torch.from_numpy(get_velocity_crop(256, "diagonal")),
+        # "marmousi": torch.from_numpy(get_velocity_crop(256, "marmousi")),
+        # "marmousi2": torch.from_numpy(get_velocity_crop(256, "marmousi2")),
+        # "bp": torch.from_numpy(get_velocity_crop(256, "bp")),
+        # "three_layers": torch.from_numpy(get_velocity_crop(256, "three_layers")),
+        # "crack_profile": torch.from_numpy(get_velocity_crop(256, "crack_profile")),
+        # "high_frequency": torch.from_numpy(get_velocity_crop(256, "high_frequency"))
+    }
+    for key, vel in velocities.items():
+        print(key,"-"*20)
+        vis_parareal(key, vel, folder_name = "procrustes")
 
 
 if __name__ == '__main__':

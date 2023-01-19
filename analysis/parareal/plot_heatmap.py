@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
 
-def plot_wavefield_heatmap(_, fine_solver_tensor, parareal_tensor, __, MSE_loss, ___, vel_name):
+def plot_wavefield_heatmap(_, fine_solver_tensor, parareal_tensor, __, MSE_loss, ___, vel_name, folder_name):
     # coarse_solver_tensor -> s x b x c x w x h
     # fine_solver_tensor -> s x b x c x w x h
     # parareal_tensor -> k x s x b x c x w x h
@@ -20,5 +20,5 @@ def plot_wavefield_heatmap(_, fine_solver_tensor, parareal_tensor, __, MSE_loss,
     plt.title("MSE between end-to-end and fine solver.")
     plt.xlabel("time step")
     plt.ylabel("parareal iteration")
-    plt.savefig('../../results/parareal/check_stability/' + vel_name + '_heatmap.pdf')
+    plt.savefig('../../results/parareal/'+folder_name+'/' + vel_name + '_heatmap.pdf')
     plt.close()
