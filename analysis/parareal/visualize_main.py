@@ -14,7 +14,7 @@ import torch
 import numpy as np
 from models import model_end_to_end
 from models.model_utils import get_params
-from models.parallel_scheme import smaller_crop, one_iteration_pseudo_spectral
+from models.parallel_scheme import smaller_crop, one_iteration_pseudo_spectral, parareal_scheme
 from models.parallel_procrustes_scheme import parareal_procrustes_scheme
 
 
@@ -36,7 +36,7 @@ def vis_parareal(vel_name, big_vel, folder_name):
     with torch.no_grad():
         coarse_solver_tensor = get_solver_solution(smaller_crop(u_0[:, :3, :, :]), 11,smaller_crop(u_0[:, 3, :,:]).unsqueeze(dim=0), solver="coarse")  # s x b x c x w x h
         fine_solver_tensor = get_solver_solution(u_0[:, :3, :, :], 11,u_0[:, 3, :, :].unsqueeze(dim=0), solver="fine")  # s x b x c x w x h
-        parareal_tensor = parareal_procrustes_scheme(model, u_0, big_vel)  # k x s x b x c x w x h
+        parareal_tensor = parareal_procrustes_scheme(model, u_0, big_vel)  # k x s x b x c x w x h  # TODO: decide if parareal or parareal + procrustes
         ticks = get_ticks_fine(fine_solver_tensor, vel)  # s x 3
 
         plot_wavefield_results(coarse_solver_tensor, fine_solver_tensor, parareal_tensor, ticks, MSE_loss, vel, vel_name, folder_name)
