@@ -14,19 +14,19 @@ def ProcrustesShiftMap(coarse_dat,fine_dat,opmap=(np.empty(0),np.empty(0),np.emp
 
 def ProcrustesShift(U,V,coarse_arg,datmode='tensor'):
     Ux,Uy,Utc = coarse_arg
-    
+
     if datmode == 'tensor':
         Cdat = serial_tensor_stack(Ux,Uy,Utc)
     elif datmode == 'numpy':
         Cdat = serial_numpy_stack(Ux,Uy,Utc)
     else:
         raise ValueError("datmode not defined")
-    
+
     Fout0 = np.matmul(np.transpose(V),Cdat)
     Fout = np.matmul(U,Fout0)
-    
+
     if datmode == 'tensor':
-        uxout,uyout,utcout = deserial_tensor_stack(Fout,Ux.shape[0],Ux.shape[1],Ux.shape[2])    
+        uxout,uyout,utcout = deserial_tensor_stack(Fout,Ux.shape[0],Ux.shape[1],Ux.shape[2])
     elif datmode == 'numpy':
         uxout,uyout,utcout = deserial_numpy_stack(Fout,Ux.shape[0],Ux.shape[1],Ux.shape[2])
     else:
@@ -88,13 +88,11 @@ def updateSVD(Uo,So,Vo,A,B):
 
 def serial_numpy_stack(ux,uy,utc):
     # Serialization and stacking of numpy format
-
     ny,nx,ns = ux.shape
     sux = np.reshape(ux,(ny*nx,ns))
     suy = np.reshape(uy,(ny*nx,ns))
     sutc = np.reshape(utc,(ny*nx,ns))
     udat = np.concatenate((sux,suy,sutc),axis=0)
-
     return udat
 
 def deserial_numpy_stack(udat,ny,nx,ns):

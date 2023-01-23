@@ -1,5 +1,6 @@
 import sys
 sys.path.append("..")
+from models.parallel_procrustes_scheme import one_iteration_velocity_verlet
 import torch.nn.functional as F
 from scipy.io import loadmat
 from skimage.filters import gaussian
@@ -7,15 +8,14 @@ from analysis.parareal.plot_wavefield import plot_wavefield_results, get_ticks_f
 from analysis.parareal.plot_heatmap import plot_wavefield_heatmap
 from generate_data.initial_conditions import init_gaussian_parareal, diagonal_ray, three_layers, crack_profile, \
     high_frequency
-from generate_data.wave_propagation import velocity_verlet_tensor, pseudo_spectral
-from generate_data.wave_util import crop_center, WaveSol_from_EnergyComponent_tensor, WaveEnergyField_tensor, \
-    WaveEnergyComponentField_tensor
+from generate_data.wave_util import crop_center
 import torch
 import numpy as np
 from models import model_end_to_end
 from models.model_utils import get_params
 from models.parallel_scheme import smaller_crop, one_iteration_pseudo_spectral, parareal_scheme
 from models.parallel_procrustes_scheme import parareal_procrustes_scheme
+#from models.parallel_scheme import parareal_scheme
 
 
 def vis_parareal(vel_name, big_vel, folder_name):
@@ -34,9 +34,9 @@ def vis_parareal(vel_name, big_vel, folder_name):
     MSE_loss = torch.nn.MSELoss()
 
     with torch.no_grad():
+        parareal_tensor = parareal_procrustes_scheme(model, u_0,big_vel)  # k x s x b x c x w x h  # TODO: decide if parareal or parareal + procrustes
         coarse_solver_tensor = get_solver_solution(smaller_crop(u_0[:, :3, :, :]), 11,smaller_crop(u_0[:, 3, :,:]).unsqueeze(dim=0), solver="coarse")  # s x b x c x w x h
         fine_solver_tensor = get_solver_solution(u_0[:, :3, :, :], 11,u_0[:, 3, :, :].unsqueeze(dim=0), solver="fine")  # s x b x c x w x h
-        parareal_tensor = parareal_procrustes_scheme(model, u_0, big_vel)  # k x s x b x c x w x h  # TODO: decide if parareal or parareal + procrustes
         ticks = get_ticks_fine(fine_solver_tensor, vel)  # s x 3
 
         plot_wavefield_results(coarse_solver_tensor, fine_solver_tensor, parareal_tensor, ticks, MSE_loss, vel, vel_name, folder_name)
@@ -125,24 +125,6 @@ def get_velocity_crop(resolution, velocity_profile):
 
     return img
 
-
-
-def one_iteration_velocity_verlet(u_n_k, f_delta_x = 2.0 / 128.0, f_delta_t = (2.0 / 128.0) / 20, delta_t_star = .06):
-
-    # u_n_k -> b x c x w x h
-
-    u, u_t = WaveSol_from_EnergyComponent_tensor(u_n_k[:, 0, :, :].clone(),
-                                                 u_n_k[:, 1, :, :].clone(),
-                                                 u_n_k[:, 2, :, :].clone(),
-                                                 u_n_k[:, 3, :, :].clone(),
-                                                 f_delta_x,
-                                                 torch.sum(torch.sum(torch.sum(u_n_k[:, 0, :, :].clone()))))
-    vel = u_n_k[:, 3, :, :].clone()
-    u_prop, u_t_prop = velocity_verlet_tensor(u, u_t, vel, f_delta_x, f_delta_t, delta_t_star,number=1,boundary_c="absorbing")
-    u_x, u_y, u_t_c = WaveEnergyComponentField_tensor(u_prop,
-                                                      u_t_prop,
-                                                      vel, f_delta_x)
-    return torch.stack([u_x, u_y, u_t_c], dim=1)
 
 
 def vis_multiple_init_cond():

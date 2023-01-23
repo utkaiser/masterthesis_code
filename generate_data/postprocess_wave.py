@@ -53,12 +53,11 @@ def ApplyOPP2WaveSol(w,wt,c,dx,opmap):
     dx: fine grid size
     opmap: low-rank matrices P,Q
     Output
-    u,ut: processed wavefield on fine grid size
+    u,ut: processed wave field on fine grid size
     '''
     P,_,Q = opmap
     
     wx,wy,wtc = wave_util.WaveEnergyComponentField(np.expand_dims(w,axis=2),np.expand_dims(wt,axis=2),c,dx)
-    
     vx,vy,vtc = opp_model.ProcrustesShift(P,Q,(wx,wy,wtc),datmode='numpy')
 
     sumv = np.sum(w)

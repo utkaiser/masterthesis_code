@@ -7,19 +7,19 @@ import opp_model
 import wave_util
 import initial_conditions as init_cond
 
-def generate_wave_from_medium(input_path, output_path, res_c = 64, res_f = 128):
+def generate_wave_from_medium(input_path, output_path, res_c = 128, res_f = 256):
 
 
     ################################### setup ###################################
 
     # parameter setup
-    total_time, delta_t_star = 2, .2  #total time of elapses, stepsize per elapse
-    f_delta_x = 2.0/128.0   #discretization in spatial (fine discretization, fine solver)
+    total_time, delta_t_star = .6, .06  #total time of elapses, stepsize per elapse
+    f_delta_x = 2.0/256.0   #discretization in spatial (fine discretization, fine solver)
     f_delta_t = f_delta_x / 20  #discretization in time (fine discretization, fine solver)
     n_parareal_it = 5  #number of parareal iterations
     n_snaps = round(total_time / delta_t_star)  #number of snapshots
-    c_delta_x = f_delta_x * (res_f // res_c)  #coarse fine resolution ratio N_x / n_x; scaling
-    c_delta_t = c_delta_x / 10  #discretization in time for course solver, specific number ratio
+    c_delta_x = 2.0 / 128.0  #coarse fine resolution ratio N_x / n_x; scaling
+    c_delta_t = c_delta_x / 20  #discretization in time for course solver, specific number ratio
     n_timeslices = n_parareal_it * n_snaps  #number of communication timestep
 
     # data setup
@@ -102,8 +102,6 @@ def generate_wave_from_medium(input_path, output_path, res_c = 64, res_f = 128):
 
                     #requirement of convergence of parareal scheme, solver has to match with earlier parareal
                     wX, wtX = pseudo_spectral(w0, wt0, vel_c, c_delta_x, c_delta_t, delta_t_star)
-
-                    #use computed correct P, S, Q to correct coarse solution
                     uX, utX = post_wave.ApplyOPP2WaveSol(resize(wX, vel.shape, order=4),
                                                          resize(wtX, vel.shape, order=4),
                                                          vel, f_delta_x, (P, S, Q))
