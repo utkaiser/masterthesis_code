@@ -133,7 +133,7 @@ def sample_label_random(input_idx, label_distr_shift, epoch, n_snaps):
         return n_snaps
 
 import torch
-from generate_data import wave_util
+from generate_data import utils_wave
 import matplotlib.pyplot as plt
 
 def visualize_wavefield(tensor_list, dx = 2.0 / 128.0, f_delta_t=.06, scaler=2, vis_save=True, vis_path='../results/run_2'):
@@ -260,7 +260,9 @@ def get_params(params="0"):
         param_dict["c_delta_x"] = 2./64.
         param_dict["c_delta_t"] = 1/600.
         param_dict["n_epochs_save_model"] = 5
-        param_dict["restriction_type"] = "interpolation"  # options: cnn, interpolation, simple
+        param_dict["downsampling_type"] = "interpolation"
+        param_dict["upsampling_type"] = "UNet3"
+        param_dict["n_it"] = -1  # this means that we generate as much data as we have different velocity profiles
     else:
         raise NotImplementedError("params not defined for params =",params)
 

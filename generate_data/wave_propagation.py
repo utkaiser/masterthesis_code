@@ -2,7 +2,7 @@ import numpy as np
 import torch
 from skimage.transform import resize # for coarsening
 from scipy import fft
-from generate_data.wave_util import WaveEnergyField_tensor
+from generate_data.utils_wave import WaveEnergyField_tensor
 import matplotlib.pyplot as plt
 
 

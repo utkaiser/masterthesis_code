@@ -1,38 +1,25 @@
 import sys
+from generate_data import utils_wave
+from models.model_end_to_end import Model_end_to_end
 sys.path.append("..")
-from generate_data import wave_util
 import time
 import torch
 import numpy as np
-import matplotlib.pyplot as plt
-from models import model_end_to_end
 from skimage.transform import resize
 from models.model_utils import fetch_data_end_to_end, get_params
-from generate_data.wave_propagation import velocity_verlet_tensor, pseudo_spectral, velocity_verlet
+from generate_data.wave_propagation import velocity_verlet_tensor
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
 
 def compare_end_to_end_gpu():
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print("gpu available:", torch.cuda.is_available(), "| n of gpus:", torch.cuda.device_count())
-
     # params
-    boundary_c = 'absorbing'
-    dx = 2.0 / 128.0
-    dt = dx / 20
-    dX = 2./64.
-    dT = 1./500.
-    delta_t_star = .06
-    scaler = 2
-    n_snaps = 12
-    Nx, Ny = 128, 128
-    c_Nx, c_Ny = 64, 64
-
     path = ['../data/end_to_end_bp_m_10_2000.npz']
     loader, _ = fetch_data_end_to_end(path, val_paths=path, shuffle=False, batch_size=1)
 
     # set up models
     param_dict = get_params("0")
-    restr_model1 = model_end_to_end.Restriction_nn(param_dict = param_dict).double().to(device)
+    restr_model1 = Model_end_to_end(param_dict = param_dict).double().to(device)
     # restr_model1 = torch.nn.DataParallel(restr_model1)
     # restr_model1.load_state_dict(torch.load('../results/run_2/saved_model_end_to_end_unet128_29.pt'))
     # restr_model1.eval()
@@ -46,9 +33,6 @@ def compare_end_to_end_gpu():
         params = sum([np.prod(p.size()) for p in model_parameters])
         print(netname, 'number of trainable parameters', params)
 
-    uc, utc = np.zeros([n_snaps, Nx, Ny]), np.zeros([n_snaps, Nx, Ny])
-    uf, utf = np.zeros([n_snaps, Nx, Ny]), np.zeros([n_snaps, Nx, Ny])
-    uo, uto = np.zeros([n_snaps, Nx, Ny]), np.zeros([n_snaps, Nx, Ny])
     e_time_fine, s_time_fine = [], []
     e_time_coarse, s_time_coarse = [], []
     e_time_endtoend, s_time_endtoend = [], []
@@ -62,39 +46,12 @@ def compare_end_to_end_gpu():
             # initial condition visualization
             u_x, u_y, u_t_c, vel = input[0, 0, :, :], input[0, 1, :, :], input[0, 2, :, :], input[0, 3, :, :]
             sumv = torch.sum(torch.sum(u_x))
-            u, ut = wave_util.WaveSol_from_EnergyComponent_tensor(u_x.unsqueeze(dim=0), u_y.unsqueeze(dim=0),
+            u, ut = utils_wave.WaveSol_from_EnergyComponent_tensor(u_x.unsqueeze(dim=0), u_y.unsqueeze(dim=0),
                                                                   u_t_c.unsqueeze(dim=0), vel.unsqueeze(dim=0), dx,
                                                                   sumv)
 
-            ax2 = fig.add_subplot(3, 11, 1)
-            pos2 = ax2.imshow(wave_util.WaveEnergyField_tensor(u.squeeze(), ut.squeeze(), vel, dx) * dx * dx)
-            ax2.set_title('init condition', fontsize=10)
-            plt.colorbar(pos2)
-            plt.axis('off')
 
-            # velocity visualization
-            ax1 = fig.add_subplot(3, 11, 12)
-            vel_img = input[0, 3, :, :]
-            pos1 = ax1.imshow(vel_img)
-            plt.colorbar(pos1)
-            plt.axis('off')
-
-            # # fine solver iteration
-            # for j in range(1, input.shape[0]):
-            #     u_x, u_y, u_t_c, vel = input[j, 0, :, :], input[j, 1, :, :], input[j, 2, :, :], input[j, 3, :,
-            #                                                                                     :]  # w x h
-            #     sumv = torch.sum(torch.sum(u_x))
-            #     u, ut = wave_util.WaveSol_from_EnergyComponent_tensor(u_x.unsqueeze(dim=0), u_y.unsqueeze(dim=0),
-            #                                                           u_t_c.unsqueeze(dim=0), vel.unsqueeze(dim=0),
-            #                                                           dx, sumv)
-            #     uf[j - 1, :, :], utf[j - 1, :, :] = u.squeeze(), ut.squeeze()
-            #     ax = fig.add_subplot(3, 12, 1 + j)
-            #     pos = ax.imshow(wave_util.WaveEnergyField_tensor(u.squeeze(), ut.squeeze(), vel, dx) * dx * dx)
-            #     ax.set_title('it' + str(j), fontsize=10)
-            #     plt.colorbar(pos)
-            #     plt.axis('off')
-
-            ufx, ufcx = wave_util.WaveSol_from_EnergyComponent_tensor(input[0, 0, :, :].unsqueeze(dim=0),
+            ufx, ufcx = utils_wave.WaveSol_from_EnergyComponent_tensor(input[0, 0, :, :].unsqueeze(dim=0),
                                                                       input[0, 1, :, :].unsqueeze(dim=0),
                                                                       input[0, 2, :, :].unsqueeze(dim=0),
                                                                       input[0, 3, :, :].unsqueeze(dim=0), dx, sumv)
@@ -103,13 +60,9 @@ def compare_end_to_end_gpu():
                 ufx, ufcx = velocity_verlet_tensor(ufx, ufcx, vel.unsqueeze(dim=0), dx, dt, delta_t_star, number=1, boundary_c="absorbing") #number=1,
                                                    #boundary_c=boundary_c)  # pseudo_spectral
                 e_time_fine.append(time.process_time())
-                ax = fig.add_subplot(3,11,1+j)
-                pos = ax.imshow(wave_util.WaveEnergyField_tensor(ufx.squeeze(),ufcx.squeeze(),vel,dx)*dx*dx)
-                plt.colorbar(pos)
-                plt.axis('off')
 
             # coarse solver
-            ucx, utcx = wave_util.WaveSol_from_EnergyComponent_tensor(input[0, 0, :, :].unsqueeze(dim=0),
+            ucx, utcx = utils_wave.WaveSol_from_EnergyComponent_tensor(input[0, 0, :, :].unsqueeze(dim=0),
                                                                       input[0, 1, :, :].unsqueeze(dim=0),
                                                                       input[0, 2, :, :].unsqueeze(dim=0),
                                                                       input[0, 3, :, :].unsqueeze(dim=0), dx, sumv)
@@ -127,11 +80,6 @@ def compare_end_to_end_gpu():
                 ucx, utcx = ucx.squeeze(), utcx.squeeze()
                 ucx, utcx = torch.from_numpy(resize(ucx.cpu(), [Nx, Nx], order=4)), torch.from_numpy(
                     resize(utcx.cpu(), [Nx, Nx], order=4))
-                uc[j - 1, :, :], utc[j - 1, :, :] = ucx, utcx
-                ax2 = fig.add_subplot(3, 12, 13 + j)
-                pos2 = ax2.imshow(wave_util.WaveEnergyField_tensor(ucx, utcx, vel.cpu(), dx) * dx * dx)
-                plt.colorbar(pos2)
-                plt.axis('off')
 
             # restriction
             input_restr = input[0, :3, :, :].unsqueeze(dim=0)
@@ -144,18 +92,10 @@ def compare_end_to_end_gpu():
                 e_time_endtoend.append(time.process_time())
                 u_x, u_y, u_t_c = output[:, 0, :, :], output[:, 1, :, :], output[:, 2, :, :]
                 sumv = torch.sum(torch.sum(u_x))
-                u, ut = wave_util.WaveSol_from_EnergyComponent_tensor(u_x, u_y, u_t_c, vel, dt, sumv)
-                uo[j - 1, :, :], uto[j - 1, :, :] = u.squeeze().cpu(), ut.squeeze().cpu()
-                ax3 = fig.add_subplot(3, 12, 25 + j)
-                pos3 = ax3.imshow(wave_util.WaveEnergyField_tensor(u.squeeze().cpu(), ut.squeeze().cpu(), vel.cpu(), dx) * dx * dx)
-                plt.colorbar(pos3)
-                plt.axis('off')
+                u, ut = utils_wave.WaveSol_from_EnergyComponent_tensor(u_x, u_y, u_t_c, vel, dt, sumv)
                 input_restr = output.clone()
 
             break
-
-
-    plt.savefig('../results/run_2/test.png')
 
     # time difference
     print("time coarse solver:", np.subtract(np.array(e_time_coarse),np.array(s_time_coarse)).mean())

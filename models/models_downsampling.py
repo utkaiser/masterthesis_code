@@ -2,9 +2,21 @@ import torch
 import torch.nn.functional as F
 
 
-class Interpolation_net(torch.nn.Module):
+def choose_downsampling(mode):
+
+    if mode == "simple":
+        return Simple_restriction(in_channels=4)
+    elif mode == "cnn":
+        return CNN_restriction(in_channels=4)
+    elif mode == "interpolation":
+        return Numerical_downsampling(sizing_factor=2)
+    else:
+        raise NotImplementedError("This downsampling network has not been implemented yet!")
+
+
+class Numerical_downsampling(torch.nn.Module):
     def __init__(self, sizing_factor=2):
-        super(Interpolation_net, self).__init__()
+        super(Numerical_downsampling, self).__init__()
         self.sizing_factor = sizing_factor
 
     def forward(self, x):
@@ -79,3 +91,5 @@ class Restr_block(torch.nn.Module):
 
     def forward(self, x):
         return self.restr(x)
+
+

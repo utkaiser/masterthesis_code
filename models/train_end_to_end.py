@@ -1,13 +1,12 @@
 import numpy as np
 import torch.optim as optim
 import torch.nn as nn
-import datetime
-from model_end_to_end import Restriction_nn
 from model_utils import save_model, fetch_data_end_to_end, flip_tensors, sample_label_random, visualize_wavefield, \
-    get_paths, get_params, setup_logger, z_score_reference
+    get_paths, get_params, setup_logger
 import torch
 import random
 import logging
+from models.model_end_to_end import Model_end_to_end
 
 
 def train_Dt_end_to_end(logging_bool=False, visualize=True, vis_param=1, params="0", vis_save=True):
@@ -28,7 +27,7 @@ def train_Dt_end_to_end(logging_bool=False, visualize=True, vis_param=1, params=
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     logging.info(
         " ".join(["gpu available:", str(torch.cuda.is_available()), "| n of gpus:", str(torch.cuda.device_count())]))
-    model = Restriction_nn(param_dict=param_dict).double()
+    model = Model_end_to_end(param_dict=param_dict).double()
     model = torch.nn.DataParallel(model).to(device)  # multi-GPU use
     optimizer = optim.AdamW(model.parameters(), lr=lr)  # SGD(model.parameters(), lr=lr)
     loss_f = nn.SmoothL1Loss()  # nn.MSELoss()
@@ -69,8 +68,6 @@ def train_Dt_end_to_end(logging_bool=False, visualize=True, vis_param=1, params=
                     if flipping: input_tensor, label, v_flipped, h_flipped = flip_tensors(input_tensor, label,
                                                                                           v_flipped, h_flipped)
 
-                    input_tensor, label = z_score_reference(input_tensor, label) # b x 4 x w x h, b x 3 x w x h
-
                     output = model(input_tensor)  # b x 3 x w x h
 
                     loss = loss_f(output, label)
@@ -103,8 +100,6 @@ def train_Dt_end_to_end(logging_bool=False, visualize=True, vis_param=1, params=
 
                     for label_idx in range(input_idx + 1, n_snaps):
                         label = data[:, label_idx, :3, :, :]  # b x 3 x w x h
-
-                        input_tensor, label = z_score_reference(input_tensor, label)  # b x 4 x w x h, # b x 3 x w x h
 
                         output = model(input_tensor)
                         val_loss = loss_f(output, label)

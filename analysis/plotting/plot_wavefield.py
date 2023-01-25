@@ -1,22 +1,10 @@
 import sys
 sys.path.append("..")
 import matplotlib.pyplot as plt
-from generate_data.wave_util import WaveSol_from_EnergyComponent_tensor, WaveEnergyField_tensor
-import torch
-
-def round_loss(number):
-    return number #str(round(number*(10**7),5))+"e-7"
+from models.optimization.utils_optimization import compute_loss, round_loss, get_wavefield
 
 
-def get_wavefield(tensor, vel, f_delta_x = 2.0 / 128.0, f_delta_t=(2.0 / 128.0) / 20):
-
-    u_x, u_y, u_t_c = tensor[:, 0, :, :], tensor[:, 1, :, :], tensor[:, 2, :, :]
-    u, u_t = WaveSol_from_EnergyComponent_tensor(u_x, u_y, u_t_c, vel, f_delta_t, torch.sum(torch.sum(torch.sum(u_x))))
-    return WaveEnergyField_tensor(u.squeeze().cpu(), u_t.squeeze().cpu(), vel.squeeze().cpu(),
-                                           f_delta_x) * f_delta_x * f_delta_x
-
-
-def plot_wavefield_results(coarse_solver_tensor, fine_solver_tensor, parareal_tensor, ticks, MSE_loss, vel, vel_name, folder_name):
+def plot_wavefield_optimization(coarse_solver_tensor, fine_solver_tensor, parareal_tensor, ticks, vel, vel_name, folder_name):
     fig = plt.figure(figsize=(35, 15))
 
     # coarse solver solution
@@ -26,7 +14,7 @@ def plot_wavefield_results(coarse_solver_tensor, fine_solver_tensor, parareal_te
         pos = ax.imshow(wave_field, vmin=ticks[s][0], vmax=ticks[s][2])
         if s != 0:
             plt.colorbar(pos, ticks=ticks[s])
-            ax.set_title(round_loss(MSE_loss(get_wavefield(fine_solver_tensor[s, :3], vel), wave_field).item()),
+            ax.set_title(round_loss(compute_loss(coarse_solver_tensor[s], fine_solver_tensor[s, :3], vel)),
                          fontdict={'fontsize': 9})
         plt.axis('off')
 
@@ -38,7 +26,7 @@ def plot_wavefield_results(coarse_solver_tensor, fine_solver_tensor, parareal_te
             pos = ax.imshow(wave_field, vmin=ticks[s][0], vmax=ticks[s][2])
             if s != 0:
                 plt.colorbar(pos, ticks=ticks[s])
-                ax.set_title(round_loss(MSE_loss(get_wavefield(fine_solver_tensor[s, :3], vel), wave_field).item()),
+                ax.set_title(round_loss(compute_loss(parareal_tensor[k, s], fine_solver_tensor[s, :3], vel)),
                              fontdict={'fontsize': 9})
             plt.axis('off')
 

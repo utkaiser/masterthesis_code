@@ -1,14 +1,18 @@
 import numpy as np
-from generate_data import wave_util
 import matplotlib.pyplot as plt
 
-def visualize_wavefield(tensors, dx = 2.0 / 128.0, f_delta_t=.2, vel = None, frame=False, init_res_f=128):
+from generate_data import utils_wave
+from generate_data.utils_wave import WaveEnergyComponentField_end_to_end
 
-    f_delta_t = .1
+
+def visualize_wavefield(u_elapse, ut_elapse, f_delta_x = 2.0 / 128.0, f_delta_t = .1, vel = None, frame=True, init_res_f=128):
+
+    wave_field = WaveEnergyComponentField_end_to_end(u_elapse, ut_elapse, vel, f_delta_x)
+
 
 
     fig = plt.figure(figsize=(30, 20))
-    u_x, u_y, u_t_c = tensors
+    u_x, u_y, u_t_c = wave_field
     # compute center
     axis_len = u_x.shape[-1]
     axis_center = axis_len // 2
@@ -26,9 +30,9 @@ def visualize_wavefield(tensors, dx = 2.0 / 128.0, f_delta_t=.2, vel = None, fra
     plt.axis('off')
 
     if frame:
-        u, ut = wave_util.WaveSol_from_EnergyComponent(u_x, u_y, u_t_c, vel, f_delta_t, sumv)
+        u, ut = utils_wave.WaveSol_from_EnergyComponent(u_x, u_y, u_t_c, vel, f_delta_t, sumv)
         ax2 = fig.add_subplot(1,2, 2)
-        pos2 = ax2.imshow(wave_util.WaveEnergyField(u, ut, vel, dx) * dx * dx)
+        pos2 = ax2.imshow(utils_wave.WaveEnergyField(u, ut, vel, f_delta_x) * f_delta_x * f_delta_x)
         plt.plot([axis_center - init_res_f // 2, axis_center + init_res_f // 2],
                  [axis_center + init_res_f // 2, axis_center + init_res_f // 2], 'r', linewidth=4)
         plt.plot([axis_center + init_res_f // 2, axis_center + init_res_f // 2],

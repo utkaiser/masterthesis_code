@@ -1,19 +1,16 @@
 from torch import nn
 import warnings
 import sys
+from models.model_upsampling import choose_upsampling
 sys.path.append("..")
 warnings.filterwarnings("ignore")
-from models import model_unet
+from models.model_numerical_solver import Numerical_solver
 import torch
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-from generate_data.wave_propagation import velocity_verlet_tensor
-from generate_data.wave_util import WaveEnergyComponentField_tensor, WaveSol_from_EnergyComponent_tensor, WaveEnergyField_tensor
-import torch
-from models.restriction_models import CNN_restriction, Simple_restriction, Interpolation_net
-import torch.nn.functional as F
+from models.models_downsampling import choose_downsampling
 
 
-class Restriction_nn(nn.Module):
+class Model_end_to_end(nn.Module):
     '''
             x: delta t star, dx, prev fine solution
             -> downsampling (NN1) -> coarse solution propagates -> upsample (NN2)
@@ -25,62 +22,23 @@ class Restriction_nn(nn.Module):
         # https://arxiv.org/abs/1412.6806 why I added stride
 
         self.param_dict = param_dict
-        self.restriction = choose_restriction(param_dict["restriction_type"])
-        self.jnet = model_unet.UNet(wf=1, depth=3, scale_factor=self.param_dict["res_scaler"]).double()
+        self.model_downsampling = choose_downsampling(param_dict["restriction_type"])
+        self.model_numerical = Numerical_solver(param_dict["boundary_c"],param_dict["c_delta_x"], param_dict["c_delta_t"],param_dict["f_delta_x"],param_dict["delta_t_star"])
+        self.model_upsampling = choose_upsampling(param_dict["restriction_type"], param_dict["res_scaler"])
 
 
     def forward(self, x):
 
         ###### R (restriction) ######
-        restr_output, skip_all = self.restriction(x)
-        vel_c = torch.Tensor.double(restr_output[:, 3, :, :])  # b x w_c x h_c
-        restr_fine_sol_u, restr_fine_sol_ut = WaveSol_from_EnergyComponent_tensor(
-            torch.Tensor.double(restr_output[:, 0, :, :]).to(device),
-            torch.Tensor.double(restr_output[:, 1, :, :]).to(device),
-            torch.Tensor.double(restr_output[:, 2, :, :]).to(device),
-            vel_c.to(device),
-            self.param_dict["c_delta_x"], torch.sum(torch.sum(torch.Tensor.double(restr_output[:, 0, :, :])))
-        )
+        restr_output, skip_all = self.model_downsampling(x)
 
-        ###### G delta t (coarse iteration) ######
-        ucx, utcx = velocity_verlet_tensor(
-            restr_fine_sol_u.to(device), restr_fine_sol_ut.to(device),
-            vel_c.to(device), self.param_dict["c_delta_x"], self.param_dict["c_delta_t"],
-            self.param_dict["delta_t_star"], number=1, boundary_c=self.param_dict["boundary_c"]
-        )  # b x w_c x h_c, b x w_c x h_c
-
-        # change to energy components
-        wx, wy, wtc = WaveEnergyComponentField_tensor(ucx.to(device), utcx.to(device), vel_c.to(device), self.param_dict["c_delta_x"])  # b x w_c x h_c, b x w_c x h_c, b x w_c x h_c
-
-        # create input for nn
-        inputs = torch.stack((wx.to(device), wy.to(device), wtc.to(device), vel_c.to(device)), dim=1).to(device)  # b x 4 x 64 x 64
+        # velocity verlet
+        prop_result = self.model_numerical(restr_output)
 
         ##### upsampling through nn ######
-        outputs = self.jnet(inputs, skip_all=skip_all)  # b x 3 x w x h
+        outputs = self.model_upsampling(prop_result, skip_all=skip_all)  # b x 3 x w x h
 
         return outputs.to(device)
 
-
-
-
-
-def choose_restriction(restriction_type):
-
-    if restriction_type == "simple":
-        return Simple_restriction(in_channels=4)
-    elif restriction_type == "cnn":
-        return CNN_restriction(in_channels=4)
-    elif restriction_type == "interpolation":
-        return Interpolation_net(sizing_factor=2)
-    else:
-        raise NotImplementedError("This downsampling network has not been implemented yet!")
-
-
-# upsample_shape = wx.shape[-1] * 2
-#
-# outputs = torch.zeros([wx.shape[0], 3, upsample_shape, upsample_shape])
-# outputs[:, 0, :, :] = F.upsample(wx[:, :, :].unsqueeze(dim=0), size=(upsample_shape, upsample_shape), mode='bilinear')
-# outputs[:, 1, :, :] = F.upsample(wy[:, :, :].unsqueeze(dim=0), size=(upsample_shape, upsample_shape), mode='bilinear')
-# outputs[:, 2, :, :] = F.upsample(wtc[:, :, :].unsqueeze(dim=0), size=(upsample_shape, upsample_shape), mode='bilinear')
 
 

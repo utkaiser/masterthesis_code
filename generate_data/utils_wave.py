@@ -1,6 +1,6 @@
 import numpy as np
 from scipy import fftpack
-import torch
+import logging
 
 
 def WaveEnergyField(u, ut, c, dx):
@@ -153,3 +153,23 @@ def crop_center(img, cropx, cropy, scaler = 2):
     starty = y // scaler - (cropy // scaler)
 
     return img[starty:starty + cropy, startx:startx + cropx]
+
+
+def start_logger(index):
+    #logger setup
+    logging.basicConfig(filename="../results/run_2/datagen_"+index+".log",
+                        filemode='a',
+                        format='%(asctime)s %(message)s',
+                        datefmt='%H:%M:%S',
+                        level=logging.DEBUG)
+    logging.info("start logging")
+
+
+
+def get_datagen_end_to_end_params(param_dict):
+    return param_dict["total_time"], param_dict["delta_t_star"], param_dict["f_delta_x"], param_dict["f_delta_t"], \
+           param_dict["n_snaps"], param_dict["res_scaler"], param_dict["n_it"]
+
+
+
+

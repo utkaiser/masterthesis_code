@@ -1,5 +1,5 @@
 from torchviz import make_dot
-from models import model_unet
+from models.model_components import model_unet
 import torch
 
 from torchsummary import summary

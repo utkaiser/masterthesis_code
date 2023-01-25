@@ -2,8 +2,9 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
 from generate_data.initial_conditions import diagonal_ray
-from models.parallel_scheme import get_wavefield
 import torch
+
+from models.optimization.utils_optimization import get_wavefield
 
 sns.set_context()
 sns.set_theme(style='white', context="paper")
@@ -13,10 +14,10 @@ def compare_slice():
     parareal_it = 1
 
     tensors = {
-        "coarse solver": torch.from_numpy(np.load('../results/parareal/check_stability/diagonal_coarse.npy')),  # s x b x c x w x h
-        "fine solver": torch.from_numpy(np.load('../results/parareal/check_stability/diagonal_fine.npy'))  # s x b x c x w x h
+        "coarse solver": torch.from_numpy(np.load('../../results/parareal/check_stability/diagonal_coarse.npy')),  # s x b x c x w x h
+        "fine solver": torch.from_numpy(np.load('../../results/parareal/check_stability/diagonal_fine.npy'))  # s x b x c x w x h
     }
-    parareal_tensor = torch.from_numpy(np.load('../results/parareal/check_stability/diagonal_parareal.npy'))  # k x s x b x c x w x h
+    parareal_tensor = torch.from_numpy(np.load('../../results/parareal/check_stability/diagonal_parareal.npy'))  # k x s x b x c x w x h
     tensors["parareal it " + str(parareal_it)] = parareal_tensor[parareal_it]
     tensors["network"] = parareal_tensor[0]
 

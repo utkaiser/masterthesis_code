@@ -3,43 +3,34 @@ sys.path.append("..")
 import numpy as np
 from wave_propagation import pseudo_spectral
 import initial_conditions as init_cond
-from wave_util import WaveEnergyComponentField_end_to_end, crop_center
+from utils_wave import WaveEnergyComponentField_end_to_end, crop_center, start_logger, get_datagen_end_to_end_params
 from models.model_utils import get_params
-from visualize_datagen import visualize_wavefield
+from analysis.visualize_input.visualize_datagen import visualize_wavefield
 import logging
 
-def generate_wave_from_medium(input_path, output_path, init_res_f = 128, absorbing_bc = False, visualize=False, index="0"):
+# TODO: fix scaler, fix how velocity is cropped, fix crack in surface velocity
+
+
+def generate_wave_from_medium(input_path, output_path, res = 128, boundary_condition = "absorbing", visualize=False, index="0"):
 
     # vel: n_it x n_snaps w x h -> 200 x 10 x 128 x 128
 
     ################################### setup ###################################
 
-    #logger setup
-    logging.basicConfig(filename="../results/run_2/datagen_"+index+".log",
-                        filemode='a',
-                        format='%(asctime)s %(message)s',
-                        datefmt='%H:%M:%S',
-                        level=logging.DEBUG)
-    logging.info("start logging")
-
     # parameter setup
-    res_padded = init_res_f
-    param_dict = get_params("0")
-    total_time, delta_t_star, f_delta_x, f_delta_t, n_snaps, scaler = \
-        param_dict["total_time"], param_dict["delta_t_star"], param_dict["f_delta_x"], param_dict["f_delta_t"], param_dict["n_snaps"], param_dict["res_scaler"]
+    start_logger(index=index)
+    total_time, delta_t_star, f_delta_x, f_delta_t, n_snaps, scaler, n_it = get_datagen_end_to_end_params(get_params("0"))
 
     # data setup
-    velocities = np.load(input_path)['wavespeedlist']
-    n_it = 10 # velocities.shape[0]  # define the amount of data to generate
-    # velocities = init_cond.diagonal_ray(n_it)
+    velocities, n_it, res_padded = init_cond.get_velocities(n_it, input_path, res, boundary_condition)
 
     # tensors for fine solutions in energy components form
-    Ux = np.zeros([n_it, n_snaps + 1, init_res_f, init_res_f])
-    Uy = np.zeros([n_it, n_snaps + 1, init_res_f, init_res_f])
-    Utc = np.zeros([n_it, n_snaps + 1, init_res_f, init_res_f])
+    Ux = np.zeros([n_it, n_snaps + 1, res, res])
+    Uy = np.zeros([n_it, n_snaps + 1, res, res])
+    Utc = np.zeros([n_it, n_snaps + 1, res, res])
 
     # tensor for velocity models
-    V = np.zeros([n_it, n_snaps+1, init_res_f, init_res_f])
+    V = np.zeros([n_it, n_snaps+1, res, res])
 
 
     ################################# training #################################
@@ -50,24 +41,23 @@ def generate_wave_from_medium(input_path, output_path, init_res_f = 128, absorbi
         logging.info(" ".join(['sample:', str(it)]))
 
         #initialization of wave field
-        u_elapse, ut_elapse, res_padded = init_cond.init_cond_gaussian(it, init_res_f, res_padded, absorbing_bc=True)
-        vel = velocities[it, :, :]
+        vel = velocities[it]  # w_big x h_big
+        u_elapse, ut_elapse = init_cond.init_cond_gaussian(vel, res, boundary_condition, mode="generate_data", res_padded=res_padded)
+
 
         # velocity crop
-        vel = crop_center(vel, res_padded, res_padded, scaler)
-        if absorbing_bc: vel_crop = crop_center(vel, init_res_f, init_res_f, scaler)
+        if boundary_condition == "absorbing": vel_crop = crop_center(vel, res)
         else: vel_crop = vel
-        print(vel_crop.shape)
         V[it, :, :, :] = np.repeat(vel_crop[np.newaxis, :, :], n_snaps + 1, axis=0) # save velocity model
 
-        if visualize: visualize_wavefield((WaveEnergyComponentField_end_to_end(u_elapse, ut_elapse, vel, f_delta_x)), vel = vel, init_res_f=init_res_f, frame=True)
+        if visualize: visualize_wavefield(u_elapse, ut_elapse, vel = vel, init_res_f=res, frame=True, f_delta_x=f_delta_x, f_delta_t=f_delta_t)
 
         for s in range(n_snaps+1):
             # integrate delta t star step size n_snaps times
 
-            if absorbing_bc:
+            if boundary_condition == "absorbing":
                 # cropping and save current snapshot
-                u_elapse_crop, ut_elapse_crop = crop_center(u_elapse, init_res_f, init_res_f,scaler), crop_center(ut_elapse, init_res_f, init_res_f,scaler)
+                u_elapse_crop, ut_elapse_crop = crop_center(u_elapse, res), crop_center(ut_elapse, res)
                 Ux[it, s, :, :], Uy[it, s, :, :], Utc[it, s, :, :] = WaveEnergyComponentField_end_to_end(u_elapse_crop, ut_elapse_crop, vel_crop, f_delta_x)
 
             else:
@@ -76,9 +66,12 @@ def generate_wave_from_medium(input_path, output_path, init_res_f = 128, absorbi
 
             if s < n_snaps + 1: u_elapse, ut_elapse = pseudo_spectral(u_elapse, ut_elapse, vel, f_delta_x, f_delta_t, delta_t_star)
 
-            if visualize: visualize_wavefield((WaveEnergyComponentField_end_to_end(u_elapse, ut_elapse, vel, f_delta_x)), vel=vel, init_res_f=init_res_f, frame=True)
+            if visualize: visualize_wavefield(u_elapse, ut_elapse, vel=vel, init_res_f=res, frame=True, f_delta_x=f_delta_x, f_delta_t=f_delta_t)
 
     np.savez(output_path, vel=V, Ux=Ux, Uy=Uy, Utc=Utc)
+
+
+
 
 
 if __name__ == "__main__":
@@ -87,7 +80,7 @@ if __name__ == "__main__":
 
         generate_wave_from_medium(input_path="../data/crops_bp_m_200_2000.npz",
                                   output_path="../data/end_to_end_bp_m_10_2000_"+str(index)+"_500.npz",
-                                  init_res_f=500, absorbing_bc = True, visualize = True, index=str(index))
+                                  res=128, boundary_condition = "absorbing", visualize = True, index=str(index))
 
 
 
