@@ -249,8 +249,8 @@ def get_params(params="0"):
         param_dict["n_epochs"] = 100
         param_dict["model_name"] = "end_to_end_only_unet3lvl"
         param_dict["model_res"] = 128
-        param_dict["coarse_res"] = param_dict["model_res"] / param_dict["res_scaler"]
-        param_dict["n_snaps"] = 11
+        param_dict["coarse_res"] = param_dict["model_res"] // param_dict["res_scaler"]
+        param_dict["n_snaps"] = 9
         param_dict["flipping"] = False
         param_dict["boundary_c"] = "absorbing"
         param_dict["total_time"] = .6
@@ -262,7 +262,7 @@ def get_params(params="0"):
         param_dict["n_epochs_save_model"] = 5
         param_dict["downsampling_type"] = "interpolation"
         param_dict["upsampling_type"] = "UNet3"
-        param_dict["n_it"] = -1  # this means that we generate as much data as we have different velocity profiles
+
     else:
         raise NotImplementedError("params not defined for params =",params)
 

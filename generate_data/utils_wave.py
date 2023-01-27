@@ -135,29 +135,21 @@ def grad2func_tensor(vx, vy, dx, sumv):
     return torch.real(torch.fft.ifft2(hatv))
 
 
-def crop_center(img, cropx, cropy, scaler = 2):
-    '''
-    Parameters
-    ----------
-    img : tensor w x h, should reduce it to size cropx x cropy
-    cropx : int
-    cropy : int
+def crop_center(img, crop_size, boundary_condition="absorbing", scaler=2):
+    # crop center of img given size of crop, and scale factor
+    if boundary_condition == "absorbing":
+        y, x = img.shape
+        startx = x // scaler - (crop_size // scaler)
+        starty = y // scaler - (crop_size // scaler)
 
-    Returns
-    -------
-    cropped img
-    '''
-
-    y, x = img.shape
-    startx = x // scaler - (cropx // scaler)
-    starty = y // scaler - (cropy // scaler)
-
-    return img[starty:starty + cropy, startx:startx + cropx]
+        return img[starty:starty + crop_size, startx:startx + crop_size]
+    else:
+        return img
 
 
-def start_logger(index):
+def start_logger_datagen_end_to_end(index):
     #logger setup
-    logging.basicConfig(filename="../results/run_2/datagen_"+index+".log",
+    logging.basicConfig(filename="../results/datagen/datagen_"+index+".log",
                         filemode='a',
                         format='%(asctime)s %(message)s',
                         datefmt='%H:%M:%S',
@@ -168,7 +160,7 @@ def start_logger(index):
 
 def get_datagen_end_to_end_params(param_dict):
     return param_dict["total_time"], param_dict["delta_t_star"], param_dict["f_delta_x"], param_dict["f_delta_t"], \
-           param_dict["n_snaps"], param_dict["res_scaler"], param_dict["n_it"]
+           param_dict["n_snaps"], param_dict["res_scaler"]
 
 
 

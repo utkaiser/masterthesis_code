@@ -1,8 +1,9 @@
+import numpy as np
 import torch.nn.functional as F
 import torch
 from generate_data.wave_propagation import pseudo_spectral, velocity_verlet_tensor
 from generate_data.utils_wave import WaveSol_from_EnergyComponent_tensor, WaveEnergyComponentField_tensor, \
-    WaveEnergyField_tensor
+    WaveEnergyField_tensor, WaveSol_from_EnergyComponent, WaveEnergyField
 from torchmetrics.functional import mean_squared_error as MSE
 from torchmetrics.functional import mean_absolute_error as MAE
 
@@ -25,7 +26,8 @@ def compute_loss(prediction,target, vel, mode = "MSE/frob(fine)"):
     elif mode == "MAE":
         return MAE(prediction, target).item()
     elif mode == "MSE/frob(fine)":
-        return MSE(prediction, target).item() / torch.linalg.norm(target).item()
+        return torch.linalg.norm((prediction - target) / target).item()
+        # return MSE(prediction, target).item() / torch.linalg.norm(target).item()
     elif mode == "MAE/frob(fine)":
         return MAE(prediction, target).item() / torch.linalg.norm(target).item()
     else:
@@ -81,13 +83,17 @@ def get_solver_solution(u_n_k, n_snapshots, vel, solver="coarse"):
 
 def smaller_crop(matrix):
     # matrix -> b? x c x w x h
-    v = 64
+    if matrix.shape[-1] == 256:
+        v = 64
+    else:
+        v = 32
+
     if len(matrix.shape) == 4:
         return matrix[:,:,v:-v, v:-v]
     elif len(matrix.shape) == 3:
         return matrix[:, v:-v, v:-v]
     else:
-        raise NotImplementedError("This dimensionality has not been implemented yet.")
+        return matrix[v:-v, v:-v]
 
 
 def one_iteration_pseudo_spectral(u_n_k, f_delta_x = 2./128., f_delta_t = (2./128.) / 20., delta_t_star = .06):
@@ -152,3 +158,12 @@ def get_wavefield(tensor, vel, f_delta_x=2.0 / 128.0, f_delta_t=(2.0 / 128.0) / 
                                                  torch.sum(torch.sum(torch.sum(u_x))))
     return WaveEnergyField_tensor(u.squeeze().cpu(), u_t.squeeze().cpu(), vel.squeeze().cpu(),
                                   f_delta_x) * f_delta_x * f_delta_x
+
+def get_wavefield_numpy(tensor, vel, f_delta_x=2.0 / 128.0, f_delta_t=(2.0 / 128.0) / 20):
+
+    u_x, u_y, u_t_c = tensor[0, :, :], tensor[1, :, :], tensor[2, :, :]
+    u, u_t = WaveSol_from_EnergyComponent(u_x, u_y, u_t_c, vel, f_delta_t,
+                                                 np.sum(np.sum(np.sum(u_x))))
+    return WaveEnergyField(u, u_t, vel,
+                                  f_delta_x) * f_delta_x * f_delta_x
+

@@ -22,18 +22,18 @@ class Model_end_to_end(nn.Module):
         # https://arxiv.org/abs/1412.6806 why I added stride
 
         self.param_dict = param_dict
-        self.model_downsampling = choose_downsampling(param_dict["restriction_type"])
-        self.model_numerical = Numerical_solver(param_dict["boundary_c"],param_dict["c_delta_x"], param_dict["c_delta_t"],param_dict["f_delta_x"],param_dict["delta_t_star"])
-        self.model_upsampling = choose_upsampling(param_dict["restriction_type"], param_dict["res_scaler"])
+        self.model_downsampling = choose_downsampling(param_dict["downsampling_type"])
+        self.model_numerical = Numerical_solver(param_dict["boundary_c"], param_dict["c_delta_x"], param_dict["c_delta_t"],param_dict["f_delta_x"],param_dict["delta_t_star"])
+        self.model_upsampling = choose_upsampling(param_dict["upsampling_type"], param_dict["res_scaler"])
 
 
     def forward(self, x):
 
         ###### R (restriction) ######
-        restr_output, skip_all = self.model_downsampling(x)
+        downsampling_res, skip_all = self.model_downsampling(x)
 
         # velocity verlet
-        prop_result = self.model_numerical(restr_output)
+        prop_result = self.model_numerical(downsampling_res)
 
         ##### upsampling through nn ######
         outputs = self.model_upsampling(prop_result, skip_all=skip_all)  # b x 3 x w x h

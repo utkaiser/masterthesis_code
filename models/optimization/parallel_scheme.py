@@ -2,11 +2,11 @@ import torch
 from models.optimization.utils_optimization import one_iteration_pseudo_spectral, smaller_crop
 
 
-def parareal_scheme(model, u_0, n_parareal = 4, n_snaps = 11):
+def parareal_scheme(model, u_0, big_vel, n_parareal = 2, n_snaps = 11):
 
     # u_0 -> b x c x w x h
     u_n = u_0.clone()
-    vel = u_n[:,3].clone().unsqueeze(dim=1)  # 1 x 1 x 500 x 500
+    vel = big_vel.unsqueeze(dim=0).clone()  # 1 x 1 x 500 x 500
     batch_size, channel, width, height = u_n.shape  # 1 x 4 x 500 x 500
     parareal_tensor = torch.zeros([n_parareal+1, n_snaps, batch_size, channel-1, 128, 128])
     big_tensor = torch.zeros([n_snaps, batch_size, channel - 1, width, height])

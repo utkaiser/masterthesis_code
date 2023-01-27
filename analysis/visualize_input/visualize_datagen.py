@@ -1,15 +1,14 @@
+import logging
+logging.getLogger('matplotlib').setLevel(logging.WARNING)
 import numpy as np
 import matplotlib.pyplot as plt
-
 from generate_data import utils_wave
 from generate_data.utils_wave import WaveEnergyComponentField_end_to_end
 
 
-def visualize_wavefield(u_elapse, ut_elapse, f_delta_x = 2.0 / 128.0, f_delta_t = .1, vel = None, frame=True, init_res_f=128):
+def visualize_wavefield(u_elapse, ut_elapse, f_delta_x = 2.0 / 128.0, f_delta_t = .1, vel = None, frame=True, init_res_f=128, it=0):
 
     wave_field = WaveEnergyComponentField_end_to_end(u_elapse, ut_elapse, vel, f_delta_x)
-
-
 
     fig = plt.figure(figsize=(30, 20))
     u_x, u_y, u_t_c = wave_field
@@ -42,4 +41,5 @@ def visualize_wavefield(u_elapse, ut_elapse, f_delta_x = 2.0 / 128.0, f_delta_t 
         plt.plot([axis_center - init_res_f // 2, axis_center - init_res_f // 2],
                  [axis_center - init_res_f // 2, axis_center + init_res_f // 2], 'r', linewidth=4)
 
+    plt.title("iteration: " + str(it))
     plt.show()

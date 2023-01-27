@@ -16,7 +16,7 @@ def createCropsAndSave(v_images, m, outputdir, num_times = 40):
         print("img",i)
         i += 1
         for j in range(num_times):
-
+            print("---",j)
             scale = 0.08+0.04*np.random.rand() #chose this scaling because performed well
             angle = np.random.randint(4) * 22.5  #in degrees
             M = int(m/scale)  #how much we crop before resizing to m
@@ -48,9 +48,14 @@ if __name__ == '__main__':
     fullbp = gaussian(databp['V'],4)/1000 #to make smoother (and different order of magnitude)
 
     createCropsAndSave([fullmarm,fullbp],
-                       m=2000,
-                       outputdir = '../data/crops_bp_m_200_2000.npz',
-                       num_times=100)
+                       m=128*2,
+                       outputdir = '../data/crops_bp_m_200_128*2.npz',
+                       num_times=200)
+    print("-"*100)
+    createCropsAndSave([fullmarm, fullbp],
+                       m=256 * 2,
+                       outputdir='../data/crops_bp_m_200_256*2.npz',
+                       num_times=200)
 
     print("finish running generatecroppedVmodel.py")
 

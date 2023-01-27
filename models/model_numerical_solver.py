@@ -4,7 +4,6 @@ from generate_data.wave_propagation import velocity_verlet_tensor
 from generate_data.utils_wave import WaveEnergyComponentField_tensor, WaveSol_from_EnergyComponent_tensor, WaveEnergyField_tensor
 import torch
 
-
 class Numerical_solver(torch.nn.Module):
     def __init__(self, boundary_condition,c_delta_x,c_delta_t,f_delta_x,delta_t_star):
         super(Numerical_solver, self).__init__()

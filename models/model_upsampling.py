@@ -12,7 +12,7 @@ def choose_upsampling(mode,scale_factor=2):
     elif mode == "UNet6":
         return UNet(wf=1, depth=6, scale_factor=scale_factor).double()
     elif mode == "Tiramisu":
-        return Tiramisu(in_channels=4, scale_factor = 2).double()
+        return Tiramisu(in_channels=4, scale_factor = scale_factor).double()
     elif mode == "UTransform":
         return UTransform(in_channels=4, scale_factor=scale_factor).double()
     elif mode == "Numerical_upsampling":
@@ -34,7 +34,7 @@ class UNet(nn.Module):
     acti_func: activation function
     '''
 
-    def __init__(self, in_channels=4, n_classes=3, depth=3, wf=0, acti_func='identity', scale_factor=2):
+    def __init__(self, in_channels=4, n_classes=3, depth=3, wf=0, acti_func='relu', scale_factor=2):
         super(UNet, self).__init__()
         self.depth = depth
         prev_channels = in_channels
