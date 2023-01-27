@@ -16,8 +16,11 @@ from models.optimization.parallel_procrustes_scheme import parareal_procrustes_s
 def vis_parareal(vel_name, big_vel, n_snaps, mode="parareal"):
 
     # data
+    big_vel = torch.from_numpy(big_vel)
+    res = big_vel.shape[-1]
     vel = crop_center(big_vel.squeeze(),128)
-    u_0 = torch.concat([initial_condition_gaussian(big_vel,res=128, mode=mode), big_vel.unsqueeze(dim=0)],dim=1)
+    u_0 = torch.concat([initial_condition_gaussian(big_vel,res=res, mode=mode),
+                        big_vel.unsqueeze(dim=0)], dim=1)
 
     # param
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -40,6 +43,7 @@ def vis_parareal(vel_name, big_vel, n_snaps, mode="parareal"):
         np.save('../../results/optimization/' + mode+ "/"+vel_name + '_parareal.npy', parareal_tensor.numpy())
         np.save('../../results/optimization/' + mode+ "/"+vel_name + '_velocity_profile.npy', big_vel.numpy())
 
+
 def choose_optimization_method(model,u_0,big_vel,n_snaps,mode="parareal"):
     if mode == "parareal":
         return parareal_scheme(model, u_0, big_vel, n_snaps=n_snaps)
@@ -50,7 +54,8 @@ def choose_optimization_method(model,u_0,big_vel,n_snaps,mode="parareal"):
 
 
 def vis_multiple_init_cond():
-    velocities = get_velocity_dict(256, 10, "../../data/crops_bp_m_200_256.npz")
+    res = 256
+    velocities = get_velocity_dict(res, 1, "../../data/crops_bp_m_200_256.npz")
     for vel_name, vel in velocities.items():
         print("-"*20,vel_name,"-"*20)
         vis_parareal(vel_name, vel, mode="parareal", n_snaps=7)

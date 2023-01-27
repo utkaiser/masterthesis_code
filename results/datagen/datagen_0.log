@@ -62,3 +62,22 @@
 16:49:01 Velocity models: bp_m; (10, 768, 768)
 16:49:01 start end to end training data generation, amount of data to generate: 10
 16:49:01 sample: 0
+17:08:08 start logging
+17:08:34 start logging
+17:11:16 start logging
+17:11:24 Velocity models: diag__3l__cp__hf__bp_m; (10, 512, 512)
+17:11:24 start end to end training data generation, amount of data to generate: 10
+17:11:24 sample: 0
+17:11:55 start logging
+17:11:57 Velocity models: diag__3l__cp__hf__bp_m; (10, 256, 256)
+17:11:57 start end to end training data generation, amount of data to generate: 10
+17:11:57 sample: 0
+17:12:24 sample: 1
+17:12:50 sample: 2
+17:13:18 sample: 3
+17:14:10 sample: 4
+17:15:05 sample: 5
+17:16:00 sample: 6
+17:16:53 sample: 7
+17:17:55 sample: 8
+17:47:52 sample: 9

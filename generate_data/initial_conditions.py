@@ -69,12 +69,12 @@ def init_cond_ricker(xx, yy, width, center):
 
 
 
-def diagonal_ray(n_it, res):
+def diagonal_ray(n_it, res, boundary_condition="absorbing"):
     x = np.linspace(-1, 1, res)
     y = np.linspace(-1, 1, res)
     xx, yy = np.meshgrid(x, y)
 
-    if res in [128,256]:
+    if boundary_condition != "absorbing":
         vel_profile = torch.from_numpy(3. + 0.0 * yy - 1.5 * (np.abs(yy + xx - 0.) > 0.3))
     else:
         vel_profile = torch.from_numpy(3. + 0.0 * yy - 1.5 * (np.abs(yy + xx - 0.) > 0.3/2))
@@ -82,62 +82,72 @@ def diagonal_ray(n_it, res):
     return vel_profile.unsqueeze(dim=0).repeat(n_it,1,1).numpy()
 
 
-def three_layers(n_it, res):
+def three_layers(n_it, res, boundary_condition="absorbing"):
 
     x = np.linspace(-1, 1, res)
     y = np.linspace(-1, 1, res)
     xx, yy = np.meshgrid(x, y)
 
-    if res in [128, 256]:
+    if boundary_condition != "absorbing":
         vel_profile = torch.from_numpy(2.6 + 0.0 * yy - .7 * (yy + xx - 0. > -.4) - .7 * (yy + xx - 0. > .6))
     else:
         vel_profile = torch.from_numpy(2.6 + 0.0 * yy - .7 * (yy + xx - 0. > -.4/2) - .7 * (yy + xx - 0. > .6/2))
     return vel_profile.unsqueeze(dim=0).repeat(n_it,1,1).numpy()
 
 
-def crack_profile(n_it, res):
-    marmousi_datamat = loadmat('../../data/marm1nonsmooth.mat')  # velocity models Marmousi dataset
+def crack_profile(n_it, res, boundary_condition="absorbing"):
+    marmousi_datamat = loadmat('../data/marm1nonsmooth.mat')  # velocity models Marmousi dataset
     img = gaussian(marmousi_datamat['marm1larg'], 4)
 
     k1, k2, k3, k4 = .25, .5, .75, 1
+    if boundary_condition != "absorbing":
+        if res == 128:
+            vel_profile = img[1100:1100 + res, 1100: 1100 + res]
+            vel_profile[50:70,97:123] = k1
+            vel_profile[10:28, 22:31] = k2
+            vel_profile[60:118, 10:28] = k3
+            vel_profile[100:118, 60:80] = k4
 
-    if res == 128:
-        vel_profile = img[1100:1100 + res, 1100: 1100 + res]
-        vel_profile[50:70,97:123] = k1
-        vel_profile[10:28, 22:31] = k2
-        vel_profile[60:118, 10:28] = k3
-        vel_profile[100:118, 60:80] = k4
-    if res == 256:
-        vel_profile = img[900:900 + res, 900: 900 + res]
-        vel_profile[100:137, 200:245] = k1
-        vel_profile[18:60, 37:60] = k2
-        vel_profile[120:240, 20:60] = k3
-        vel_profile[195:230, 120:160] = k4
-    if res == 128 * 2:
-        offset = 128
-        vel_profile = img[1100:1100 + res, 1100: 1100 + res]
-        vel_profile[50+offset:70+offset, 97+offset:123+offset] = k1
-        vel_profile[10+offset:28+offset, 22+offset:31+offset] = k2
-        vel_profile[60+offset:118+offset, 10+offset:28+offset] = k3
-        vel_profile[100+offset:118+offset, 60+offset:80+offset] = k4
-    if res == 256 * 2:
-        offset = 256
-        vel_profile = img[900:900 + res, 900: 900 + res]
-        vel_profile[100+offset:137+offset, 200+offset:245+offset] = k1
-        vel_profile[18+offset:60+offset, 37+offset:60+offset] = k2
-        vel_profile[120+offset:240+offset, 20+offset:60+offset] = k3
-        vel_profile[195+offset:230+offset, 120+offset:160+offset] = k4
+        elif res == 256:
+            vel_profile = img[900:900 + res, 900: 900 + res]
+            vel_profile[100:137, 200:245] = k1
+            vel_profile[18:60, 37:60] = k2
+            vel_profile[120:240, 20:60] = k3
+            vel_profile[195:230, 120:160] = k4
+
+    elif boundary_condition == "absorbing":
+        if res == 128 * 2:
+            offset = 128//2
+            vel_profile = img[1100:1100 + res, 1100: 1100 + res]
+            vel_profile[50+offset:70+offset, 97+offset:123+offset] = k1
+            vel_profile[10+offset:28+offset, 22+offset:31+offset] = k2
+            vel_profile[60+offset:118+offset, 10+offset:28+offset] = k3
+            vel_profile[100+offset:118+offset, 60+offset:80+offset] = k4
+
+        elif res == 256 * 2:
+            offset = 256//2
+            vel_profile = img[900:900 + res, 900: 900 + res]
+            vel_profile[100+offset:137+offset, 200+offset:245+offset] = k1
+            vel_profile[18+offset:60+offset, 37+offset:60+offset] = k2
+            vel_profile[120+offset:240+offset, 20+offset:60+offset] = k3
+            vel_profile[195+offset:230+offset, 120+offset:160+offset] = k4
+
+    else: vel_profile = img
 
     return torch.from_numpy(vel_profile).unsqueeze(dim=0).repeat(n_it,1,1).numpy()
 
 
-def high_frequency(n_it, res):
+def high_frequency(n_it, res, boundary_condition="absorbing"):
 
     x = np.linspace(-1, 1, res)
     y = np.linspace(-1, 1, res)
     xx, yy = np.meshgrid(x, y)
 
-    factor = 2 if res in [128*2, 256*2] else 1
+    if boundary_condition=="absorbing":
+        factor = 2
+    else:
+        factor = 1
+
     vel_profile = torch.from_numpy(1. + 0.0 * yy)
     k = 0.03 / factor
 
@@ -150,34 +160,34 @@ def high_frequency(n_it, res):
     return vel_profile.unsqueeze(dim=0).repeat(n_it,1,1).numpy()
 
 
-def get_velocity_crop(resolution, n_crops, velocity_profile):
+def get_velocity_crop(resolution, n_crops, velocity_profile, boundary_conditon = "absorbing"):
 
     if velocity_profile == "diagonal":
-        img = diagonal_ray(n_crops,resolution)
+        img = diagonal_ray(n_crops,resolution, boundary_conditon)
 
     elif velocity_profile == "marmousi":
-        marmousi_datamat = loadmat('../../data/marm1nonsmooth.mat')  # velocity models Marmousi dataset
+        marmousi_datamat = loadmat('../data/marm1nonsmooth.mat')  # velocity models Marmousi dataset
         marmousi_img = gaussian(marmousi_datamat['marm1larg'], 4)  # to make smoother
         img = np.expand_dims(marmousi_img[200:200+resolution,200:200+resolution], axis=0)
 
     elif velocity_profile == "marmousi2":
-        marmousi_datamat = loadmat('../../data/marm1nonsmooth.mat')  # velocity models Marmousi dataset
+        marmousi_datamat = loadmat('../data/marm1nonsmooth.mat')  # velocity models Marmousi dataset
         marmousi_img = gaussian(marmousi_datamat['marm1larg'], 4)  # to make smoother
         img = np.expand_dims(marmousi_img[300:300+resolution,300:300+resolution], axis=0)
 
     elif velocity_profile == "bp":
-        databp = loadmat('../../data/bp2004.mat')  # velocity models BP dataset
+        databp = loadmat('../data/bp2004.mat')  # velocity models BP dataset
         img = gaussian(databp['V'], 4) / 1000  # to make smoother (and different order of magnitude)
         img = np.expand_dims(img[1100:1100 + resolution, 1100:1100 + resolution], axis=0)
 
     elif velocity_profile == "three_layers":
-        img = three_layers(n_crops, resolution)
+        img = three_layers(n_crops, resolution, boundary_condition="absorbing")
 
     elif velocity_profile == "crack_profile":
-        img = crack_profile(n_crops, resolution)
+        img = crack_profile(n_crops, resolution, boundary_condition="absorbing")
 
     elif velocity_profile == "high_frequency":
-        img = high_frequency(n_crops, resolution)
+        img = high_frequency(n_crops, resolution, boundary_condition="absorbing")
 
     else:
         raise NotImplementedError("Velocity model not implemented.")
@@ -221,23 +231,21 @@ def get_velocities(n_it, res, boundary_condition, n_crops_other_profiles = 50, i
     return velocity_tensor, n_it, res_padded, output_appendix
 
 
-def get_velocity_dict(res_padded, n_crops_other_profiles, input_path):
+def get_velocity_dict(res_padded, n_crops_other_profiles, input_path, boundary_condition="absorbing"):
     velocities = {
-        "diag": get_velocity_crop(res_padded, n_crops_other_profiles, "diagonal"),  # n_crops x res x res
-        "3l": get_velocity_crop(res_padded, n_crops_other_profiles, "three_layers"),  # n_crops x res x res
-        "cp": get_velocity_crop(res_padded, n_crops_other_profiles, "crack_profile"),  # n_crops x res x res
-        "hf": get_velocity_crop(res_padded, n_crops_other_profiles, "high_frequency"),  # n_crops x res x res
+        "diag": get_velocity_crop(res_padded, n_crops_other_profiles, "diagonal", boundary_condition),  # n_crops x res x res
+        "3l": get_velocity_crop(res_padded, n_crops_other_profiles, "three_layers", boundary_condition),  # n_crops x res x res
+        "cp": get_velocity_crop(res_padded, n_crops_other_profiles, "crack_profile", boundary_condition),  # n_crops x res x res
+        "hf": get_velocity_crop(res_padded, n_crops_other_profiles, "high_frequency", boundary_condition),  # n_crops x res x res
         "bp_m": np.load(input_path)['wavespeedlist']  # 200 x w_big x h_big
     }
     return velocities
 
-if __name__ == '__main__':
-    import matplotlib.pyplot as plt
 
-    plt.imshow(get_velocity_crop(256, 1, "high_frequency").squeeze())
-    plt.colorbar()
-    plt.show()
-
+# if __name__ == '__main__':
+#
+#     a = get_velocity_dict(128*2,1,input_path='../data/crops_bp_m_200_128*2.npz')
+#     print(a["bp_m"].shape)
 
 
 

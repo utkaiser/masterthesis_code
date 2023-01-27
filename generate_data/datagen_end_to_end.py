@@ -60,13 +60,13 @@ def generate_wave_from_medium(output_path, res, boundary_condition, visualize, i
 
 if __name__ == "__main__":
 
-    for index in range(1):
+    for index in range(5):
         generate_wave_from_medium(output_path = "../data/end_to_end_" + str(index),
-                                  res = 256,
+                                  res = 128,
                                   boundary_condition = "absorbing",
-                                  visualize = True,
+                                  visualize = False,
                                   index = str(index),
-                                  n_it = 10)  # how many data samples to generate
+                                  n_it = -1)  # how many data samples to generate
 
 
 
