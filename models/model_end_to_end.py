@@ -17,14 +17,14 @@ class Model_end_to_end(nn.Module):
             y: fine solution
     '''
 
-    def __init__(self, in_channels_wave=4, param_dict=None):
+    def __init__(self, param_dict, downsampling_type, upsampling_type, res_scaler, model_res):
         super().__init__()
         # https://arxiv.org/abs/1412.6806 why I added stride
 
         self.param_dict = param_dict
-        self.model_downsampling = choose_downsampling(param_dict["downsampling_type"])
+        self.model_downsampling = choose_downsampling(downsampling_type, res_scaler, model_res)
         self.model_numerical = Numerical_solver(param_dict["boundary_c"], param_dict["c_delta_x"], param_dict["c_delta_t"],param_dict["f_delta_x"],param_dict["delta_t_star"])
-        self.model_upsampling = choose_upsampling(param_dict["upsampling_type"], param_dict["res_scaler"])
+        self.model_upsampling = choose_upsampling(upsampling_type, res_scaler)
 
 
     def forward(self, x):

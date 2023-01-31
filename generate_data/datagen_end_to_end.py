@@ -14,7 +14,7 @@ def generate_wave_from_medium(output_path, res, boundary_condition, visualize, i
 
     # parameter setup
     start_logger_datagen_end_to_end(index=index)
-    total_time, delta_t_star, f_delta_x, f_delta_t, n_snaps, scaler = get_datagen_end_to_end_params(get_params("0"))
+    total_time, delta_t_star, f_delta_x, f_delta_t, n_snaps = get_datagen_end_to_end_params(get_params("0"))
 
     # data setup
     velocities, n_it, res_padded, output_appendix = get_velocities(n_it, res, boundary_condition)
@@ -60,11 +60,11 @@ def generate_wave_from_medium(output_path, res, boundary_condition, visualize, i
 
 if __name__ == "__main__":
 
-    for index in range(5):
-        generate_wave_from_medium(output_path = "../data/end_to_end_" + str(index),
+    for index in range(1):
+        generate_wave_from_medium(output_path = "../data/end_to_end_val" + str(index),
                                   res = 128,
                                   boundary_condition = "absorbing",
-                                  visualize = False,
+                                  visualize = True,
                                   index = str(index),
                                   n_it = -1)  # how many data samples to generate
 

@@ -42,13 +42,3 @@ def plot_wavefield_optimization(coarse_solver_tensor, fine_solver_tensor, parare
     fig.suptitle("coarse solver (row 0), parareal end to end (k=0,...4) (row 1-5), fine solver (last row); titles represent MSE between result and fine solver")
     plt.savefig('../../results/optimization/'+folder_name+'/' + vel_name + '_wavefield_plot.pdf')
     plt.close(fig)
-
-
-def get_ticks_fine(tensor, vel):
-    # tensor -> s x b x c x w x h
-
-    ticks = []
-    for s in range(tensor.shape[0]):
-        img = get_wavefield(tensor[s],vel)
-        ticks.append([img.min().item(), (img.max().item() + img.min().item()) / 2 ,img.max().item()])
-    return ticks  # s x 3

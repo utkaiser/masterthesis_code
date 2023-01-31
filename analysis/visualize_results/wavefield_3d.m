@@ -1,4 +1,4 @@
-function test()
+function wavefield_3d()
     
     tensor = load('diagonal_fine.mat');
     vel = load('diagonal.mat');

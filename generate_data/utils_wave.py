@@ -160,7 +160,7 @@ def start_logger_datagen_end_to_end(index):
 
 def get_datagen_end_to_end_params(param_dict):
     return param_dict["total_time"], param_dict["delta_t_star"], param_dict["f_delta_x"], param_dict["f_delta_t"], \
-           param_dict["n_snaps"], param_dict["res_scaler"]
+           param_dict["n_snaps"]
 
 
 

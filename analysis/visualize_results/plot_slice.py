@@ -14,10 +14,13 @@ def compare_slice():
     parareal_it = 1
 
     tensors = {
-        "coarse solver": torch.from_numpy(np.load('../../results/parareal/check_stability/diagonal_coarse.npy')),  # s x b x c x w x h
-        "fine solver": torch.from_numpy(np.load('../../results/parareal/check_stability/diagonal_fine.npy'))  # s x b x c x w x h
+        "coarse solver": torch.from_numpy(np.load(
+            '../../results/optimization/first_tries/check_stability/diagonal_coarse.npy')),  # s x b x c x w x h
+        "fine solver": torch.from_numpy(np.load(
+            '../../results/optimization/first_tries/check_stability/diagonal_fine.npy'))  # s x b x c x w x h
     }
-    parareal_tensor = torch.from_numpy(np.load('../../results/parareal/check_stability/diagonal_parareal.npy'))  # k x s x b x c x w x h
+    parareal_tensor = torch.from_numpy(np.load(
+        '../../results/optimization/first_tries/check_stability/diagonal_parareal.npy'))  # k x s x b x c x w x h
     tensors["parareal it " + str(parareal_it)] = parareal_tensor[parareal_it]
     tensors["network"] = parareal_tensor[0]
 

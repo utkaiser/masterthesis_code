@@ -48,7 +48,7 @@ def get_init_cond_settings(res, boundary_condition):
             width = 5600 + factor_width*500
         elif res == 256:
             dx = 2.0 / (256.0 * 2)
-            width = 10100 + factor_width*800
+            width = 5000 + factor_width*1000
         else: raise NotImplementedError("Parameter for initial condition not implemented.")
 
     else: raise NotImplementedError("Boundary condition for initial condition not implemented.")

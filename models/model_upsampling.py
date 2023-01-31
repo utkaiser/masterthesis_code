@@ -77,7 +77,7 @@ class UNet(nn.Module):
 
         for i, layer in enumerate(self.last):
             if len(self.last) - 1 == i and torch.is_tensor(skip_all):
-                x = skip_all + x  # skip connection is just addition right now TODO: is that ok? batchnorm? convolution?
+                x = skip_all + x
             x = layer(x)
         return x
 

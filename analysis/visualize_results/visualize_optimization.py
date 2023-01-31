@@ -1,10 +1,11 @@
 import sys
+from analysis.utils_analysis import get_ticks_fine
 sys.path.append("..")
 from generate_data.initial_conditions import initial_condition_gaussian, get_velocity_crop, get_velocity_dict
 from models.model_end_to_end import Model_end_to_end
 from models.optimization.utils_optimization import get_solver_solution, smaller_crop
-from analysis.plotting_results.plot_wavefield import get_ticks_fine, plot_wavefield_optimization
-from analysis.plotting_results.plot_heatmap import plot_heatmap_optimization
+from analysis.visualize_results.plot_wavefield import plot_wavefield_optimization
+from analysis.visualize_results.plot_heatmap import plot_heatmap_optimization
 from generate_data.utils_wave import crop_center
 import torch
 import numpy as np

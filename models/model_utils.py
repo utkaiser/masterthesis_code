@@ -1,22 +1,29 @@
 from os import environ, path
 from torch import load
 import numpy as np
-import torch
+import os
 import torchvision.transforms.functional as TF
 import random
 import scipy.stats as ss
 from datetime import datetime
 import logging
+import torch
+import torch.optim as optim
+import torch.nn as nn
+import torch.utils.tensorboard as tb
+import time
+import sys
 
 environ["TOKENIZERS_PARALLELISM"] = "false"
 environ["OMP_NUM_THREADS"] = "1"
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-def save_model(model, modelname, dir_path='results/run_2/', epoch = "0"):
+
+def save_model(model, modelname, dir_path='results/run_3/'):
     from torch import save
     from os import path
     model.to(torch.device("cpu"))
-    saving_path = dir_path + 'saved_model_' + modelname + "_" + str(epoch) + '.pt'
+    saving_path = dir_path + 'saved_model_' + modelname + '.pt'
     if not path.isfile(saving_path):
         return save(model.state_dict(), saving_path)
     else:
@@ -122,96 +129,21 @@ def flip_tensors(input_tensor, label, v_flipped, h_flipped):
 
     return input_tensor, label, v_flipped, h_flipped
 
+
 def sample_label_random(input_idx, label_distr_shift, epoch, n_snaps):
 
     if epoch < 10:
-        possible_label_range = np.arange(input_idx + 2 - label_distr_shift, 13 - label_distr_shift)  # [a,b-1]
+        possible_label_range = np.arange(input_idx + 2 - label_distr_shift, 11 - label_distr_shift)  # [a,b-1]
         prob = ss.norm.cdf(possible_label_range + 0.5, scale=3) - ss.norm.cdf(possible_label_range - 0.5, scale=3)
         label_range = list(np.random.choice(possible_label_range + label_distr_shift, size=1, p=prob / prob.sum()))[0]
         return label_range
     else:
         return n_snaps
 
-import torch
-from generate_data import utils_wave
-import matplotlib.pyplot as plt
 
-def visualize_wavefield(tensor_list, dx = 2.0 / 128.0, f_delta_t=.06, scaler=2, vis_save=True, vis_path='../results/run_2'):
-    # list of tupels with tensors
+def get_paths(model_res):
 
-    n_snapshots = len(tensor_list)
-    fig = plt.figure(figsize=(20, 8))
-    loss_list = []
-    f_delta_x = 2.0 / 128.0
-    label_font_size = 5
-
-
-    for i, values in enumerate(tensor_list):
-
-        epoch, loss, input_idx, label_idx, input, output, label = values
-        input, output, label = input.cpu(), output.cpu(), label.cpu()
-        loss_list.append(str(round(loss,5)))
-
-        combined_data = torch.stack([input[:3,:,:], output[:3,:,:], label])
-        _min, _max = torch.min(combined_data), torch.max(combined_data)
-
-        # velocity
-        if i == 0:
-            ax1 = fig.add_subplot(4, n_snapshots, i + 1)
-            pos1 = ax1.imshow(input[3, :, :])
-            plt.axis('off')
-            c_v = plt.colorbar(pos1)
-            c_v.ax.tick_params(labelsize=label_font_size)
-
-        # input
-        u_x, u_y, u_t_c, vel = input[0, :, :].unsqueeze(dim=0), input[1, :, :].unsqueeze(dim=0), input[2, :, :].unsqueeze(dim=0), input[3, :, :].unsqueeze(dim=0)
-        sumv = torch.sum(torch.sum(u_x))
-        u, ut = wave_util.WaveSol_from_EnergyComponent_tensor(u_x, u_y, u_t_c, vel, f_delta_x, sumv)
-        ax2 = fig.add_subplot(4, n_snapshots, i+1 + n_snapshots)
-        pos2 = ax2.imshow(wave_util.WaveEnergyField_tensor(u[0, :, :], ut[0, :, :], vel[0, :, :], dx) * dx * dx)#,vmin = _min, vmax = _max)
-        plt.axis('off')
-        ax2.set_title('input', fontsize=10)
-        c_i = plt.colorbar(pos2)
-        c_i.ax.tick_params(labelsize=label_font_size)
-
-        # output
-        u_x, u_y, u_t_c = output[0, :, :].unsqueeze(dim=0), output[1, :, :].unsqueeze(dim=0), output[2, :,:].unsqueeze(dim=0)
-        sumv = torch.sum(torch.sum(u_x))
-        u, ut = wave_util.WaveSol_from_EnergyComponent_tensor(u_x, u_y, u_t_c, vel, f_delta_x, sumv)
-        ax3 = fig.add_subplot(4, n_snapshots, i + 1 +n_snapshots*2)
-        pos3 = ax3.imshow(wave_util.WaveEnergyField_tensor(u[0, :, :], ut[0, :, :], vel[0, :, :], dx) * dx * dx)#,vmin = _min, vmax = _max)
-        plt.axis('off')
-        ax3.set_title('output', fontsize=10)
-        c_o = plt.colorbar(pos3)
-        c_o.ax.tick_params(labelsize=label_font_size)
-
-        # label
-        u_x, u_y, u_t_c = label[0, :, :].unsqueeze(dim=0), label[1, :, :].unsqueeze(dim=0), label[2, :,:].unsqueeze(dim=0)
-        sumv = torch.sum(torch.sum(u_x))
-        u, ut = wave_util.WaveSol_from_EnergyComponent_tensor(u_x, u_y, u_t_c, vel, f_delta_x, sumv)
-        ax4 = fig.add_subplot(4, n_snapshots, i + 1 + n_snapshots*3)
-        pos4 = ax4.imshow(wave_util.WaveEnergyField_tensor(u[0, :, :], ut[0, :, :], vel[0, :, :], dx) * dx * dx)#,vmin = _min, vmax = _max)
-        plt.axis('off')
-        ax4.set_title('label', fontsize=10)
-        c_l = plt.colorbar(pos4)
-        c_l.ax.tick_params(labelsize=label_font_size)
-
-    fig.suptitle("losses: " + ", ".join(loss_list), fontsize=14)
-
-    if vis_save:
-        for i in range(500):
-            saving_path = vis_path + "epoch_" + str(epoch) + "_img_" + str(i) + ".png"
-            if not path.isfile(saving_path):
-                plt.savefig(saving_path)
-                break
-    else:
-        plt.show()
-
-import os
-
-def get_paths():
-
-    main_branch = '../results/run_2/'
+    main_branch = '../results/run_3/'
     now = datetime.now()
     add = now.strftime("%d_%m_%Y____%H_%M_%S") + "/"
 
@@ -219,17 +151,19 @@ def get_paths():
         os.makedirs(main_branch + add)
 
     data_paths = [
-        '../data/end_to_end_bp_m_10_2000.npz'
-        # '../data/end_to_end_bp_m_200_2000.npz',
-        # '../data/end_to_end_bp_m_200_2000_0.npz',
-        # '../data/end_to_end_bp_m_200_2000_2.npz',
-        # '../data/end_to_end_bp_m_200_2000_3.npz',
-        # '../data/end_to_end_bp_m_200_2000_4.npz',
-        # '../data/end_to_end_bp_m_200_2000_5.npz'
+        '../data/end_to_end_test10diag__3l__cp__hf__bp_m' + str(model_res) + '.npz',
+        # '../data/end_to_end_1diag__3l__cp__hf__bp_m' + str(model_res) + '.npz',
+        # '../data/end_to_end_2diag__3l__cp__hf__bp_m' + str(model_res) + '.npz',
+        # '../data/end_to_end_3diag__3l__cp__hf__bp_m' + str(model_res) + '.npz',
+        # '../data/end_to_end_4diag__3l__cp__hf__bp_m' + str(model_res) + '.npz'
     ]
     val_paths = [
-        '../data/end_to_end_bp_m_20_diagonal_ray.npz',
-        '../data/end_to_end_bp_m_10_2000.npz'
+        '../data/val/end_to_end_val_3l_128.npz',
+        '../data/val/end_to_end_val_bp_128.npz',
+        '../data/val/end_to_end_val_cp_128.npz',
+        '../data/val/end_to_end_val_diag_128.npz',
+        '../data/val/end_to_end_val_hf_128.npz',
+        '../data/val/end_to_end_val_m_128.npz'
     ]
     train_logger_path = main_branch + add + 'log_train/'
     valid_logger_path = main_branch + add + 'log_valid/'
@@ -238,6 +172,7 @@ def get_paths():
 
     return data_paths, train_logger_path, valid_logger_path, dir_path_save, vis_path, val_paths
 
+
 def get_params(params="0"):
 
     param_dict = {}
@@ -245,11 +180,7 @@ def get_params(params="0"):
     if params == "0":
         param_dict["batch_size"] = 50
         param_dict["lr"] = .001
-        param_dict["res_scaler"] = 2
-        param_dict["n_epochs"] = 100
-        param_dict["model_name"] = "end_to_end_only_unet3lvl"
-        param_dict["model_res"] = 128
-        param_dict["coarse_res"] = param_dict["model_res"] // param_dict["res_scaler"]
+        param_dict["n_epochs"] = 2
         param_dict["n_snaps"] = 9
         param_dict["flipping"] = False
         param_dict["boundary_c"] = "absorbing"
@@ -260,25 +191,27 @@ def get_params(params="0"):
         param_dict["c_delta_x"] = 2./64.
         param_dict["c_delta_t"] = 1/600.
         param_dict["n_epochs_save_model"] = 5
-        param_dict["downsampling_type"] = "interpolation"
-        param_dict["upsampling_type"] = "UNet3"
 
     else:
         raise NotImplementedError("params not defined for params =",params)
 
     return param_dict
 
-import torch.utils.tensorboard as tb
-import time
 
 def setup_logger(logging_bool, train_logger_path, valid_logger_path, model_name, model_res, vis_path):
 
-    logging.basicConfig(filename=vis_path + "out.log",
-                        filemode='a',
-                        format='%(asctime)s %(message)s',
-                        datefmt='%H:%M:%S',
-                        level=logging.INFO)
+    logger = logging.getLogger()
+    for handler in logger.handlers[:]:
+        logger.removeHandler(handler)
 
+    formatter = logging.Formatter(fmt='%(asctime)s: %(message)s', datefmt='%H:%M:%S')
+    logger.setLevel(logging.INFO)
+    handler = logging.FileHandler(vis_path + '.log')
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+    sh = logging.StreamHandler(sys.stdout)
+    sh.setFormatter(formatter)
+    logger.addHandler(sh)
 
     train_logger, valid_logger = None, None
     if logging_bool:
@@ -291,105 +224,24 @@ def setup_logger(logging_bool, train_logger_path, valid_logger_path, model_name,
     return train_logger, valid_logger, global_step
 
 
-def min_max_scale(data, new_min = -1, new_max = 1):
-    '''
+def choose_optimizer(name, model, lr):
 
-    Parameters
-    ----------
-    data : tensor, b x n_snaps x 4 x w x h
-
-    Returns
-    -------
-    tensor, b x n_snaps x 4 x w x h
-    scaled data with values ranging from -1 to 1 image-wise
-    '''
-
-    batch_size, n_snaps, channels, w, h = data.shape
-    new_data = torch.zeros(batch_size, n_snaps, channels, w, h)
-
-    for b in range(batch_size):
-        for s in range(n_snaps):
-            for c in range(channels-1): #we do not rescale velocity
-
-                var = data[b,s,c,:,:]
-
-                if s == 0 and c == 2:
-                    var_p = var
-                else:
-                    var_min, var_max = var.min(), var.max()
-                    var_p = (var - var_min) / (var_max - var_min) * (new_max - new_min) + new_min
-
-                new_data[b,s,c,:,:] = var_p
-            new_data[b, s, 3, :, :] = data[b, s, 3, :, :]
-
-    return new_data
+    if name == "AdamW":
+        return optim.AdamW(model.parameters(), lr=lr)
+    elif name == "RMSprop":
+        return optim.RMSprop(model.parameters(), lr=lr)
+    elif name == "SGD":
+        return optim.SGD(model.parameters(), lr=lr)
+    else:
+        raise NotImplementedError("Optimizer not implemented.")
 
 
+def choose_loss_function(name):
 
-def z_score(input_tensor, label):
-    '''
+    if name == "SmoothL1Loss":
+        return nn.SmoothL1Loss()
+    elif name == "MSE":
+        return nn.MSELoss()
+    else:
+        raise NotImplementedError("Loss function not implemented.")
 
-    Parameters
-    ----------
-    data : tensor, b x c x w x h
-
-    Returns
-    -------
-    channelwise zscore, use img as reference
-    '''
-
-
-    batch_size, channels_input, w, h = input_tensor.shape
-    new_input = torch.zeros(batch_size, channels_input, w, h)
-    channels_label = label.shape[1]
-    new_label = torch.zeros(batch_size, channels_label, w, h)
-
-    # input
-    for b in range(batch_size):
-        for c in range(channels_input - 1):
-            var = input_tensor[b, c, :, :]
-            mean = torch.mean(var)
-            std = torch.std(var)
-            if std == 0:
-                new_input[b, c, :, :] = var
-            else:
-                new_input[b, c, :, :] = (var - mean) / std
-        new_input[b, 3, :, :] = input_tensor[b, 3, :, :]
-
-    # label
-    for b in range(batch_size):
-        for c in range(channels_label):
-            var = label[b, c, :, :]
-            mean = torch.mean(var)
-            std = torch.std(var)
-            new_label[b, c,:,:] = (var - mean) / std
-
-    return new_input.to(device), new_label.to(device)
-
-
-
-def z_score_reference(input_tensor, label):
-    '''
-
-    Parameters
-    ----------
-    data : tensor, b x c x w x h
-
-    Returns
-    -------
-    channelwise zscore, use label as reference
-    '''
-
-    batch_size, channels_input, w, h = input_tensor.shape
-    new_input = torch.zeros(batch_size, channels_input, w, h)
-
-    # input
-    for b in range(batch_size):
-        for c in range(channels_input - 1):
-            curr_input = input_tensor[b, c, :, :]
-            curr_label = label[b, c, :, :]
-            curr_norm = torch.linalg.norm(curr_input - curr_label)
-            new_input[b, c, :, :] = (curr_input - torch.max(curr_label)) / curr_norm
-        new_input[b, 3, :, :] = input_tensor[b, 3, :, :]
-
-    return new_input.to(device), label.to(device)
