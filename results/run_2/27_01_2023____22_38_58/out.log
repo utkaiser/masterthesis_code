@@ -1,0 +1,3 @@
+22:38:58 data settings: ../data/end_to_end_0diag__3l__cp__hf__bp_m.npz
+22:38:58 param settings: batch_size: 50, lr: 0.001, res_scaler: 2, n_epochs: 100, model_name: end_to_end_only_unet3lvl, model_res: 128, coarse_res: 64, n_snaps: 9, flipping: False, boundary_c: absorbing, total_time: 0.6, delta_t_star: 0.06, f_delta_x: 0.015625, f_delta_t: 0.00078125, c_delta_x: 0.03125, c_delta_t: 0.0016666666666666668, n_epochs_save_model: 5, downsampling_type: interpolation, upsampling_type: UNet3
+22:38:58 gpu available: False | n of gpus: 0
