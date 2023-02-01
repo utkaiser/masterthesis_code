@@ -95,9 +95,24 @@ def pca_dataset_save_mat():
     # plt.legend(labels.keys())
     # plt.show()
 
+def visualize_dataset():
+    np_array = np.load("../../data/val/end_to_end_val_3l_128.npz")
+    tensor = torch.stack((
+        torch.from_numpy(np_array['Ux']),
+        torch.from_numpy(np_array['Uy']),
+        torch.from_numpy(np_array['Utc']),
+        torch.from_numpy(np_array['vel'])),
+        dim=2)  # n_it x n_snaps x c x w x h
+
+    vel = tensor[0,0,3].unsqueeze(dim=0)
+    for i in range(tensor.shape[0]):
+        for s in range(tensor.shape[1]):
+            plt.imshow(get_wavefield(tensor[i,s].unsqueeze(dim=0), vel))
+            plt.show()
+
 
 if __name__ == '__main__':
-    pca_dataset_save_mat()
+    visualize_dataset()
 
 
 

@@ -151,11 +151,11 @@ def get_paths(model_res):
         os.makedirs(main_branch + add)
 
     data_paths = [
-        '../data/end_to_end_test10diag__3l__cp__hf__bp_m' + str(model_res) + '.npz',
-        # '../data/end_to_end_1diag__3l__cp__hf__bp_m' + str(model_res) + '.npz',
-        # '../data/end_to_end_2diag__3l__cp__hf__bp_m' + str(model_res) + '.npz',
-        # '../data/end_to_end_3diag__3l__cp__hf__bp_m' + str(model_res) + '.npz',
-        # '../data/end_to_end_4diag__3l__cp__hf__bp_m' + str(model_res) + '.npz'
+        '../data/end_to_end_0diag__3l__cp__hf__bp_m' + str(model_res) + '.npz',
+        '../data/end_to_end_1diag__3l__cp__hf__bp_m' + str(model_res) + '.npz',
+        '../data/end_to_end_2diag__3l__cp__hf__bp_m' + str(model_res) + '.npz',
+        '../data/end_to_end_3diag__3l__cp__hf__bp_m' + str(model_res) + '.npz',
+        '../data/end_to_end_4diag__3l__cp__hf__bp_m' + str(model_res) + '.npz'
     ]
     val_paths = [
         '../data/val/end_to_end_val_3l_128.npz',
@@ -180,7 +180,7 @@ def get_params(params="0"):
     if params == "0":
         param_dict["batch_size"] = 50
         param_dict["lr"] = .001
-        param_dict["n_epochs"] = 2
+        param_dict["n_epochs"] = 20
         param_dict["n_snaps"] = 9
         param_dict["flipping"] = False
         param_dict["boundary_c"] = "absorbing"

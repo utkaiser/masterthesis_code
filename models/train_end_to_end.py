@@ -1,10 +1,11 @@
 import numpy as np
-from model_utils import save_model, fetch_data_end_to_end, flip_tensors, sample_label_random, visualize_wavefield, \
+from model_utils import save_model, fetch_data_end_to_end, flip_tensors, sample_label_random, \
     get_paths, get_params, setup_logger, choose_optimizer, choose_loss_function
 import torch
 import random
 import logging
 from models.model_end_to_end import Model_end_to_end
+from analysis.visualize_results.visualize_training import visualize_wavefield
 
 
 def train_Dt_end_to_end(downsampling_model, upsampling_model, optimizer_name, loss_function_name, res_scaler, model_res, flipping,
@@ -63,19 +64,13 @@ def train_Dt_end_to_end(downsampling_model, upsampling_model, optimizer_name, lo
                 for label_idx in range(input_idx + 1, label_range):  # randomly decide how long path is
 
                     label = data[:, label_idx, :3, :, :].to(device)  # b x 3 x w x h
-
-                    if flipping: input_tensor, label, v_flipped, h_flipped = flip_tensors(input_tensor, label,
-                                                                                          v_flipped, h_flipped)
-
+                    if flipping: input_tensor, label, v_flipped, h_flipped = flip_tensors(input_tensor, label, v_flipped, h_flipped)
                     output = model(input_tensor)  # b x 3 x w x h
-
                     loss = loss_f(output, label)
                     loss_list.append(loss)
-
                     input_tensor = torch.cat((output, torch.unsqueeze(input_tensor[:, 3, :, :], dim=1)), dim=1)
 
             optimizer.zero_grad()
-
             sum(loss_list).backward()
             optimizer.step()
 
@@ -102,13 +97,13 @@ def train_Dt_end_to_end(downsampling_model, upsampling_model, optimizer_name, lo
 
                     if visualize and i == 0:
                         # save only first element of batch
-                        visualize_list.append((val_loss.item(), input_tensor[0, :, :, :].detach(), output[0, :, :, :].detach(),
+                        visualize_list.append((val_loss.item(), output[0, :, :, :].detach(),
                                                label[0, :, :, :].detach()))
 
                     input_tensor = torch.cat((output, input_tensor[:, 3, :, :].unsqueeze(dim=1)), dim=1)
 
                 if visualize and i == 0:
-                    visualize_wavefield(epoch, visualize_list, scaler=res_scaler, vis_save=vis_save, vis_path=vis_path)
+                    visualize_wavefield(epoch, visualize_list, input_tensor[0, 3, :, :], vis_save=vis_save, vis_path=vis_path)
 
             if logging_bool:
                 train_logger.add_scalar('loss', np.array(train_loss_list).mean(), global_step=global_step)
@@ -130,32 +125,32 @@ def grid_search_end_to_end():
 
     downsampling_model = [
         "Interpolation",
-        "CNN",
-        "Simple"
+        # "CNN",
+        # "Simple"
     ]
     upsampling_model = [
         "UNet3",
-        "UNet6",
-        "Tiramisu",
-        "UTransform",
-        "Numerical_upsampling"
+        # "UNet6",
+        # "Tiramisu",
+        # "UTransform",
+        # "Numerical_upsampling"
     ]
     optimizer = [
         "AdamW",
-        "RMSprop",
-        "SGD"
+        # "RMSprop",
+        # "SGD"
     ]
     loss_function = [
         "SmoothL1Loss",
-        "MSE"
+        # "MSE"
     ]
     res_scaler = [
         2,
-        4
+        # 4
     ]
     model_res = [
-        # 128,
-        256,
+        128,
+        # 256,
     ]
     flipping = [
         False,
@@ -171,7 +166,6 @@ def grid_search_end_to_end():
                         for res in model_res:
                             if (scale == 4 and res == 256) or (scale == 2 and res == 128):
                                 for f in flipping:
-                                    print(counter,d,u,o,l,scale,res,str(f))
                                     if counter >= -1:
                                         train_Dt_end_to_end(
                                             downsampling_model = d,

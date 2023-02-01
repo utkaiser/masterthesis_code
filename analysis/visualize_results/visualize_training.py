@@ -1,28 +1,27 @@
 import matplotlib.pyplot as plt
-from generate_data.utils_wave import WaveSol_from_EnergyComponent_tensor, WaveEnergyField_tensor
+from analysis.utils_analysis import get_ticks_fine
 import torch
-
-from models.optimization.utils_optimization import get_wavefield
-
-
-# TODO: ticks same
-# TODO: value range same
-# TODO: loss well displayed
+from models.optimization.utils_optimization import get_wavefield, round_loss, compute_loss
 
 
-def visualize_wavefield(epoch, tensor_list, vis_save, vis_path):
+def visualize_wavefield(epoch, tensor_list, vel, vis_save, vis_path):
+
+    n_snaps = len(tensor_list)
+    _, w, h = tensor_list[0][-1].shape
+    fine_solver_tensor = torch.zeros([n_snaps, 1, 3, w, h])
+
+    for i, values in enumerate(tensor_list):
+        _, _, label = values  # c x w x h
+        fine_solver_tensor[i,0] = label
+
+    ticks = get_ticks_fine(fine_solver_tensor, vel)  # s x 3
 
     fig = plt.figure(figsize=(20, 8))
     loss_list = []
-    label_font_size = 5
-    n_snaps = len(tensor_list)
-
-    c, w, h = tensor_list[0].shape
-    vel = tensor_list[0][1][3]
 
     for i, values in enumerate(tensor_list):
 
-        loss, inpt, output, label = values  # int, others: c x h x w
+        loss, output, label = values  # int, others: c x h x w
         loss_list.append(loss)
 
         # velocity
@@ -33,17 +32,22 @@ def visualize_wavefield(epoch, tensor_list, vis_save, vis_path):
             ax.set_title("velocity", fontdict={'fontsize': 9})
             plt.axis('off')
 
-        for s in range(parareal_tensor.shape[1]):
-            ax = fig.add_subplot(4, 11, 1 + s)
-            wave_field = get_wavefield(coarse_solver_tensor[s], vel)
-            pos = ax.imshow(wave_field, vmin=ticks[s][0], vmax=ticks[s][2])
-            if s != 0:
-                plt.colorbar(pos, ticks=ticks[s])
-                ax.set_title(round_loss(compute_loss(coarse_solver_tensor[s], fine_solver_tensor[s, :3], vel)),
-                             fontdict={'fontsize': 9})
-            plt.axis('off')
+        # output
+        ax = fig.add_subplot(4, n_snaps, n_snaps + 1 + i)
+        wave_field = get_wavefield(output.unsqueeze(dim=0), vel.unsqueeze(dim=0))
+        pos = ax.imshow(wave_field, vmin=ticks[i][0], vmax=ticks[i][2])
+        plt.colorbar(pos, ticks=ticks[i])
+        ax.set_title(round_loss(compute_loss(output.unsqueeze(dim=0), label.unsqueeze(dim=0), vel.unsqueeze(dim=0))),
+                         fontdict={'fontsize': 9})
+        plt.axis('off')
 
-
+        # label
+        ax = fig.add_subplot(4, n_snaps, n_snaps*2 + 1 + i)
+        wave_field = get_wavefield(label.unsqueeze(dim=0), vel.unsqueeze(dim=0))
+        pos = ax.imshow(wave_field)
+        plt.colorbar(pos, ticks=ticks[i])
+        ax.set_title("label it " + str(i+1), fontdict={'fontsize': 9})
+        plt.axis('off')
 
     fig.suptitle("Mean loss: " + str(sum(loss_list) / len(loss_list)), fontsize=14)
 

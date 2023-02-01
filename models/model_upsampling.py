@@ -87,7 +87,7 @@ class UNetConvBlock(nn.Module):
     Convolution blocks
     '''
 
-    def __init__(self, in_size, out_size, acti_func='identity'):
+    def __init__(self, in_size, out_size, acti_func='relu'):
         super(UNetConvBlock, self).__init__()
         block = []
 
@@ -115,7 +115,7 @@ class UNetUpBlock(nn.Module):
     Upstream branch of JNet
     '''
 
-    def __init__(self, in_size, out_size, acti_func='identity'):
+    def __init__(self, in_size, out_size, acti_func='relu'):
         super(UNetUpBlock, self).__init__()
         self.up = nn.Sequential(nn.Upsample(mode='bilinear', scale_factor=2))
         self.conv_block = UNetConvBlock(in_size, out_size, acti_func)
