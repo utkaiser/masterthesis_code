@@ -12,7 +12,7 @@ def visualize_wavefield(epoch, tensor_list, vel, vis_save, vis_path):
 
     for i, values in enumerate(tensor_list):
         _, _, label = values  # c x w x h
-        fine_solver_tensor[i,0] = label
+        fine_solver_tensor[i,0] = label.cpu()
 
     ticks = get_ticks_fine(fine_solver_tensor, vel)  # s x 3
 
@@ -22,6 +22,7 @@ def visualize_wavefield(epoch, tensor_list, vel, vis_save, vis_path):
     for i, values in enumerate(tensor_list):
 
         loss, output, label = values  # int, others: c x h x w
+        output, label = output.cpu(), label.cpu()
         loss_list.append(loss)
 
         # velocity

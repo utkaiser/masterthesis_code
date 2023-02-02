@@ -1,6 +1,8 @@
+import sys
+sys.path.append("..")
 import numpy as np
-from model_utils import save_model, fetch_data_end_to_end, flip_tensors, sample_label_random, \
-    get_paths, get_params, setup_logger, choose_optimizer, choose_loss_function
+from model_utils import save_model, fetch_data_end_to_end, flip_tensors, \
+    get_paths, get_params, setup_logger, choose_optimizer, choose_loss_function, sample_label_normal_dist
 import torch
 import random
 import logging
@@ -8,7 +10,8 @@ from models.model_end_to_end import Model_end_to_end
 from analysis.visualize_results.visualize_training import visualize_wavefield
 
 
-def train_Dt_end_to_end(downsampling_model, upsampling_model, optimizer_name, loss_function_name, res_scaler, model_res, flipping,
+def train_Dt_end_to_end(downsampling_model, upsampling_model, optimizer_name, loss_function_name, res_scaler, model_res,
+                        flipping, optimization_type, multi_step,
                         logging_bool=False, visualize=True, params="0", vis_save=True):
 
     # params and logger setup
@@ -36,33 +39,28 @@ def train_Dt_end_to_end(downsampling_model, upsampling_model, optimizer_name, lo
     # data setup
     train_loader, val_loader = fetch_data_end_to_end(data_paths, batch_size=batch_size, shuffle=True,
                                                      val_paths=val_paths)
-    label_distr_shift = 0
+
     # training
+    label_distr_shift = 1
     logging.info(" ".join(["-" * 20, "start training", "-" * 20]))
     for epoch in range(n_epochs):
 
         model.train()
         train_loss_list = []
+        if (epoch + 1) % 3 == 0: label_distr_shift += 1
 
         for i, data in enumerate(train_loader):
 
             n_snaps = data[0].shape[1]
             data = data[0].to(device)  # b x n_snaps x 4 x w x h
-
             loss_list = []
 
-            if epoch % max(1,(n_epochs // n_snaps)) == 0 and epoch != 0: label_distr_shift += 1
-
-            for input_idx in random.sample(range(n_snaps - 1), k=n_snaps - 1):
-
+            for input_idx in random.choices(range(n_snaps - 2), k=n_snaps):
                 input_tensor = data[:, input_idx, :, :, :]  # b x 4 x w x h
                 h_flipped, v_flipped = False, False
+                label_range = sample_label_normal_dist(input_idx, n_snaps, label_distr_shift)
 
-                # randomly sample label idx from normal distribution
-                label_range = sample_label_random(input_idx, label_distr_shift, epoch, n_snaps)
-
-                for label_idx in range(input_idx + 1, label_range):  # randomly decide how long path is
-
+                for label_idx in range(input_idx+1, label_range):  # randomly decide how long path is
                     label = data[:, label_idx, :3, :, :].to(device)  # b x 3 x w x h
                     if flipping: input_tensor, label, v_flipped, h_flipped = flip_tensors(input_tensor, label, v_flipped, h_flipped)
                     output = model(input_tensor)  # b x 3 x w x h
@@ -97,13 +95,13 @@ def train_Dt_end_to_end(downsampling_model, upsampling_model, optimizer_name, lo
 
                     if visualize and i == 0:
                         # save only first element of batch
-                        visualize_list.append((val_loss.item(), output[0, :, :, :].detach(),
-                                               label[0, :, :, :].detach()))
+                        visualize_list.append((val_loss.item(), output[0, :, :, :].detach().cpu(),
+                                               label[0, :, :, :].detach().cpu()))
 
                     input_tensor = torch.cat((output, input_tensor[:, 3, :, :].unsqueeze(dim=1)), dim=1)
 
                 if visualize and i == 0:
-                    visualize_wavefield(epoch, visualize_list, input_tensor[0, 3, :, :], vis_save=vis_save, vis_path=vis_path)
+                    visualize_wavefield(epoch, visualize_list, input_tensor[0, 3, :, :].cpu(), vis_save=vis_save, vis_path=vis_path)
 
             if logging_bool:
                 train_logger.add_scalar('loss', np.array(train_loss_list).mean(), global_step=global_step)
@@ -122,6 +120,14 @@ def train_Dt_end_to_end(downsampling_model, upsampling_model, optimizer_name, lo
 
 
 def grid_search_end_to_end():
+
+    def apply_rules(scale, res, counter, opt_type, multi_step):
+        rules_bool = ((scale == 4 and res == 256) or (scale == 2 and res == 128)) \
+                     and counter >= -1 and (opt_type is None or opt_type == "parareal" or (opt_type == "procrustes" and multi_step == 1))
+        if rules_bool:
+            return True
+        else:
+            return False
 
     downsampling_model = [
         "Interpolation",
@@ -156,6 +162,16 @@ def grid_search_end_to_end():
         False,
         # True
     ]
+    optimizations = [
+        None,
+        "parareal",
+        "procrustes",
+    ]
+    multi_step = [
+        1,
+        2,
+        -1  # shifting normal distribution
+    ]
 
     counter = 0
     for d in downsampling_model:
@@ -164,19 +180,22 @@ def grid_search_end_to_end():
                 for l in loss_function:
                     for scale in res_scaler:
                         for res in model_res:
-                            if (scale == 4 and res == 256) or (scale == 2 and res == 128):
                                 for f in flipping:
-                                    if counter >= -1:
-                                        train_Dt_end_to_end(
-                                            downsampling_model = d,
-                                            upsampling_model = u,
-                                            optimizer_name = o,
-                                            loss_function_name = l,
-                                            res_scaler = scale,
-                                            model_res = res,
-                                            flipping = f
-                                        )
-                                    counter += 1
+                                    for opt in optimizations:
+                                        for m in multi_step:
+                                            if apply_rules(scale, res, counter, opt, m):
+                                                train_Dt_end_to_end(
+                                                    downsampling_model = d,
+                                                    upsampling_model = u,
+                                                    optimizer_name = o,
+                                                    loss_function_name = l,
+                                                    res_scaler = scale,
+                                                    model_res = res,
+                                                    flipping = f,
+                                                    optimization_type = opt,
+                                                    multi_step = m
+                                                )
+                                            counter += 1
 
 
 if __name__ == "__main__":

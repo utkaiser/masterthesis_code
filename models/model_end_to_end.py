@@ -1,8 +1,8 @@
 from torch import nn
 import warnings
 import sys
-from models.model_upsampling import choose_upsampling
 sys.path.append("..")
+from models.model_upsampling import choose_upsampling
 warnings.filterwarnings("ignore")
 from models.model_numerical_solver import Numerical_solver
 import torch

@@ -1,4 +1,6 @@
 from os import environ, path
+
+from scipy.stats import truncnorm
 from torch import load
 import numpy as np
 import os
@@ -130,15 +132,14 @@ def flip_tensors(input_tensor, label, v_flipped, h_flipped):
     return input_tensor, label, v_flipped, h_flipped
 
 
-def sample_label_random(input_idx, label_distr_shift, epoch, n_snaps):
+def sample_label_normal_dist(input_idx, n_snaps, label_distr_shift):
+    # randomly sample label idx from normal distribution
 
-    if epoch < 10:
-        possible_label_range = np.arange(input_idx + 2 - label_distr_shift, 11 - label_distr_shift)  # [a,b-1]
-        prob = ss.norm.cdf(possible_label_range + 0.5, scale=3) - ss.norm.cdf(possible_label_range - 0.5, scale=3)
-        label_range = list(np.random.choice(possible_label_range + label_distr_shift, size=1, p=prob / prob.sum()))[0]
-        return label_range
-    else:
-        return n_snaps
+    low = input_idx + 1
+    upp = n_snaps - 1
+    mean = min(upp, input_idx + label_distr_shift)
+    sd = 1
+    return round(truncnorm((low - mean) / sd, (upp - mean) / sd, loc=mean, scale=sd).rvs())
 
 
 def get_paths(model_res):
