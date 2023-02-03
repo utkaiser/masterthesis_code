@@ -1,17 +1,17 @@
 import sys
 from analysis.utils_analysis import get_ticks_fine
 sys.path.append("..")
-from generate_data.initial_conditions import initial_condition_gaussian, get_velocity_crop, get_velocity_dict
+from generate_data.initial_conditions import initial_condition_gaussian, get_velocity_dict
 from models.model_end_to_end import Model_end_to_end
-from models.optimization.utils_optimization import get_solver_solution, smaller_crop
+from generate_data.optimization.utils_optimization import get_solver_solution, smaller_crop
 from analysis.visualize_results.plot_wavefield import plot_wavefield_optimization
 from analysis.visualize_results.plot_heatmap import plot_heatmap_optimization
 from generate_data.utils_wave import crop_center
 import torch
 import numpy as np
 from models.model_utils import get_params
-from models.optimization.parallel_scheme import parareal_scheme
-from models.optimization.parallel_procrustes_scheme import parareal_procrustes_scheme
+from generate_data.optimization.parallel_scheme import parareal_scheme
+from generate_data.optimization.parallel_procrustes_scheme import parareal_procrustes_scheme
 
 
 def vis_parareal(vel_name, big_vel, n_snaps, mode="parareal"):
@@ -56,7 +56,7 @@ def choose_optimization_method(model,u_0,big_vel,n_snaps,mode="parareal"):
 
 def vis_multiple_init_cond():
     res = 256
-    velocities = get_velocity_dict(res, 1, "../../data/crops_bp_m_200_256.npz")
+    velocities = get_velocity_dict(res, 1, "../../data/velocity_profiles/crops_bp_m_200_256.npz")
     for vel_name, vel in velocities.items():
         print("-"*20,vel_name,"-"*20)
         vis_parareal(vel_name, vel, mode="parareal", n_snaps=7)

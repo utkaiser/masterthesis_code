@@ -42,9 +42,9 @@ if __name__ == '__main__':
 
     print("start running generatecroppedVmodel.py")
 
-    datamat = loadmat('../data/marm1nonsmooth.mat') #velocity models Marmousi dataset
+    datamat = loadmat('../data/velocity_profiles/marm1nonsmooth.mat') #velocity models Marmousi dataset
     fullmarm = gaussian(datamat['marm1larg'],4) #to make smoother
-    databp = loadmat('../data/bp2004.mat') #velocity models BP dataset
+    databp = loadmat('../data/velocity_profiles/bp2004.mat') #velocity models BP dataset
     fullbp = gaussian(databp['V'],4)/1000 #to make smoother (and different order of magnitude)
 
     createCropsAndSave([fullmarm,fullbp],

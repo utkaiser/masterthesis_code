@@ -149,7 +149,7 @@ def sample_label_normal_dist(input_idx, n_snaps, label_distr_shift, multi_step):
             return round(truncnorm((low - mean) / sd, (upp - mean) / sd, loc=mean, scale=sd).rvs())
 
 
-def get_paths(model_res):
+def get_paths(model_res,optimization_type):
 
     main_branch = '../results/run_3/'
     now = datetime.now()
@@ -159,7 +159,7 @@ def get_paths(model_res):
         os.makedirs(main_branch + add)
 
     data_paths = [
-        '../data/end_to_end_test10diag__3l__cp__hf__bp_m' + str(model_res) + '.npz'
+        '../data/end_to_end_test10diag__3l__cp__hf__bp_m' + str(model_res) + "_" + optimization_type + '.npz'
         # '../data/end_to_end_0diag__3l__cp__hf__bp_m' + str(model_res) + '.npz',
         # '../data/end_to_end_1diag__3l__cp__hf__bp_m' + str(model_res) + '.npz',
         # '../data/end_to_end_2diag__3l__cp__hf__bp_m' + str(model_res) + '.npz',
@@ -167,12 +167,12 @@ def get_paths(model_res):
         # '../data/end_to_end_4diag__3l__cp__hf__bp_m' + str(model_res) + '.npz'
     ]
     val_paths = [
-        '../data/val/end_to_end_val_3l_128.npz',
-        # '../data/val/end_to_end_val_bp_128.npz',
-        # '../data/val/end_to_end_val_cp_128.npz',
-        # '../data/val/end_to_end_val_diag_128.npz',
-        # '../data/val/end_to_end_val_hf_128.npz',
-        # '../data/val/end_to_end_val_m_128.npz'
+        '../data/val/end_to_end_val_3l_' + str(model_res) + '.npz',
+        # '../data/val/end_to_end_val_bp_' + str(model_res) + '.npz',
+        # '../data/val/end_to_end_val_cp_' + str(model_res) + '.npz',
+        # '../data/val/end_to_end_val_diag_' + str(model_res) + '.npz',
+        # '../data/val/end_to_end_val_hf_' + str(model_res) + '.npz',
+        # '../data/val/end_to_end_val_m_' + str(model_res) + '.npz'
     ]
     train_logger_path = main_branch + add + 'log_train/'
     valid_logger_path = main_branch + add + 'log_valid/'

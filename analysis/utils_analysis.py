@@ -3,7 +3,7 @@ import numpy as np
 import glob
 import os
 from generate_data.initial_conditions import get_velocity_crop
-from models.optimization.utils_optimization import smaller_crop, get_wavefield_numpy, get_wavefield
+from generate_data.optimization.utils_optimization import smaller_crop, get_wavefield_numpy, get_wavefield
 
 
 def change_npy_to_mat():
@@ -18,11 +18,11 @@ def change_npy_to_mat():
 
 
 def get_ticks_fine(tensor, vel):
-    # tensor -> s x b x c x w x h
+    # tensor -> 1 x s x c x w x h
     # vel -> w x h
 
     ticks = []
-    for s in range(tensor.shape[0]):
-        img = get_wavefield(tensor[s],vel)
+    for s in range(tensor.shape[1]):
+        img = get_wavefield(tensor[:,s],vel)
         ticks.append([img.min().item(), (img.max().item() + img.min().item()) / 2 ,img.max().item()])
     return ticks  # s x 3

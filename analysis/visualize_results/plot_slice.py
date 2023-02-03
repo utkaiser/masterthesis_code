@@ -4,7 +4,7 @@ import numpy as np
 from generate_data.initial_conditions import diagonal_ray
 import torch
 
-from models.optimization.utils_optimization import get_wavefield
+from generate_data.optimization.utils_optimization import get_wavefield
 
 sns.set_context()
 sns.set_theme(style='white', context="paper")

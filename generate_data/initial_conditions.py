@@ -96,7 +96,7 @@ def three_layers(n_it, res, boundary_condition="absorbing"):
 
 
 def crack_profile(n_it, res, boundary_condition="absorbing"):
-    marmousi_datamat = loadmat('../../data/marm1nonsmooth.mat')  # velocity models Marmousi dataset
+    marmousi_datamat = loadmat('../data/velocity_profiles/marm1nonsmooth.mat')  # velocity models Marmousi dataset
     img = gaussian(marmousi_datamat['marm1larg'], 4)
 
     k1, k2, k3, k4 = .25, .5, .75, 1
@@ -166,17 +166,17 @@ def get_velocity_crop(resolution, n_crops, velocity_profile, boundary_conditon =
         img = diagonal_ray(n_crops,resolution, boundary_conditon)
 
     elif velocity_profile == "marmousi":
-        marmousi_datamat = loadmat('../data/marm1nonsmooth.mat')  # velocity models Marmousi dataset
+        marmousi_datamat = loadmat('../data/velocity_profiles/marm1nonsmooth.mat')  # velocity models Marmousi dataset
         marmousi_img = gaussian(marmousi_datamat['marm1larg'], 4)  # to make smoother
         img = np.expand_dims(marmousi_img[200:200+resolution,200:200+resolution], axis=0)
 
     elif velocity_profile == "marmousi2":
-        marmousi_datamat = loadmat('../data/marm1nonsmooth.mat')  # velocity models Marmousi dataset
+        marmousi_datamat = loadmat('../data/velocity_profiles/marm1nonsmooth.mat')  # velocity models Marmousi dataset
         marmousi_img = gaussian(marmousi_datamat['marm1larg'], 4)  # to make smoother
         img = np.expand_dims(marmousi_img[300:300+resolution,300:300+resolution], axis=0)
 
     elif velocity_profile == "bp":
-        databp = loadmat('../data/bp2004.mat')  # velocity models BP dataset
+        databp = loadmat('../data/velocity_profiles/bp2004.mat')  # velocity models BP dataset
         img = gaussian(databp['V'], 4) / 1000  # to make smoother (and different order of magnitude)
         img = np.expand_dims(img[1100:1100 + resolution, 1100:1100 + resolution], axis=0)
 
@@ -201,12 +201,12 @@ def get_velocities(n_it, res, boundary_condition, n_crops_other_profiles = 50, i
         # choose right bp_m dataset
         if boundary_condition == "absorbing":
             factor = 2
-            if res == 128: input_path = '../../data/crops_bp_m_400_128*2.npz'
-            else: input_path = '../../data/crops_bp_m_400_256*2.npz'
+            if res == 128: input_path = '../data/velocity_profiles/crops_bp_m_400_128*2.npz'
+            else: input_path = '../data/velocity_profiles/crops_bp_m_400_256*2.npz'
         else:
             factor = 1
-            if res == 128: input_path = '../data/crops_bp_m_200_128.npz'
-            else: input_path = '../data/crops_bp_m_200_256.npz'
+            if res == 128: input_path = '../data/velocity_profiles/crops_bp_m_200_128.npz'
+            else: input_path = '../data/velocity_profiles/crops_bp_m_200_256.npz'
     else:
         factor = 1
     # get velocities and save in dictionary
@@ -241,11 +241,6 @@ def get_velocity_dict(res_padded, n_crops_other_profiles, input_path, boundary_c
     }
     return velocities
 
-
-# if __name__ == '__main__':
-#
-#     a = get_velocity_dict(128*2,1,input_path='../data/crops_bp_m_200_128*2.npz')
-#     print(a["bp_m"].shape)
 
 
 

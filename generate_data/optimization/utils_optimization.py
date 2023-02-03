@@ -26,8 +26,7 @@ def compute_loss(prediction,target, vel, mode = "MSE/frob(fine)"):
     elif mode == "MAE":
         return MAE(prediction, target).item()
     elif mode == "MSE/frob(fine)":
-        return torch.linalg.norm((prediction - target) / target).item()
-        # return MSE(prediction, target).item() / torch.linalg.norm(target).item()
+        return MSE(prediction, target).item() / torch.linalg.norm(target).item()
     elif mode == "MAE/frob(fine)":
         return MAE(prediction, target).item() / torch.linalg.norm(target).item()
     else:
@@ -171,7 +170,7 @@ def one_iteration_velocity_verlet(u_n_k,f_delta_x=2./128., f_delta_t=(2./128.)/2
 
 def get_wavefield(tensor, vel, f_delta_x=2.0 / 128.0, f_delta_t=(2.0 / 128.0) / 20):
 
-    u_x, u_y, u_t_c = tensor[:, 0, :, :], tensor[:, 1, :, :], tensor[:, 2, :, :]
+    u_x, u_y, u_t_c = tensor[:, 0], tensor[:, 1], tensor[:, 2]
     u, u_t = WaveSol_from_EnergyComponent_tensor(u_x, u_y, u_t_c, vel, f_delta_t,
                                                  torch.sum(torch.sum(torch.sum(u_x))))
     return WaveEnergyField_tensor(u.squeeze().cpu(), u_t.squeeze().cpu(), vel.squeeze().cpu(),

@@ -1,21 +1,19 @@
 import matplotlib.pyplot as plt
 from analysis.utils_analysis import get_ticks_fine
 import torch
-from models.optimization.utils_optimization import get_wavefield, round_loss, compute_loss, get_solver_solution
+from generate_data.optimization.utils_optimization import get_wavefield, round_loss, compute_loss, get_solver_solution
 
 
 def visualize_wavefield(epoch, tensor_list, vel, vis_save, vis_path, initial_u):
     # initial_u -> b x c x w x h
 
-
-
     n_snaps = len(tensor_list)
     _, w, h = tensor_list[0][-1].shape
-    fine_solver_tensor = torch.zeros([n_snaps, 1, 3, w, h])
+    fine_solver_tensor = torch.zeros([1,n_snaps, 3, w, h])
 
     for i, values in enumerate(tensor_list):
         _, _, label = values  # c x w x h
-        fine_solver_tensor[i,0] = label.cpu()
+        fine_solver_tensor[0,i] = label.cpu()
 
     coarse_solver_tensor = get_solver_solution(initial_u[:, :3], n_snaps+1, initial_u[:, 3].unsqueeze(dim=0),
                                                solver="coarse")[1:]  # s x b x c x w x h

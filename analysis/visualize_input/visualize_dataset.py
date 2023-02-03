@@ -2,7 +2,7 @@ import sys
 import torch
 from scipy.io import savemat
 from sklearn.preprocessing import StandardScaler
-from models.optimization.utils_optimization import get_wavefield
+from generate_data.optimization.utils_optimization import get_wavefield
 from sklearn.decomposition import PCA
 from sklearn.pipeline import Pipeline
 sys.path.append("..")
@@ -14,7 +14,7 @@ sns.set_style("whitegrid", {'axes.grid' : False})
 
 def vis_velocities():
 
-    input_path = "../../data/crops_bp_m_200_128.npz"
+    input_path = "../../data/velocity_profiles/crops_bp_m_200_128.npz"
     velocities = get_velocity_dict(128,10,input_path)
 
     # choose how many from which
