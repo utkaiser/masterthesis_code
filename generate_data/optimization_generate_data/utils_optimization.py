@@ -7,6 +7,8 @@ from generate_data.utils_wave import WaveSol_from_EnergyComponent_tensor, WaveEn
 from torchmetrics.functional import mean_squared_error as MSE
 from torchmetrics.functional import mean_absolute_error as MAE
 
+from models.model_end_to_end import Model_end_to_end
+
 
 def relative_frobenius_norm(a, b):
     diff = a - b
@@ -185,3 +187,15 @@ def get_wavefield_numpy(tensor, vel, f_delta_x=2.0 / 128.0, f_delta_t=(2.0 / 128
     return WaveEnergyField(u, u_t, vel,
                                   f_delta_x) * f_delta_x * f_delta_x
 
+
+
+
+
+
+def get_model(res, boundary_condition, param_dict):
+    if res == 128 and boundary_condition == "absorbing":
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        model = Model_end_to_end(param_dict, "Interpolation", "UNet3", 2, res).double().to(device)
+        model = torch.nn.DataParallel(model)
+        model.load_state_dict(torch.load('../../results/run_2/good_one/saved_model_end_to_end_only_unet3lvl128_10_2.pt'))
+        model.eval()

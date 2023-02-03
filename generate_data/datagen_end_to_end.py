@@ -55,18 +55,18 @@ def generate_wave_from_medium(output_path, res, boundary_condition, visualize, i
 
             if visualize: visualize_wavefield(u_elapse, ut_elapse, vel=vel, init_res_f=res, frame=True, f_delta_x=f_delta_x, f_delta_t=f_delta_t, it=s+1)
 
-    np.savez(output_path+output_appendix+str(res)+".npz", vel=V, Ux=Ux, Uy=Uy, Utc=Utc)
+    np.savez(output_path+output_appendix+str(res)+"_parareal.npz", vel=V, Ux=Ux, Uy=Uy, Utc=Utc)
 
 
 if __name__ == "__main__":
 
     for index in range(1):
         generate_wave_from_medium(output_path = "../data/end_to_end_" + str(index),
-                                  res = 128,
+                                  res = 256,
                                   boundary_condition = "absorbing",
                                   visualize = True,
                                   index = str(index),
-                                  n_it = 10)  # how many data samples to generate
+                                  n_it = -1)  # how many data samples to generate
 
 
 

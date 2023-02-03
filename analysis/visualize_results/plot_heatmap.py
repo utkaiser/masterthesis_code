@@ -3,7 +3,7 @@ sys.path.append("..")
 import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
-from generate_data.optimization.utils_optimization import compute_loss
+from generate_data.optimization_generate_data.utils_optimization import compute_loss
 
 
 def plot_heatmap_optimization(fine_solver_tensor, parareal_tensor, vel, vel_name, folder_name):

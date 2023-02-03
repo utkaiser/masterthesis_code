@@ -3,15 +3,15 @@ from analysis.utils_analysis import get_ticks_fine
 sys.path.append("..")
 from generate_data.initial_conditions import initial_condition_gaussian, get_velocity_dict
 from models.model_end_to_end import Model_end_to_end
-from generate_data.optimization.utils_optimization import get_solver_solution, smaller_crop
+from generate_data.optimization_generate_data.utils_optimization import get_solver_solution, smaller_crop
 from analysis.visualize_results.plot_wavefield import plot_wavefield_optimization
 from analysis.visualize_results.plot_heatmap import plot_heatmap_optimization
 from generate_data.utils_wave import crop_center
 import torch
 import numpy as np
 from models.model_utils import get_params
-from generate_data.optimization.parallel_scheme import parareal_scheme
-from generate_data.optimization.parallel_procrustes_scheme import parareal_procrustes_scheme
+from generate_data.optimization_generate_data.parallel_scheme import parareal_scheme
+from generate_data.optimization_generate_data.parallel_procrustes_scheme import parareal_procrustes_scheme
 
 
 def vis_parareal(vel_name, big_vel, n_snaps, mode="parareal"):
@@ -31,7 +31,7 @@ def vis_parareal(vel_name, big_vel, n_snaps, mode="parareal"):
     model.eval()
 
     with torch.no_grad():
-        parareal_tensor = choose_optimization_method(model, u_0,big_vel,n_snaps,mode=mode)  # k x s x b x c x w x h
+        parareal_tensor = get_optimization_solution(model, u_0,big_vel,n_snaps,mode=mode)  # k x s x b x c x w x h
         coarse_solver_tensor = get_solver_solution(smaller_crop(u_0[:, :3, :, :]), 11,smaller_crop(u_0[:, 3, :,:]).unsqueeze(dim=0), solver="coarse")  # s x b x c x w x h
         fine_solver_tensor = get_solver_solution(u_0[:, :3, :, :], 11, u_0[:, 3, :, :].unsqueeze(dim=0), solver="fine")  # s x b x c x w x h
         ticks = get_ticks_fine(fine_solver_tensor, vel)  # s x 3
@@ -45,7 +45,7 @@ def vis_parareal(vel_name, big_vel, n_snaps, mode="parareal"):
         np.save('../../results/optimization/' + mode+ "/"+vel_name + '_velocity_profile.npy', big_vel.numpy())
 
 
-def choose_optimization_method(model,u_0,big_vel,n_snaps,mode="parareal"):
+def get_optimization_solution(model,u_0,big_vel,n_snaps,mode="parareal"):
     if mode == "parareal":
         return parareal_scheme(model, u_0, big_vel, n_snaps=n_snaps)
     elif mode == "parareal_procrustes":

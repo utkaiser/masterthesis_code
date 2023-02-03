@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 from analysis.utils_analysis import get_ticks_fine
-from generate_data.optimization.utils_optimization import get_wavefield
+from generate_data.optimization_generate_data.utils_optimization import get_wavefield
 
 
 def plot_big_tensor(big_tensor, vel, data):

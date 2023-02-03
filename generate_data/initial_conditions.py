@@ -25,14 +25,19 @@ def initial_condition_gaussian(vel, res = 128, boundary_condition="absorbing", m
     else: raise NotImplementedError("Mode for initial condition not implemented")
 
 
-def get_init_cond_settings(res, boundary_condition):
+def get_init_cond_settings(res, boundary_condition, opt="parareal"):
 
     factor_width = random.random() * 2 - 1
     factor_center_x = random.random() * 2 - 1
     factor_center_y = random.random() * 2 - 1
 
+    if opt == "parareal":
+        factor_start_point_wave = 2
+    else:
+        factor_start_point_wave = 1
+
     if boundary_condition == "periodic":
-        center_x, center_y = factor_center_x * .45, factor_center_y * .45
+        center_x, center_y = factor_center_x * .45 / factor_start_point_wave, factor_center_y * .45  / factor_start_point_wave
         if res == 128:
             dx = 2.0 / 128.0
             width = 1000 + factor_width*200
@@ -42,13 +47,16 @@ def get_init_cond_settings(res, boundary_condition):
         else: raise NotImplementedError("Parameter for initial condition not implemented.")
 
     elif boundary_condition == "absorbing":
-        center_x, center_y = (factor_center_x * .45) / 2, (factor_center_y * .45) / 2
+        center_x, center_y = ((factor_center_x * .45) / 2) / factor_start_point_wave, ((factor_center_y * .45) / 2) / factor_start_point_wave
         if res == 128:
             dx = 2.0 / (128.0 * 2)
             width = 5600 + factor_width*500
         elif res == 256:
+            if opt == "parareal":
+                width = 9000 + factor_width*500
+            else:
+                width = 5000 + factor_width * 1000
             dx = 2.0 / (256.0 * 2)
-            width = 5000 + factor_width*1000
         else: raise NotImplementedError("Parameter for initial condition not implemented.")
 
     else: raise NotImplementedError("Boundary condition for initial condition not implemented.")

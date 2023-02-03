@@ -2,7 +2,7 @@ import sys
 import torch
 from scipy.io import savemat
 from sklearn.preprocessing import StandardScaler
-from generate_data.optimization.utils_optimization import get_wavefield
+from generate_data.optimization_generate_data.utils_optimization import get_wavefield
 from sklearn.decomposition import PCA
 from sklearn.pipeline import Pipeline
 sys.path.append("..")
@@ -73,7 +73,7 @@ def pca_dataset_save_mat():
     pipe = Pipeline([('scale', StandardScaler()), ('pca', pca)])
     Xt = pipe.fit_transform(new_tensor)
 
-    savemat("../../results/datagen/pca3_scaled.mat", {"res": Xt})
+    savemat("../../results/datagen/visualization/pca3_scaled.mat", {"res": Xt})
 
     # labels = {
     #     "diagonal": ["red", 100],

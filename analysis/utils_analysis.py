@@ -3,7 +3,7 @@ import numpy as np
 import glob
 import os
 from generate_data.initial_conditions import get_velocity_crop
-from generate_data.optimization.utils_optimization import smaller_crop, get_wavefield_numpy, get_wavefield
+from generate_data.optimization_generate_data.utils_optimization import smaller_crop, get_wavefield_numpy, get_wavefield
 
 
 def change_npy_to_mat():

@@ -1,7 +1,7 @@
 import torch
 
 from analysis.visualize_results.plot_training_optimization import plot_big_tensor
-from generate_data.optimization.utils_optimization import smaller_crop, \
+from generate_data.optimization_generate_data.utils_optimization import smaller_crop, \
     one_iteration_pseudo_spectral_tensor
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
