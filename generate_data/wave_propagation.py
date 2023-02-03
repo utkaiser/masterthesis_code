@@ -215,6 +215,39 @@ def pseudo_spectral(u0, ut0, vel, dx, dt, Tf):
     return np.real(u), np.real(ut)
 
 
+def pseudo_spectral_tensor(u0, ut0, vel, dx, dt, Tf):
+    """
+    propagate wavefield using RK4 in time and spectral approx.
+    of Laplacian in space
+    """
+    # u0 -> b x w x h
+
+    Nt = round(abs(Tf / dt))
+    c2 = torch.multiply(vel, vel)
+
+    u = u0
+    ut = ut0
+
+    for i in range(Nt):
+        # RK4 scheme
+        k1u = ut
+        k1ut = torch.multiply(c2, spectral_del_tensor(u, dx))
+
+        k2u = ut + dt / 2 * k1ut
+        k2ut = torch.multiply(c2, spectral_del_tensor(u + dt / 2 * k1u, dx))
+
+        k3u = ut + dt / 2 * k2ut
+        k3ut = torch.multiply(c2, spectral_del_tensor(u + dt / 2 * k2u, dx))
+
+        k4u = ut + dt * k3ut
+        k4ut = torch.multiply(c2, spectral_del_tensor(u + dt * k3u, dx))
+
+        u = u + 1. / 6 * dt * (k1u + 2 * k2u + 2 * k3u + k4u)
+        ut = ut + 1. / 6 * dt * (k1ut + 2 * k2ut + 2 * k3ut + k4ut)
+
+    return torch.real(u), torch.real(ut)
+
+
 def spectral_del(v, dx):
     """
     evaluate the discrete Laplacian using spectral method
@@ -232,39 +265,20 @@ def spectral_del(v, dx):
     return fft.ifft2(U)
 
 
+def spectral_del_tensor(v, dx):
+    """
+    evaluate the discrete Laplacian using spectral method
+    """
 
-    # path = "../old_code/ABC_code/Richard_ABC"
-    #
-    # for i in range(1,3):
-    #     a = np.loadtxt(open(path+"/test"+str(i)+".csv", 'rb'), delimiter=',', skiprows=1)
-    #     plt.imshow(a)
-    #     plt.show()
+    N1 = v.shape[-2]
+    N2 = v.shape[-1]
 
-# for j in range(1,Nx):
-# bottom
-# u2[-1, j]=a*(-u2[Ny,j] + 2 * u1[-1,j] - u0[-1, j] + 2 * u1[Ny, j] - u0[Ny, j] +
-#             lambda_v * (u2[Ny,j] - u0[Ny, j] + u0[-1, j]) +
-#             .5 * lambda2 * (u0[-1, j + 1] - 2 * u0[-1, j] + u0[-1, j - 1] +
-#                             u2[Ny,j+1] - 2 * u2[Ny,j] + u2[Ny,j-1]))
+    kx = 2 * torch.pi / (dx * N1) * torch.fft.fftshift(torch.linspace(-round(N1 / 2), round(N1 / 2 - 1), N1))
+    ky = 2 * torch.pi / (dx * N2) * torch.fft.fftshift(torch.linspace(-round(N2 / 2), round(N2 / 2 - 1), N2))
+    [kxx, kyy] = torch.meshgrid(kx, ky, indexing='xy')
 
+    U = -(kxx ** 2 + kyy ** 2) * torch.fft.fft2(v)
 
-# top
-# u2[0,  j]=a*(-u2[1,j] + 2 * u1[0,j] - u0[0, j] + 2 * u1[1, j] - u0[1, j] +
-#              lambda_v * (u2[1,j] - u0[1, j] + u0[0, j]) +
-#              .5 * lambda2 * (u0[0, j + 1] - 2 * u0[0, j] + u0[0, j - 1] +
-#                              u2[1,j+1] - 2 * u2[1,j] + u2[1,j-1]))
-
-
-#for i in range(1,Ny):
-            # right
-            # u2[i,-1]=a*(-u2[i,Nx] + 2 * u1[i,Nx] - u0[i, Nx] + 2 * u1[i, Nx + 1] - u0[i, Nx + 1] +
-            #             lambda_v * (u2[i, Nx] - u0[i, Nx] + u0[i, Nx + 1]) +
-            #             .5 * lambda2 * (u0[i + 1, Nx + 1] - 2 * u0[i, Nx + 1] + u0[i - 1, Nx + 1] +
-            #                             u2[i+1,Nx] - 2 * u2[i,Nx] + u2[i-1,Nx]))
-            # left
-            # u2[i,   0]=a*(-u2[i,1] + 2 * u1[i,1] - u0[i, 1] + 2 * u1[i, 0] - u0[i, 0] +
-            #               lambda_v * (u2[i,1] - u0[i, 1] + u0[i, 0]) +
-            #               .5 * lambda2 * (u0[i + 1, 0] - 2 * u0[i, 0] + u0[i - 1, 0] +
-            #                               u2[i+1,1] - 2 * u2[i,1] + u2[i-1,1]))
+    return torch.fft.ifft2(U)
 
 

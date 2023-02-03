@@ -96,7 +96,7 @@ def three_layers(n_it, res, boundary_condition="absorbing"):
 
 
 def crack_profile(n_it, res, boundary_condition="absorbing"):
-    marmousi_datamat = loadmat('../data/marm1nonsmooth.mat')  # velocity models Marmousi dataset
+    marmousi_datamat = loadmat('../../data/marm1nonsmooth.mat')  # velocity models Marmousi dataset
     img = gaussian(marmousi_datamat['marm1larg'], 4)
 
     k1, k2, k3, k4 = .25, .5, .75, 1
@@ -195,14 +195,14 @@ def get_velocity_crop(resolution, n_crops, velocity_profile, boundary_conditon =
     return img
 
 
-def get_velocities(n_it, res, boundary_condition, n_crops_other_profiles = 50, input_path = None, ):
+def get_velocities(n_it, res, boundary_condition, n_crops_other_profiles = 50, input_path = None):
 
     if input_path is None:
         # choose right bp_m dataset
         if boundary_condition == "absorbing":
             factor = 2
-            if res == 128: input_path = '../data/crops_bp_m_400_128*2.npz'
-            else: input_path = '../data/crops_bp_m_400_256*2.npz'
+            if res == 128: input_path = '../../data/crops_bp_m_400_128*2.npz'
+            else: input_path = '../../data/crops_bp_m_400_256*2.npz'
         else:
             factor = 1
             if res == 128: input_path = '../data/crops_bp_m_200_128.npz'

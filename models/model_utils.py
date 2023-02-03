@@ -132,14 +132,21 @@ def flip_tensors(input_tensor, label, v_flipped, h_flipped):
     return input_tensor, label, v_flipped, h_flipped
 
 
-def sample_label_normal_dist(input_idx, n_snaps, label_distr_shift):
+def sample_label_normal_dist(input_idx, n_snaps, label_distr_shift, multi_step):
     # randomly sample label idx from normal distribution
-
-    low = input_idx + 1
-    upp = n_snaps - 1
-    mean = min(upp, input_idx + label_distr_shift)
-    sd = 1
-    return round(truncnorm((low - mean) / sd, (upp - mean) / sd, loc=mean, scale=sd).rvs())
+    if multi_step == 1:
+        return input_idx + 1
+    elif multi_step == 2:
+        return min(n_snaps-1, input_idx + 2)
+    else:  # multi_step == -1; therefore, shifting normal distribution
+        low = input_idx + 1
+        upp = n_snaps - 1
+        mean = min(upp, input_idx + label_distr_shift)
+        sd = 1
+        if input_idx + 1 == n_snaps - 1:
+            return n_snaps - 1
+        else:
+            return round(truncnorm((low - mean) / sd, (upp - mean) / sd, loc=mean, scale=sd).rvs())
 
 
 def get_paths(model_res):
@@ -152,19 +159,20 @@ def get_paths(model_res):
         os.makedirs(main_branch + add)
 
     data_paths = [
-        '../data/end_to_end_0diag__3l__cp__hf__bp_m' + str(model_res) + '.npz',
-        '../data/end_to_end_1diag__3l__cp__hf__bp_m' + str(model_res) + '.npz',
-        '../data/end_to_end_2diag__3l__cp__hf__bp_m' + str(model_res) + '.npz',
-        '../data/end_to_end_3diag__3l__cp__hf__bp_m' + str(model_res) + '.npz',
-        '../data/end_to_end_4diag__3l__cp__hf__bp_m' + str(model_res) + '.npz'
+        '../data/end_to_end_test10diag__3l__cp__hf__bp_m' + str(model_res) + '.npz'
+        # '../data/end_to_end_0diag__3l__cp__hf__bp_m' + str(model_res) + '.npz',
+        # '../data/end_to_end_1diag__3l__cp__hf__bp_m' + str(model_res) + '.npz',
+        # '../data/end_to_end_2diag__3l__cp__hf__bp_m' + str(model_res) + '.npz',
+        # '../data/end_to_end_3diag__3l__cp__hf__bp_m' + str(model_res) + '.npz',
+        # '../data/end_to_end_4diag__3l__cp__hf__bp_m' + str(model_res) + '.npz'
     ]
     val_paths = [
         '../data/val/end_to_end_val_3l_128.npz',
-        '../data/val/end_to_end_val_bp_128.npz',
-        '../data/val/end_to_end_val_cp_128.npz',
-        '../data/val/end_to_end_val_diag_128.npz',
-        '../data/val/end_to_end_val_hf_128.npz',
-        '../data/val/end_to_end_val_m_128.npz'
+        # '../data/val/end_to_end_val_bp_128.npz',
+        # '../data/val/end_to_end_val_cp_128.npz',
+        # '../data/val/end_to_end_val_diag_128.npz',
+        # '../data/val/end_to_end_val_hf_128.npz',
+        # '../data/val/end_to_end_val_m_128.npz'
     ]
     train_logger_path = main_branch + add + 'log_train/'
     valid_logger_path = main_branch + add + 'log_valid/'

@@ -1,18 +1,17 @@
 import sys
 sys.path.append("..")
+from models.optimization.parallel_scheme import model_optimization_solution
 import numpy as np
-from model_utils import save_model, fetch_data_end_to_end, flip_tensors, \
+from model_utils import save_model, fetch_data_end_to_end, \
     get_paths, get_params, setup_logger, choose_optimizer, choose_loss_function, sample_label_normal_dist
 import torch
-import random
 import logging
 from models.model_end_to_end import Model_end_to_end
-from analysis.visualize_results.visualize_training import visualize_wavefield
 
 
 def train_Dt_end_to_end(downsampling_model, upsampling_model, optimizer_name, loss_function_name, res_scaler, model_res,
                         flipping, optimization_type, multi_step,
-                        logging_bool=False, visualize=True, params="0", vis_save=True):
+                        logging_bool=False, params="0", vis_save=True):
 
     # params and logger setup
     data_paths, train_logger_path, valid_logger_path, dir_path_save, vis_path, val_paths = get_paths(model_res)
@@ -50,23 +49,10 @@ def train_Dt_end_to_end(downsampling_model, upsampling_model, optimizer_name, lo
         if (epoch + 1) % 3 == 0: label_distr_shift += 1
 
         for i, data in enumerate(train_loader):
-
             n_snaps = data[0].shape[1]
             data = data[0].to(device)  # b x n_snaps x 4 x w x h
-            loss_list = []
-
-            for input_idx in random.choices(range(n_snaps - 2), k=n_snaps):
-                input_tensor = data[:, input_idx, :, :, :]  # b x 4 x w x h
-                h_flipped, v_flipped = False, False
-                label_range = sample_label_normal_dist(input_idx, n_snaps, label_distr_shift)
-
-                for label_idx in range(input_idx+1, label_range):  # randomly decide how long path is
-                    label = data[:, label_idx, :3, :, :].to(device)  # b x 3 x w x h
-                    if flipping: input_tensor, label, v_flipped, h_flipped = flip_tensors(input_tensor, label, v_flipped, h_flipped)
-                    output = model(input_tensor)  # b x 3 x w x h
-                    loss = loss_f(output, label)
-                    loss_list.append(loss)
-                    input_tensor = torch.cat((output, torch.unsqueeze(input_tensor[:, 3, :, :], dim=1)), dim=1)
+            loss_list = model_optimization_solution(data, model, loss_f, n_snaps, label_distr_shift, "train",
+                                                    i, epoch, vis_path, vis_save, optimization_type, multi_step)
 
             optimizer.zero_grad()
             sum(loss_list).backward()
@@ -79,29 +65,14 @@ def train_Dt_end_to_end(downsampling_model, upsampling_model, optimizer_name, lo
         # validation
         model.eval()
         with torch.no_grad():
-            val_loss_list, visualize_list = [], []
+            val_loss_list = []
             for i, data in enumerate(val_loader):
 
                 n_snaps = data[0].shape[1]
                 data = data[0].to(device)  # b x n_snaps x 3 x w x h
-                input_tensor = data[:, 0, :, :, :]  # b x 4 x w x h
 
-                for label_idx in range(1, n_snaps):
-                    label = data[:, label_idx, :3, :, :]  # b x 3 x w x h
-
-                    output = model(input_tensor)
-                    val_loss = loss_f(output, label)
-                    val_loss_list.append(val_loss.item())
-
-                    if visualize and i == 0:
-                        # save only first element of batch
-                        visualize_list.append((val_loss.item(), output[0, :, :, :].detach().cpu(),
-                                               label[0, :, :, :].detach().cpu()))
-
-                    input_tensor = torch.cat((output, input_tensor[:, 3, :, :].unsqueeze(dim=1)), dim=1)
-
-                if visualize and i == 0:
-                    visualize_wavefield(epoch, visualize_list, input_tensor[0, 3, :, :].cpu(), vis_save=vis_save, vis_path=vis_path)
+                val_loss_list += model_optimization_solution(data, model, loss_f, n_snaps, -1, "val", i, epoch,
+                                                             vis_path, vis_save, optimization_type, multi_step)
 
             if logging_bool:
                 train_logger.add_scalar('loss', np.array(train_loss_list).mean(), global_step=global_step)
@@ -122,12 +93,10 @@ def train_Dt_end_to_end(downsampling_model, upsampling_model, optimizer_name, lo
 def grid_search_end_to_end():
 
     def apply_rules(scale, res, counter, opt_type, multi_step):
-        rules_bool = ((scale == 4 and res == 256) or (scale == 2 and res == 128)) \
-                     and counter >= -1 and (opt_type is None or opt_type == "parareal" or (opt_type == "procrustes" and multi_step == 1))
-        if rules_bool:
-            return True
-        else:
-            return False
+        rules_bool = ((scale == 4 and res == 256) or (scale == 2 and res == 128) or (opt_type == "parareal" and res == 256 and scale == 2)) \
+                     and counter >= -1 \
+                     and (opt_type is None or (opt_type == "parareal" and res == 256) or (opt_type == "procrustes" and multi_step == 1 and res == 256))
+        return rules_bool
 
     downsampling_model = [
         "Interpolation",
@@ -164,13 +133,13 @@ def grid_search_end_to_end():
     ]
     optimizations = [
         None,
-        "parareal",
-        "procrustes",
+        # "parareal",
+        # "procrustes",
     ]
     multi_step = [
-        1,
+        # 1,
         2,
-        -1  # shifting normal distribution
+        # -1  # shifting normal distribution
     ]
 
     counter = 0

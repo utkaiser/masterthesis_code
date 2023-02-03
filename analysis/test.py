@@ -15,13 +15,12 @@ if __name__ == '__main__':
         if (epoch + 1) % 3 == 0: add +=1
         print("-"*20, epoch)
         for i in range(50):
-            for inpt_idx in random.choices(range(n_snaps-2), k=n_snaps):
-                label_range = round(get_truncated_normal(mean=min(n_snaps-1,inpt_idx+add), sd=1, low=inpt_idx+1, upp=n_snaps-1).rvs())
-                if label_range == inpt_idx:
-                    print("a")
-                if label_range == n_snaps:
-                    print("aa")
-
+            for inpt_idx in random.choices(range(n_snaps-1), k=n_snaps):
+                if inpt_idx + 1 == n_snaps - 1:
+                    label_range = n_snaps - 1
+                else:
+                    label_range = round(get_truncated_normal(mean=min(n_snaps-1,inpt_idx+add), sd=1, low=inpt_idx+1, upp=n_snaps-1).rvs())
+                print(inpt_idx, label_range)
 
 
 
