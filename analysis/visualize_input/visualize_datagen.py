@@ -6,11 +6,11 @@ from generate_data import utils_wave
 from generate_data.utils_wave import WaveEnergyComponentField_end_to_end
 
 
-def visualize_wavefield(u_elapse, ut_elapse, f_delta_x = 2.0 / 128.0, f_delta_t = .1, vel = None, frame=True, init_res_f=128, it=0):
+def visualize_wavefield(u_elapse, ut_elapse, f_delta_x = 2.0 / 128.0, f_delta_t = .1, vel = None, frame=True, init_res_f=128, it=0, optimization="none"):
 
     wave_field = WaveEnergyComponentField_end_to_end(u_elapse, ut_elapse, vel, f_delta_x)
 
-    fig = plt.figure(figsize=(30, 20))
+    fig = plt.figure(figsize=(15, 8))
     u_x, u_y, u_t_c = wave_field
     # compute center
     axis_len = u_x.shape[-1]
@@ -26,7 +26,17 @@ def visualize_wavefield(u_elapse, ut_elapse, f_delta_x = 2.0 / 128.0, f_delta_t 
              [axis_center - init_res_f // 2, axis_center - init_res_f // 2], 'r', linewidth=4)
     plt.plot([axis_center - init_res_f // 2, axis_center - init_res_f // 2],
              [axis_center - init_res_f // 2, axis_center + init_res_f // 2], 'r', linewidth=4)
-    plt.axis('off')
+
+    if optimization != "none":
+        plt.plot([axis_center - init_res_f // 4, axis_center + init_res_f // 4],
+                 [axis_center + init_res_f // 4, axis_center + init_res_f // 4], 'g', linewidth=4)
+        plt.plot([axis_center + init_res_f // 4, axis_center + init_res_f // 4],
+                 [axis_center + init_res_f // 4, axis_center - init_res_f // 4], 'g', linewidth=4)
+        plt.plot([axis_center - init_res_f // 4, axis_center + init_res_f // 4],
+                 [axis_center - init_res_f // 4, axis_center - init_res_f // 4], 'g', linewidth=4)
+        plt.plot([axis_center - init_res_f // 4, axis_center - init_res_f // 4],
+                 [axis_center - init_res_f // 4, axis_center + init_res_f // 4], 'g', linewidth=4)
+    # plt.axis('off')
 
     if frame:
         u, ut = utils_wave.WaveSol_from_EnergyComponent(u_x, u_y, u_t_c, vel, f_delta_t, sumv)
@@ -40,6 +50,16 @@ def visualize_wavefield(u_elapse, ut_elapse, f_delta_x = 2.0 / 128.0, f_delta_t 
                  [axis_center - init_res_f // 2, axis_center - init_res_f // 2], 'r', linewidth=4)
         plt.plot([axis_center - init_res_f // 2, axis_center - init_res_f // 2],
                  [axis_center - init_res_f // 2, axis_center + init_res_f // 2], 'r', linewidth=4)
+
+        if optimization != "none":
+            plt.plot([axis_center - init_res_f // 4, axis_center + init_res_f // 4],
+                     [axis_center + init_res_f // 4, axis_center + init_res_f // 4], 'g', linewidth=4)
+            plt.plot([axis_center + init_res_f // 4, axis_center + init_res_f // 4],
+                     [axis_center + init_res_f // 4, axis_center - init_res_f // 4], 'g', linewidth=4)
+            plt.plot([axis_center - init_res_f // 4, axis_center + init_res_f // 4],
+                     [axis_center - init_res_f // 4, axis_center - init_res_f // 4], 'g', linewidth=4)
+            plt.plot([axis_center - init_res_f // 4, axis_center - init_res_f // 4],
+                     [axis_center - init_res_f // 4, axis_center + init_res_f // 4], 'g', linewidth=4)
 
     plt.title("iteration: " + str(it))
     plt.show()

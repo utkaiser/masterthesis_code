@@ -157,10 +157,12 @@ def start_logger_datagen_end_to_end(index):
     logging.info("start logging")
 
 
-
-def get_datagen_end_to_end_params(param_dict):
-    return param_dict["total_time"], param_dict["delta_t_star"], param_dict["f_delta_x"], param_dict["f_delta_t"], \
+def get_datagen_end_to_end_params(param_dict, optimization):
+    a,b,c,d,e = param_dict["total_time"], param_dict["delta_t_star"], param_dict["f_delta_x"], param_dict["f_delta_t"], \
            param_dict["n_snaps"]
+    if optimization != "none":
+        c *= 1.4
+    return a,b,c,d,e
 
 
 

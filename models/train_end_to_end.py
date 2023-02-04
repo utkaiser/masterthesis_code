@@ -11,11 +11,10 @@ from analysis.visualize_results.visualize_training import visualize_wavefield
 
 
 def train_Dt_end_to_end(downsampling_model, upsampling_model, optimizer_name, loss_function_name, res_scaler, model_res,
-                        flipping, optimization_type, multi_step,
-                        logging_bool=False, params="0", vis_save=True):
+                        flipping, multi_step, logging_bool=False, params="0", vis_save=True):
 
     # params and logger setup
-    data_paths, train_logger_path, valid_logger_path, dir_path_save, vis_path, val_paths = get_paths(model_res,optimization_type)
+    data_paths, train_logger_path, valid_logger_path, dir_path_save, vis_path, val_paths = get_paths(model_res)
     model_name = "_".join([downsampling_model, upsampling_model, optimizer_name, loss_function_name, str(res_scaler), str(model_res), str(flipping)])
     param_dict = get_params(params)
     batch_size, lr, n_epochs, boundary_c, delta_t_star, f_delta_x, n_epochs_save_model = \
@@ -58,7 +57,7 @@ def train_Dt_end_to_end(downsampling_model, upsampling_model, optimizer_name, lo
                 for label_idx in range(input_idx + 1, label_range):  # randomly decide how long path is
                     label = data[:, label_idx, :3].to(device)  # b x 3 x w x h
                     output = model(input_tensor)  # b x 3 x w x h
-                    loss_list += [loss_f(output, label)]
+                    loss_list.append(loss_f(output, label))
                     input_tensor = torch.cat((output, input_tensor[:, 3].unsqueeze(dim=1)), dim=1)
 
             optimizer.zero_grad()
@@ -117,10 +116,9 @@ def train_Dt_end_to_end(downsampling_model, upsampling_model, optimizer_name, lo
 
 def grid_search_end_to_end():
 
-    def apply_rules(scale, res, counter, opt_type, multi_step):
-        rules_bool = ((scale == 4 and res == 256) or (scale == 2 and res == 128) or (opt_type == "parareal" and res == 256 and scale == 2)) \
-                     and counter >= -1 \
-                     and (opt_type == "none" or (opt_type == "parareal" and res == 256) or (opt_type == "procrustes" and multi_step == 1 and res == 256))
+    def apply_rules(scale, res, counter):
+        rules_bool = ((scale == 4 and res == 256) or (scale == 2 and res == 128)) \
+                     and counter >= -1
         return rules_bool
 
     downsampling_model = [
@@ -149,22 +147,17 @@ def grid_search_end_to_end():
         # 4
     ]
     model_res = [
-        # 128,
-        256,
+        128,
+        # 256,
     ]
     flipping = [
         False,
         # True
     ]
-    optimizations = [
-        # "none",
-        "parareal",
-        # "procrustes",
-    ]
     multi_step = [
         # 1,
-        2,
-        # -1  # shifting normal distribution
+        # 2,
+        -1  # shifting normal distribution
     ]
 
     counter = 0
@@ -175,21 +168,19 @@ def grid_search_end_to_end():
                     for scale in res_scaler:
                         for res in model_res:
                                 for f in flipping:
-                                    for opt in optimizations:
-                                        for m in multi_step:
-                                            if apply_rules(scale, res, counter, opt, m):
-                                                train_Dt_end_to_end(
-                                                    downsampling_model = d,
-                                                    upsampling_model = u,
-                                                    optimizer_name = o,
-                                                    loss_function_name = l,
-                                                    res_scaler = scale,
-                                                    model_res = res,
-                                                    flipping = f,
-                                                    optimization_type = opt,
-                                                    multi_step = m
-                                                )
-                                            counter += 1
+                                    for m in multi_step:
+                                        if apply_rules(scale, res, counter):
+                                            train_Dt_end_to_end(
+                                                downsampling_model = d,
+                                                upsampling_model = u,
+                                                optimizer_name = o,
+                                                loss_function_name = l,
+                                                res_scaler = scale,
+                                                model_res = res,
+                                                flipping = f,
+                                                multi_step = m
+                                            )
+                                        counter += 1
 
 
 if __name__ == "__main__":

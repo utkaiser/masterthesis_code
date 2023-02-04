@@ -10,14 +10,14 @@ from analysis.visualize_input.visualize_datagen import visualize_wavefield
 import logging
 
 
-def generate_wave_from_medium(output_path, res, boundary_condition, visualize, index, n_it):
+def generate_wave_from_medium(output_path, res, boundary_condition, visualize, index, n_it, optimization):
 
     # parameter setup
     start_logger_datagen_end_to_end(index=index)
-    total_time, delta_t_star, f_delta_x, f_delta_t, n_snaps = get_datagen_end_to_end_params(get_params("0"))
+    total_time, delta_t_star, f_delta_x, f_delta_t, n_snaps = get_datagen_end_to_end_params(get_params("0"), optimization)
 
     # data setup
-    velocities, n_it, res_padded, output_appendix = get_velocities(n_it, res, boundary_condition)
+    velocities, n_it, res_padded, output_appendix = get_velocities(n_it, res, boundary_condition, optimization=optimization)
 
     # tensors setup
     Ux, Uy, Utc = np.zeros([n_it, n_snaps + 1, res, res]), np.zeros([n_it, n_snaps + 1, res, res]), np.zeros([n_it, n_snaps + 1, res, res])
@@ -31,7 +31,7 @@ def generate_wave_from_medium(output_path, res, boundary_condition, visualize, i
 
         #initialization of wave field
         vel = velocities[it]  # w_big x h_big
-        u_elapse, ut_elapse = initial_condition_gaussian(vel, res, boundary_condition, mode="generate_data", res_padded=res_padded)
+        u_elapse, ut_elapse = initial_condition_gaussian(vel, res, boundary_condition, res_padded, optimization=optimization)
 
         # create and save velocity crop
         vel_crop = crop_center(vel, res, boundary_condition)
@@ -53,20 +53,21 @@ def generate_wave_from_medium(output_path, res, boundary_condition, visualize, i
 
             if s < n_snaps + 1: u_elapse, ut_elapse = pseudo_spectral(u_elapse, ut_elapse, vel, f_delta_x, f_delta_t, delta_t_star)
 
-            if visualize: visualize_wavefield(u_elapse, ut_elapse, vel=vel, init_res_f=res, frame=True, f_delta_x=f_delta_x, f_delta_t=f_delta_t, it=s+1)
+            if visualize: visualize_wavefield(u_elapse, ut_elapse, vel=vel, init_res_f=res, frame=True, f_delta_x=f_delta_x, f_delta_t=f_delta_t, it=s+1, optimization=optimization)
 
-    np.savez(output_path+output_appendix+str(res)+"_parareal.npz", vel=V, Ux=Ux, Uy=Uy, Utc=Utc)
+    np.savez(output_path+output_appendix+str(res)+"_"+optimization+".npz", vel=V, Ux=Ux, Uy=Uy, Utc=Utc)
 
 
 if __name__ == "__main__":
 
-    for index in range(1):
+    for index in range(4):
         generate_wave_from_medium(output_path = "../data/end_to_end_" + str(index),
                                   res = 256,
                                   boundary_condition = "absorbing",
-                                  visualize = True,
+                                  visualize = False,
                                   index = str(index),
-                                  n_it = -1)  # how many data samples to generate
+                                  n_it = -1,  # how many data samples to generate
+                                  optimization = "parareal")
 
 
 

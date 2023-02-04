@@ -48,13 +48,8 @@ if __name__ == '__main__':
     fullbp = gaussian(databp['V'],4)/1000 #to make smoother (and different order of magnitude)
 
     createCropsAndSave([fullmarm,fullbp],
-                       m=128*2,
-                       outputdir = '../data/crops_bp_m_200_128*2.npz',
-                       num_times=200)
-    print("-"*100)
-    createCropsAndSave([fullmarm, fullbp],
-                       m=256 * 2,
-                       outputdir='../data/crops_bp_m_200_256*2.npz',
+                       m=128*3,
+                       outputdir = '../data/crops_bp_m_200_128*3.npz',
                        num_times=200)
 
     print("finish running generatecroppedVmodel.py")

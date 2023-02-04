@@ -73,7 +73,7 @@ def pca_dataset_save_mat():
     pipe = Pipeline([('scale', StandardScaler()), ('pca', pca)])
     Xt = pipe.fit_transform(new_tensor)
 
-    savemat("../../results/datagen/visualization/pca3_scaled.mat", {"res": Xt})
+    savemat("../../results/datagen/pca/pca3_scaled.mat", {"res": Xt})
 
     # labels = {
     #     "diagonal": ["red", 100],

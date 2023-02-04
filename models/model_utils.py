@@ -149,7 +149,7 @@ def sample_label_normal_dist(input_idx, n_snaps, label_distr_shift, multi_step):
             return round(truncnorm((low - mean) / sd, (upp - mean) / sd, loc=mean, scale=sd).rvs())
 
 
-def get_paths(model_res,optimization_type):
+def get_paths(model_res):
 
     main_branch = '../results/run_3/'
     now = datetime.now()
@@ -167,7 +167,7 @@ def get_paths(model_res,optimization_type):
         # '../data/end_to_end_4diag__3l__cp__hf__bp_m' + str(model_res) + '.npz'
     ]
     val_paths = [
-        '../../data/val/end_to_end_val_3l_' + str(128) + '.npz',
+        '../../data/val/end_to_end_val_3l_' + str(model_res) + '.npz',
         # '../data/val/end_to_end_val_bp_' + str(model_res) + '.npz',
         # '../data/val/end_to_end_val_cp_' + str(model_res) + '.npz',
         # '../data/val/end_to_end_val_diag_' + str(model_res) + '.npz',
