@@ -9,12 +9,13 @@ from generate_data.wave_propagation import pseudo_spectral_tensor
 sys.path.append("..")
 
 def vis_ps_batched():
+
     boundary_condition = "absorbing"
     res = 128
     dx, dt, Tf = 2./128., 1/600., .06
     velocity_tensor, _, _, _ = get_velocities(5, res, boundary_condition)
     u, ut = initial_condition_gaussian(velocity_tensor, res=res, boundary_condition=boundary_condition, mode="generate_data",
-                                       res_padded=128 * 2)
+                                       res_padded=128 * 2, optimization="parareal")
 
     u, ut, velocity_tensor = torch.from_numpy(u), torch.from_numpy(ut), torch.from_numpy(velocity_tensor)
 
@@ -24,7 +25,7 @@ def vis_ps_batched():
 
     for s in range(10):
         new_u, new_ut = pseudo_spectral_tensor(new_u, new_ut, velocity_tensor, dx, dt, Tf)
-        w = WaveEnergyField_tensor(new_u[0], new_ut[0], velocity_tensor[0], dx)
+        w = WaveEnergyField_tensor(new_u[4], new_ut[4], velocity_tensor[4], dx)
         plt.imshow(w)
         plt.show()
 

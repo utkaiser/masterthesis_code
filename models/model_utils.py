@@ -1,12 +1,14 @@
 from os import environ, path
-
 from scipy.stats import truncnorm
 from torch import load
-import numpy as np
 import os
 import torchvision.transforms.functional as TF
 import random
-import scipy.stats as ss
+import numpy as np
+from generate_data.utils_wave import WaveSol_from_EnergyComponent_tensor, WaveEnergyField_tensor, WaveSol_from_EnergyComponent, WaveEnergyField
+from torchmetrics.functional import mean_squared_error as MSE
+from torchmetrics.functional import mean_absolute_error as MAE
+from models.model_end_to_end import Model_end_to_end
 from datetime import datetime
 import logging
 import torch
@@ -15,6 +17,7 @@ import torch.nn as nn
 import torch.utils.tensorboard as tb
 import time
 import sys
+
 
 environ["TOKENIZERS_PARALLELISM"] = "false"
 environ["OMP_NUM_THREADS"] = "1"
@@ -149,30 +152,41 @@ def sample_label_normal_dist(input_idx, n_snaps, label_distr_shift, multi_step):
             return round(truncnorm((low - mean) / sd, (upp - mean) / sd, loc=mean, scale=sd).rvs())
 
 
-def get_paths(model_res):
+def get_paths(model_res, optimization_type = "none"):
 
-    main_branch = '../results/run_3/'
     now = datetime.now()
     add = now.strftime("%d_%m_%Y____%H_%M_%S") + "/"
 
+    if optimization_type == "none":
+        suffix = ""
+        if model_res == 128: data_suffix = "/D_t_128"
+        else: data_suffix = "/D_t_256"
+        val_res_factor = 1
+        main_branch_folder = ""
+    else:  # only one way implemented right now
+        suffix = "../"
+        data_suffix = "/D_t_128_parareal"
+        val_res_factor = 2
+        main_branch_folder = "optimization/"
+    main_branch = suffix + '../results/run_3/' + main_branch_folder
+
     if not os.path.exists(main_branch + add):
         os.makedirs(main_branch + add)
-
     data_paths = [
-        '../../data/test/end_to_end_test10diag__3l__cp__hf__bp_m' + str(model_res) + '.npz'
-        # '../data/end_to_end_0diag__3l__cp__hf__bp_m' + str(model_res) + '.npz',
-        # '../data/end_to_end_1diag__3l__cp__hf__bp_m' + str(model_res) + '.npz',
-        # '../data/end_to_end_2diag__3l__cp__hf__bp_m' + str(model_res) + '.npz',
-        # '../data/end_to_end_3diag__3l__cp__hf__bp_m' + str(model_res) + '.npz',
-        # '../data/end_to_end_4diag__3l__cp__hf__bp_m' + str(model_res) + '.npz'
+        # '../data/test/end_to_end_test10diag__3l__cp__hf__bp_m' + str(model_res) + '_none.npz'
+        suffix + '../data' + data_suffix + '/end_to_end_0diag__3l__cp__hf__bp_m' + str(model_res) + "_" + optimization_type + '.npz',
+        suffix + '../data' + data_suffix + '/end_to_end_1diag__3l__cp__hf__bp_m' + str(model_res) + "_" + optimization_type + '.npz',
+        suffix + '../data' + data_suffix + '/end_to_end_2diag__3l__cp__hf__bp_m' + str(model_res) + "_" + optimization_type + '.npz',
+        suffix + '../data' + data_suffix + '/end_to_end_3diag__3l__cp__hf__bp_m' + str(model_res) + "_" + optimization_type + '.npz',
+        suffix + '../data' + data_suffix + '/end_to_end_4diag__3l__cp__hf__bp_m' + str(model_res) + "_" + optimization_type + '.npz'
     ]
     val_paths = [
-        '../../data/val/end_to_end_val_3l_' + str(model_res) + '.npz',
-        # '../data/val/end_to_end_val_bp_' + str(model_res) + '.npz',
-        # '../data/val/end_to_end_val_cp_' + str(model_res) + '.npz',
-        # '../data/val/end_to_end_val_diag_' + str(model_res) + '.npz',
-        # '../data/val/end_to_end_val_hf_' + str(model_res) + '.npz',
-        # '../data/val/end_to_end_val_m_' + str(model_res) + '.npz'
+        suffix + '../data/val/end_to_end_val_3l_' + str(model_res//val_res_factor) + '.npz',
+        suffix + '../data/val/end_to_end_val_bp_' + str(model_res//val_res_factor) + '.npz',
+        suffix + '../data/val/end_to_end_val_cp_' + str(model_res//val_res_factor) + '.npz',
+        suffix + '../data/val/end_to_end_val_diag_' + str(model_res//val_res_factor) + '.npz',
+        suffix + '../data/val/end_to_end_val_hf_' + str(model_res//val_res_factor) + '.npz',
+        suffix + '../data/val/end_to_end_val_m_' + str(model_res//val_res_factor) + '.npz'
     ]
     train_logger_path = main_branch + add + 'log_train/'
     valid_logger_path = main_branch + add + 'log_valid/'
@@ -187,7 +201,7 @@ def get_params(params="0"):
     param_dict = {}
 
     if params == "0":
-        param_dict["batch_size"] = 50
+        param_dict["batch_size"] = 40
         param_dict["lr"] = .001
         param_dict["n_epochs"] = 20
         param_dict["n_snaps"] = 9
@@ -254,3 +268,69 @@ def choose_loss_function(name):
     else:
         raise NotImplementedError("Loss function not implemented.")
 
+
+def relative_frobenius_norm(a, b):
+    diff = a - b
+    norm_diff = torch.sqrt(torch.sum(diff**2))
+    norm_b = torch.sqrt(torch.sum(b**2))
+    return norm_diff / norm_b
+
+
+def compute_loss(prediction,target, vel, mode = "MSE/frob(fine)"):
+
+    prediction, target = get_wavefield(prediction, vel), get_wavefield(target,vel)
+
+    if mode=="relative_frobenius":
+        return relative_frobenius_norm(prediction, target).item()
+    elif mode == "MSE":
+        return MSE(prediction, target).item()
+    elif mode == "MAE":
+        return MAE(prediction, target).item()
+    elif mode == "MSE/frob(fine)":
+        return MSE(prediction, target).item() / torch.linalg.norm(target).item()
+    elif mode == "MAE/frob(fine)":
+        return MAE(prediction, target).item() / torch.linalg.norm(target).item()
+    else:
+        raise NotImplementedError("This mode has not been implemented yet.")
+
+
+def round_loss(number):
+    return number #str(round(number*(10**7),5))+"e-7"
+
+
+def smaller_crop(matrix):
+    # matrix -> b? x c x w x h
+    if matrix.shape[-1] == 256:
+        v = 64
+    else:
+        v = 32
+
+    if len(matrix.shape) == 3:
+        return matrix[:, v:-v, v:-v]
+    elif len(matrix.shape) == 4:
+        return matrix[:,:,v:-v, v:-v]
+    elif len(matrix.shape) == 5:
+        return matrix[:,:,:,v:-v, v:-v]
+    elif len(matrix.shape) == 6:
+        return matrix[:,:,:,:,v:-v, v:-v]
+
+    else:
+        return matrix[v:-v, v:-v]
+
+
+def get_wavefield(tensor, vel, f_delta_x=2.0 / 128.0, f_delta_t=(2.0 / 128.0) / 20):
+
+    u_x, u_y, u_t_c = tensor[:, 0], tensor[:, 1], tensor[:, 2]
+    u, u_t = WaveSol_from_EnergyComponent_tensor(u_x, u_y, u_t_c, vel, f_delta_t,
+                                                 torch.sum(torch.sum(torch.sum(u_x))))
+    return WaveEnergyField_tensor(u.squeeze().cpu(), u_t.squeeze().cpu(), vel.squeeze().cpu(),
+                                  f_delta_x) * f_delta_x * f_delta_x
+
+
+def get_wavefield_numpy(tensor, vel, f_delta_x=2.0 / 128.0, f_delta_t=(2.0 / 128.0) / 20):
+
+    u_x, u_y, u_t_c = tensor[0, :, :], tensor[1, :, :], tensor[2, :, :]
+    u, u_t = WaveSol_from_EnergyComponent(u_x, u_y, u_t_c, vel, f_delta_t,
+                                                 np.sum(np.sum(np.sum(u_x))))
+    return WaveEnergyField(u, u_t, vel,
+                                  f_delta_x) * f_delta_x * f_delta_x

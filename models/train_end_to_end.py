@@ -15,7 +15,7 @@ def train_Dt_end_to_end(downsampling_model, upsampling_model, optimizer_name, lo
 
     # params and logger setup
     data_paths, train_logger_path, valid_logger_path, dir_path_save, vis_path, val_paths = get_paths(model_res)
-    model_name = "_".join([downsampling_model, upsampling_model, optimizer_name, loss_function_name, str(res_scaler), str(model_res), str(flipping)])
+    model_name = "_".join([downsampling_model, upsampling_model, optimizer_name, loss_function_name, str(res_scaler), str(model_res), str(flipping), str(multi_step)])
     param_dict = get_params(params)
     batch_size, lr, n_epochs, boundary_c, delta_t_star, f_delta_x, n_epochs_save_model = \
         param_dict["batch_size"], param_dict["lr"], param_dict["n_epochs"], param_dict["boundary_c"], \
@@ -44,18 +44,19 @@ def train_Dt_end_to_end(downsampling_model, upsampling_model, optimizer_name, lo
     for epoch in range(n_epochs):
 
         model.train()
-        train_loss_list, loss_list = [], []
+        train_loss_list = []
         if (epoch + 1) % 3 == 0: label_distr_shift += 1
 
         for i, data in enumerate(train_loader):
+            loss_list = []
             n_snaps = data[0].shape[1]
             data = data[0].to(device)  # b x n_snaps x 4 x w x h
             for input_idx in random.choices(range(n_snaps - 2), k=n_snaps):
                 label_range = sample_label_normal_dist(input_idx, n_snaps, label_distr_shift, multi_step)
-                input_tensor = data[:, input_idx]  # b x 4 x w x h
+                input_tensor = data[:, input_idx].detach()  # b x 4 x w x h
 
                 for label_idx in range(input_idx + 1, label_range):  # randomly decide how long path is
-                    label = data[:, label_idx, :3].to(device)  # b x 3 x w x h
+                    label = data[:, label_idx, :3]  # b x 3 x w x h
                     output = model(input_tensor)  # b x 3 x w x h
                     loss_list.append(loss_f(output, label))
                     input_tensor = torch.cat((output, input_tensor[:, 3].unsqueeze(dim=1)), dim=1)
@@ -96,7 +97,7 @@ def train_Dt_end_to_end(downsampling_model, upsampling_model, optimizer_name, lo
 
                 if i == 0:
                     visualize_wavefield(epoch, visualize_list, input_tensor[0, 3].cpu(), vis_save=vis_save,
-                                        vis_path=vis_path, initial_u=data[:, 0])
+                                        vis_path=vis_path, initial_u=data[0, 0].unsqueeze(dim=0).cpu())
 
             if logging_bool:
                 train_logger.add_scalar('loss', np.array(train_loss_list).mean(), global_step=global_step)
@@ -122,8 +123,8 @@ def grid_search_end_to_end():
         return rules_bool
 
     downsampling_model = [
-        "Interpolation",
-        # "CNN",
+        # "Interpolation",
+        "CNN",
         # "Simple"
     ]
     upsampling_model = [

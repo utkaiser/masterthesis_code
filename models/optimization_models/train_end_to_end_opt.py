@@ -31,6 +31,7 @@ def train_Dtp_end_to_end(downsampling_model, upsampling_model, optimizer_name, l
     logging.info(" ".join(["gpu available:", str(torch.cuda.is_available()), "| n of gpus:", str(torch.cuda.device_count())]))
     model = Model_end_to_end(param_dict, downsampling_model, upsampling_model, res_scaler, model_res).double()
     model = torch.nn.DataParallel(model).to(device)  # multi-GPU use
+    model.load_state_dict(torch.load('../../results/run_3/good/saved_model_Interpolation_UNet3_AdamW_SmoothL1Loss_2_128_False_15.pt'))
 
     optimizer = choose_optimizer(optimizer_name, model, lr)
     loss_f = choose_loss_function(loss_function_name)
@@ -42,8 +43,8 @@ def train_Dtp_end_to_end(downsampling_model, upsampling_model, optimizer_name, l
     # training
     label_distr_shift = 1
     logging.info(" ".join(["-" * 20, "start training", "-" * 20]))
-    for epoch in range(n_epochs):
 
+    for epoch in range(n_epochs):
         model.train()
         train_loss_list = []
         if (epoch + 1) % 3 == 0: label_distr_shift += 1
@@ -92,12 +93,6 @@ def train_Dtp_end_to_end(downsampling_model, upsampling_model, optimizer_name, l
 
 def grid_search_end_to_end():
 
-    def apply_rules(scale, res, counter, opt_type, multi_step):
-        rules_bool = ((scale == 4 and res == 256) or (scale == 2 and res == 128) or (opt_type == "parareal" and res == 256 and scale == 2)) \
-                     and counter >= -1 \
-                     and (opt_type is None or (opt_type == "parareal" and res == 256) or (opt_type == "procrustes" and multi_step == 1 and res == 256))
-        return rules_bool
-
     downsampling_model = [
         "Interpolation",
         # "CNN",
@@ -132,14 +127,13 @@ def grid_search_end_to_end():
         # True
     ]
     optimizations = [
-        # None,
         "parareal",
         # "procrustes",
     ]
     multi_step = [
         # 1,
-        2,
-        # -1  # shifting normal distribution
+        # 2,
+        -1  # shifting normal distribution
     ]
 
     counter = 0
@@ -152,18 +146,17 @@ def grid_search_end_to_end():
                                 for f in flipping:
                                     for opt in optimizations:
                                         for m in multi_step:
-                                            if apply_rules(scale, res, counter, opt, m):
-                                                train_Dtp_end_to_end(
-                                                    downsampling_model = d,
-                                                    upsampling_model = u,
-                                                    optimizer_name = o,
-                                                    loss_function_name = l,
-                                                    res_scaler = scale,
-                                                    model_res = res,
-                                                    flipping = f,
-                                                    optimization_type = opt,
-                                                    multi_step = m
-                                                )
+                                            train_Dtp_end_to_end(
+                                                downsampling_model = d,
+                                                upsampling_model = u,
+                                                optimizer_name = o,
+                                                loss_function_name = l,
+                                                res_scaler = scale,
+                                                model_res = res,
+                                                flipping = f,
+                                                optimization_type = opt,
+                                                multi_step = m
+                                            )
                                             counter += 1
 
 

@@ -1,13 +1,13 @@
 import torch
 import torch.nn.functional as F
-
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def choose_downsampling(mode, res_scaler, model_res):
 
     if mode == "Simple":
         return Simple_restriction(res_scaler, model_res)
     elif mode == "CNN":
-        return CNN_restriction(res_scaler)
+        return CNN_restriction(res_scaler).to(device)
     elif mode == "Interpolation":
         return Numerical_downsampling(res_scaler)
     else:
@@ -61,14 +61,14 @@ class Simple_restriction(torch.nn.Module):
 
 class CNN_restriction(torch.nn.Module):
     def __init__(self, res_scaler):
+
+        # TODO: more sophisicated architecture, try simple architecture as well
         super(CNN_restriction, self).__init__()
         in_channels = 4
 
         self.restr_layer1 = Restr_block(in_channels, in_channels * 2, groups=in_channels).double()
         self.restr_layer3 = Restr_block(in_channels * 2, in_channels * 2, groups=in_channels).double()
-        self.restr_layer5_stride = []
-        for _ in range(res_scaler//2):
-            self.restr_layer5_stride.append(Restr_block(in_channels * 2, in_channels * 2, groups=in_channels,stride=2).double())
+        self.restr_layer5_stride = Restr_block(in_channels * 2, in_channels * 2, groups=in_channels, stride=2).double()
         self.restr_layer8 = Restr_block(in_channels * 2, in_channels, relu=False, batch_norm=False,
                                         groups=in_channels).double()
 
@@ -76,9 +76,7 @@ class CNN_restriction(torch.nn.Module):
         x = self.restr_layer1(x)
         x = self.restr_layer3(x)
         skip = x.clone()
-        for stride_layer in self.restr_layer5_stride:
-            x = stride_layer(x)
-        x = self.restr_layer5(x)
+        x = self.restr_layer5_stride(x)
         x = self.restr_layer8(x)
         return x, skip
 

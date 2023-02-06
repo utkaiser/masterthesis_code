@@ -23,8 +23,11 @@ class Model_end_to_end(nn.Module):
 
         self.param_dict = param_dict
         self.model_downsampling = choose_downsampling(downsampling_type, res_scaler, model_res)
+        self.model_downsampling.to(device)
         self.model_numerical = Numerical_solver(param_dict["boundary_c"], param_dict["c_delta_x"], param_dict["c_delta_t"],param_dict["f_delta_x"],param_dict["delta_t_star"])
+        self.model_numerical.to(device)
         self.model_upsampling = choose_upsampling(upsampling_type, res_scaler)
+        self.model_upsampling.to(device)
 
 
     def forward(self, x):
@@ -36,7 +39,7 @@ class Model_end_to_end(nn.Module):
         prop_result = self.model_numerical(downsampling_res)
 
         ##### upsampling through nn ######
-        outputs = self.model_upsampling(prop_result, skip_all=skip_all)  # b x 3 x w x h
+        outputs = self.model_upsampling(prop_result.to(device), skip_all=skip_all)  # b x 3 x w x h
 
         return outputs.to(device)
 

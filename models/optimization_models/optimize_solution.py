@@ -12,19 +12,10 @@ def model_optimization_solution(data, model, loss_f, n_snaps, label_distr_shift,
     loss_list = []
 
     if mode == "train":
-
         for input_idx in random.choices(range(n_snaps - 2), k=n_snaps):
             label_range = sample_label_normal_dist(input_idx, n_snaps, label_distr_shift, multi_step)
 
-            if optimization_type is None:
-                input_tensor = data[:, input_idx]  # b x 4 x w x h
-                for label_idx in range(input_idx + 1, label_range):  # randomly decide how long path is
-                    label = data[:, label_idx, :3].to(device)  # b x 3 x w x h
-                    output = model(input_tensor)  # b x 3 x w x h
-                    loss_list += [loss_f(output, label)]
-                    input_tensor = torch.cat((output, input_tensor[:, 3].unsqueeze(dim=1)), dim=1)
-
-            elif optimization_type == "parareal":
+            if optimization_type == "parareal":
                 loss_list += parareal_scheme(model, input_idx, 2, label_range, loss_f, data.to(device).detach())
 
             else:  # optimization_type == "procrustes"

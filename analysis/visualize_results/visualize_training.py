@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
-from analysis.utils_analysis import get_ticks_fine
+from analysis.utils_analysis import get_ticks_fine, get_solver_solution
 import torch
-from generate_data.optimization_generate_data.utils_optimization import get_wavefield, round_loss, compute_loss, get_solver_solution
+from models.model_utils import get_wavefield, round_loss, compute_loss
 
 
 def visualize_wavefield(epoch, tensor_list, vel, vis_save, vis_path, initial_u):
