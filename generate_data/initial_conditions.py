@@ -1,5 +1,6 @@
 import sys
 sys.path.append("..")
+sys.path.append("../..")
 import numpy as np
 from generate_data.utils_wave import WaveEnergyComponentField_tensor
 import random
@@ -10,7 +11,6 @@ import torch
 
 
 def initial_condition_gaussian(vel, res, boundary_condition, res_padded, optimization, mode="generate_data"):
-
     dx, width, center_x, center_y = get_init_cond_settings(res, boundary_condition, optimization)
     xx, yy = np.meshgrid(np.linspace(-1, 1, res_padded), np.linspace(-1, 1, res_padded))
     u0 = np.exp(-width * ((xx - center_x) ** 2 + (yy - center_y) ** 2))
@@ -37,13 +37,12 @@ def get_init_cond_settings(res, boundary_condition, optimization):
         factor_start_point_wave = 1
 
     if boundary_condition == "periodic":
-        center_x, center_y = factor_center_x * .45 / factor_start_point_wave, factor_center_y * .45  / factor_start_point_wave
+        factor = 2 if optimization == "parareal" else 1
+        center_x, center_y = factor_center_x * .45 / factor_start_point_wave / factor, factor_center_y * .45  / factor_start_point_wave / factor
         if res == 128:
-            dx = 2.0 / 128.0
             width = 1000 + factor_width*200
         elif res == 256:
-            dx = 2.0 / 256.0
-            width = 2000 + factor_width*300
+            width = 7000 + factor_width*500
         else: raise NotImplementedError("Parameter for initial condition not implemented.")
 
     elif boundary_condition == "absorbing":
@@ -53,15 +52,13 @@ def get_init_cond_settings(res, boundary_condition, optimization):
                 width = 5600 + factor_width * 500
             else:
                 width = 20000 + factor_width * 800
-            dx = 2.0 / (128.0 * 3)
         elif res == 256:
             width = 9000 + factor_width * 500
-            dx = 2.0 / (256.0 * 2)
         else: raise NotImplementedError("Parameter for initial condition not implemented.")
 
     else: raise NotImplementedError("Boundary condition for initial condition not implemented.")
 
-    return dx, width, center_x, center_y
+    return 2.0 / 128.0, width, center_x, center_y
 
 
 def init_cond_ricker(xx, yy, width, center):
@@ -76,27 +73,27 @@ def init_cond_ricker(xx, yy, width, center):
     return u0, ut0
 
 
-def get_velocities(n_it, res, boundary_condition, n_crops_other_profiles = 50, input_path = None, optimization = "none"):
+def get_velocities(n_it, res, boundary_condition, n_crops_other_profiles = 50, input_path = None, optimization = "none", prefix = ""):
 
     if input_path is None:
         # choose right bp_m dataset
         if boundary_condition == "absorbing":
             if optimization == "none":
                 factor = 2
-                if res == 128: input_path = '../data/velocity_profiles/crops_bp_m_400_128*2.npz'
-                else: input_path = '../data/velocity_profiles/crops_bp_m_400_256*2.npz'
+                if res == 128: input_path = prefix + '../data/velocity_profiles/crops_bp_m_400_128*2.npz'
+                else: input_path = prefix + '../data/velocity_profiles/crops_bp_m_400_256*2.npz'
             else:
                 factor = 1.5
-                input_path = '../data/velocity_profiles/crops_bp_m_400_128*3.npz'
+                input_path = prefix + '../data/velocity_profiles/crops_bp_m_400_128*2.npz'
         else:
             factor = 1
             if res == 128: input_path = '../data/velocity_profiles/crops_bp_m_200_128.npz'
-            else: input_path = '../data/velocity_profiles/crops_bp_m_200_256.npz'
+            else: input_path = '../data/velocity_profiles/crops_bp_m_400_128*2.npz'
     else:
         factor = 1
     # get velocities and save in dictionary
     res_padded = int(res * factor)
-    velocities = get_velocity_dict(res_padded, n_crops_other_profiles, input_path, boundary_condition,optimization)
+    velocities = get_velocity_dict(res_padded, n_crops_other_profiles, input_path, boundary_condition, optimization, prefix = prefix)
 
     # save velocities in tensor
     velocity_tensor = np.concatenate(list(velocities.values()), axis=0)
@@ -116,18 +113,18 @@ def get_velocities(n_it, res, boundary_condition, n_crops_other_profiles = 50, i
     return velocity_tensor, n_it, res_padded, output_appendix
 
 
-def get_velocity_dict(res_padded, n_crops_other_profiles, input_path, boundary_condition="absorbing", optimization = "none"):
+def get_velocity_dict(res_padded, n_crops_other_profiles, input_path, boundary_condition="absorbing", optimization = "none", prefix = ""):
     velocities = {
-        "diag": get_velocity_crop(res_padded, n_crops_other_profiles, "diagonal", boundary_condition, optimization),  # n_crops x res x res
-        "3l": get_velocity_crop(res_padded, n_crops_other_profiles, "three_layers", boundary_condition, optimization),  # n_crops x res x res
-        "cp": get_velocity_crop(res_padded, n_crops_other_profiles, "crack_profile", boundary_condition, optimization),  # n_crops x res x res
-        "hf": get_velocity_crop(res_padded, n_crops_other_profiles, "high_frequency", boundary_condition, optimization),  # n_crops x res x res
+        "diag": get_velocity_crop(res_padded, n_crops_other_profiles, "diagonal", boundary_condition, optimization, prefix),  # n_crops x res x res
+        "3l": get_velocity_crop(res_padded, n_crops_other_profiles, "three_layers", boundary_condition, optimization, prefix),  # n_crops x res x res
+        "cp": get_velocity_crop(res_padded, n_crops_other_profiles, "crack_profile", boundary_condition, optimization, prefix),  # n_crops x res x res
+        "hf": get_velocity_crop(res_padded, n_crops_other_profiles, "high_frequency", boundary_condition, optimization, prefix),  # n_crops x res x res
         "bp_m": np.load(input_path)['wavespeedlist']  # 200 x w_big x h_big
     }
     return velocities
 
 
-def get_velocity_crop(resolution, n_crops, velocity_profile, boundary_conditon, optimization):
+def get_velocity_crop(resolution, n_crops, velocity_profile, boundary_conditon, optimization, prefix = ""):
 
     if velocity_profile == "diagonal":
         img = diagonal_ray(n_crops,resolution, boundary_conditon, optimization)
@@ -148,13 +145,13 @@ def get_velocity_crop(resolution, n_crops, velocity_profile, boundary_conditon, 
         img = np.expand_dims(img[1100:1100 + resolution, 1100:1100 + resolution], axis=0)
 
     elif velocity_profile == "three_layers":
-        img = three_layers(n_crops, resolution, "absorbing", optimization)
+        img = three_layers(n_crops, resolution, boundary_conditon, optimization)
 
     elif velocity_profile == "crack_profile":
-        img = crack_profile(n_crops, resolution, "absorbing", optimization)
+        img = crack_profile(n_crops, resolution, boundary_conditon, optimization, prefix)
 
     elif velocity_profile == "high_frequency":
-        img = high_frequency(n_crops, resolution, "absorbing", optimization)
+        img = high_frequency(n_crops, resolution, boundary_conditon, optimization)
 
     else:
         raise NotImplementedError("Velocity model not implemented.")
@@ -168,7 +165,8 @@ def diagonal_ray(n_it, res, boundary_condition, optimization):
     xx, yy = np.meshgrid(x, y)
 
     if boundary_condition != "absorbing":
-        vel_profile = torch.from_numpy(3. + 0.0 * yy - 1.5 * (np.abs(yy + xx - 0.) > 0.3))
+        factor = 2 if optimization == "parareal" else 1
+        vel_profile = torch.from_numpy(3. + 0.0 * yy - 1.5 * (np.abs(yy + xx - 0.) > 0.3 / factor))
     else:
         if optimization == "none":
             vel_profile = torch.from_numpy(3. + 0.0 * yy - 1.5 * (np.abs(yy + xx - 0.) > 0.3/2))
@@ -185,7 +183,8 @@ def three_layers(n_it, res, boundary_condition, optimization):
     xx, yy = np.meshgrid(x, y)
 
     if boundary_condition != "absorbing":
-        vel_profile = torch.from_numpy(2.6 + 0.0 * yy - .7 * (yy + xx - 0. > -.4) - .7 * (yy + xx - 0. > .6))
+        factor = 2 if optimization == "parareal" else 1
+        vel_profile = torch.from_numpy(2.6 + 0.0 * yy - .7 * (yy + xx - 0. > -.4/factor) - .7 * (yy + xx - 0. > .6/factor))
     else:
         if optimization == "none":
             vel_profile = torch.from_numpy(2.6 + 0.0 * yy - .7 * (yy + xx - 0. > -.4/2) - .7 * (yy + xx - 0. > .6/2))
@@ -195,8 +194,8 @@ def three_layers(n_it, res, boundary_condition, optimization):
     return vel_profile.unsqueeze(dim=0).repeat(n_it,1,1).numpy()
 
 
-def crack_profile(n_it, res, boundary_condition, optimization):
-    marmousi_datamat = loadmat('../data/velocity_profiles/marm1nonsmooth.mat')  # velocity models Marmousi dataset
+def crack_profile(n_it, res, boundary_condition, optimization, prefix):
+    marmousi_datamat = loadmat(prefix + '../data/velocity_profiles/marm1nonsmooth.mat')  # velocity models Marmousi dataset
     img = gaussian(marmousi_datamat['marm1larg'], 4)
 
     k1, k2, k3, k4 = .25, .5, .75, 1
@@ -209,11 +208,12 @@ def crack_profile(n_it, res, boundary_condition, optimization):
             vel_profile[100:118, 60:80] = k4
 
         else:  # res == 256:
+            offset = 128//2 if optimization == "parareal" else 0
             vel_profile = img[900:900 + res, 900: 900 + res]
-            vel_profile[100:137, 200:245] = k1
-            vel_profile[18:60, 37:60] = k2
-            vel_profile[120:240, 20:60] = k3
-            vel_profile[195:230, 120:160] = k4
+            vel_profile[50 + offset:70 + offset, 97 + offset:123 + offset] = k1
+            vel_profile[10 + offset:28 + offset, 22 + offset:31 + offset] = k2
+            vel_profile[60 + offset:118 + offset, 10 + offset:28 + offset] = k3
+            vel_profile[100 + offset:118 + offset, 60 + offset:80 + offset] = k4
 
     elif boundary_condition == "absorbing":
         if optimization == "none":
@@ -254,13 +254,13 @@ def high_frequency(n_it, res, boundary_condition, optimization):
     y = np.linspace(-1, 1, res)
     xx, yy = np.meshgrid(x, y)
 
-    if boundary_condition=="absorbing":
+    if boundary_condition == "absorbing":
         if optimization == "none":
             factor = 2
         else:
             factor = 3
     else:
-        factor = 1
+        factor = 2 if optimization == "parareal" else 1
 
     vel_profile = torch.from_numpy(1. + 0.0 * yy)
     k = 0.03 / factor

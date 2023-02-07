@@ -2,8 +2,6 @@ import numpy as np
 import torch
 from skimage.transform import resize # for coarsening
 from scipy import fft
-from generate_data.utils_wave import WaveEnergyField_tensor
-import matplotlib.pyplot as plt
 
 
 def parallel_compute(u, ut, vel, vel_c, f_delta_x, c_delta_x, f_delta_t, c_delta_t, delta_t_star):

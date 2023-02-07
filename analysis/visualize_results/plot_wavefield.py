@@ -1,7 +1,9 @@
 import sys
+
+from models.model_utils import get_wavefield, round_loss, compute_loss
+
 sys.path.append("..")
 import matplotlib.pyplot as plt
-from generate_data.optimization_generate_data.utils_optimization import compute_loss, round_loss, get_wavefield
 
 
 def plot_wavefield_optimization(coarse_solver_tensor, fine_solver_tensor, parareal_tensor, ticks, vel, vel_name, folder_name):

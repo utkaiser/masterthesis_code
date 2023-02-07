@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 from analysis.utils_analysis import get_ticks_fine, get_solver_solution
-from models.model_utils import get_wavefield
+from models.model_utils import get_wavefield, round_loss, compute_loss
 
 
 def plot_big_tensor(big_tensor, vel, data, b = 0):
@@ -8,7 +8,7 @@ def plot_big_tensor(big_tensor, vel, data, b = 0):
     # vel -> b x 1 x 256 x 256
     # data -> b x s x c x w x h
 
-    fig = plt.figure(figsize=(20, 5))
+    fig = plt.figure(figsize=(30,15))
     ticks = get_ticks_fine(data[b,:,:3].unsqueeze(dim=0), vel[b,0])
     u_0 = big_tensor[0,b,0].unsqueeze(dim=0)
     coarse_solver_tensor = get_solver_solution(u_0,
@@ -19,10 +19,10 @@ def plot_big_tensor(big_tensor, vel, data, b = 0):
     # coarse solver iteration solution
     for s in range(big_tensor.shape[2]):
         ax = fig.add_subplot(big_tensor.shape[0] + 2, big_tensor.shape[2], 1 + s)
-        wave_field = get_wavefield(coarse_solver_tensor[s,b].unsqueeze(dim=0), vel[b])
+        wave_field = get_wavefield(coarse_solver_tensor[b,s].unsqueeze(dim=0), vel[b])
         pos = ax.imshow(wave_field, vmin=ticks[s][0], vmax=ticks[s][2])
         plt.colorbar(pos, ticks=ticks[s])
-        ax.set_title("coarse it " + str(s))
+        ax.set_title(round_loss(compute_loss(coarse_solver_tensor[b,s].unsqueeze(dim=0), data[b,s,:3].unsqueeze(dim=0), vel)))
         plt.axis('off')
 
     # parareal iteration solution
@@ -32,7 +32,7 @@ def plot_big_tensor(big_tensor, vel, data, b = 0):
             wave_field = get_wavefield(big_tensor[k,b,s].unsqueeze(dim=0), vel[b])
             pos = ax.imshow(wave_field, vmin=ticks[s][0], vmax=ticks[s][2])
             plt.colorbar(pos, ticks=ticks[s])
-            ax.set_title(str(k) + ", " + str(s))
+            ax.set_title(round_loss(compute_loss(big_tensor[k,b,s].unsqueeze(dim=0), data[b,s,:3].unsqueeze(dim=0), vel)))
             plt.axis('off')
 
     # fine solver solution

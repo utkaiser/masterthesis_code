@@ -1,4 +1,6 @@
 import sys
+
+from generate_data.initial_conditions import get_velocities
 from models.optimization_models.optimize_solution import model_optimization_solution
 sys.path.append("..")
 import numpy as np
@@ -38,7 +40,7 @@ def train_Dtp_end_to_end(downsampling_model, upsampling_model, optimizer_name, l
 
     # data setup
     train_loader, val_loader = fetch_data_end_to_end(data_paths, batch_size=batch_size, shuffle=True,
-                                                     val_paths=val_paths)
+                                       val_paths=val_paths, opt=optimization_type, mode="ut")
 
     # training
     label_distr_shift = 1
@@ -50,10 +52,10 @@ def train_Dtp_end_to_end(downsampling_model, upsampling_model, optimizer_name, l
         if (epoch + 1) % 3 == 0: label_distr_shift += 1
 
         for i, data in enumerate(train_loader):
-            n_snaps = data[0].shape[1]
-            data = data[0].to(device)  # b x n_snaps x 4 x w x h
-            loss_list = model_optimization_solution(data, model, loss_f, n_snaps, label_distr_shift, "train",
-                                                    i, epoch, vis_path, vis_save, optimization_type, multi_step)
+
+            inpt = data[0]  # b x n_snaps x 3 x w x h
+            loss_list = model_optimization_solution(inpt, model, loss_f, label_distr_shift, "train", i, epoch, vis_path,
+                                                    vis_save, optimization_type, multi_step, model_res)
 
             optimizer.zero_grad()
             sum(loss_list).backward()
@@ -69,11 +71,9 @@ def train_Dtp_end_to_end(downsampling_model, upsampling_model, optimizer_name, l
             val_loss_list = []
             for i, data in enumerate(val_loader):
 
-                n_snaps = data[0].shape[1]
                 data = data[0].to(device)  # b x n_snaps x 3 x w x h
-
-                val_loss_list += model_optimization_solution(data, model, loss_f, n_snaps, -1, "val", i, epoch,
-                                                             vis_path, vis_save, optimization_type, multi_step)
+                val_loss_list += model_optimization_solution(model, loss_f, -1, "val", i, epoch,
+                                                             vis_path, vis_save, optimization_type, multi_step, batch_size, None, model_res, data)
 
             if logging_bool:
                 train_logger.add_scalar('loss', np.array(train_loss_list).mean(), global_step=global_step)
@@ -119,8 +119,8 @@ def grid_search_end_to_end():
         # 4
     ]
     model_res = [
-        # 128,
-        256,
+        128,
+        # 256,
     ]
     flipping = [
         False,

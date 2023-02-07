@@ -103,7 +103,6 @@ def WaveSol_from_EnergyComponent_tensor(wx, wy, wtc, c, dx, sumv):
     for b in range(wx.shape[0]):
         u[b, :, :] = grad2func_tensor(wx[b, :, :], wy[b, :, :], dx, sumv)
 
-
     ut = torch.multiply(wtc, c)
 
     return u, ut
@@ -123,7 +122,7 @@ def grad2func_tensor(vx, vy, dx, sumv):
     xii = 2 * torch.pi / (dx * nx) * torch.fft.fftshift(torch.linspace(-round(nx / 2), round(nx / 2 - 1), nx))
     yii = 2 * torch.pi / (dx * ny) * torch.fft.fftshift(torch.linspace(-round(ny / 2), round(ny / 2 - 1), ny))
 
-    yiyi, xixi = torch.meshgrid(xii, yii,indexing="xy")
+    yiyi, xixi = torch.meshgrid(xii, yii, indexing="xy")
 
     radsq = torch.multiply(xixi, xixi) + torch.multiply(yiyi, yiyi)
     radsq[0, 0] = 1
@@ -147,24 +146,14 @@ def crop_center(img, crop_size, boundary_condition="absorbing", scaler=2):
         return img
 
 
-def start_logger_datagen_end_to_end(index):
+def start_logger_datagen_end_to_end(index, prefix = ""):
     #logger setup
-    logging.basicConfig(filename="../results/datagen/datagen_"+index+".log",
+    logging.basicConfig(filename=prefix + "../results/datagen/datagen_"+index+".log",
                         filemode='a',
                         format='%(asctime)s %(message)s',
                         datefmt='%H:%M:%S',
                         level=logging.DEBUG)
     logging.info("start logging")
-
-
-def get_datagen_end_to_end_params(param_dict, optimization):
-    a,b,c,d,e = param_dict["total_time"], param_dict["delta_t_star"], param_dict["f_delta_x"], param_dict["f_delta_t"], \
-           param_dict["n_snaps"]
-    if optimization != "none":
-        c *= 1.4
-    return a,b,c,d,e
-
-
 
 
 

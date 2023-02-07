@@ -8,7 +8,6 @@ import numpy as np
 from generate_data.utils_wave import WaveSol_from_EnergyComponent_tensor, WaveEnergyField_tensor, WaveSol_from_EnergyComponent, WaveEnergyField
 from torchmetrics.functional import mean_squared_error as MSE
 from torchmetrics.functional import mean_absolute_error as MAE
-from models.model_end_to_end import Model_end_to_end
 from datetime import datetime
 import logging
 import torch
@@ -17,6 +16,7 @@ import torch.nn as nn
 import torch.utils.tensorboard as tb
 import time
 import sys
+sys.path.append("..")
 
 
 environ["TOKENIZERS_PARALLELISM"] = "false"
@@ -76,44 +76,39 @@ def fetch_data(data_paths, batch_size=1, shuffle=True):
 
 
 
-def fetch_data_end_to_end(data_paths, batch_size, shuffle=True, train_split = .9, validate=False, val_paths = None):
+def fetch_data_end_to_end(data_paths, batch_size, shuffle=True, train_split = .9, validate=False, val_paths = None, opt = None, mode="ut"):
 
-    def get_datasets(data_paths):
+    def get_datasets(data_paths, mode):
 
         #concatenate paths
         datasets = []
         for i, path in enumerate(data_paths):
             np_array = np.load(path)  # 200 x 11 x 128 x 128
-            datasets.append(
-                torch.utils.data.TensorDataset(
-                    torch.stack((torch.from_numpy(np_array['Ux']),
-                                 torch.from_numpy(np_array['Uy']),
-                                 torch.from_numpy(np_array['Utc']),
-                                 torch.from_numpy(np_array['vel'])), dim=2)
-            ))
-
+            if mode != "ut":
+                datasets.append(
+                    torch.utils.data.TensorDataset(
+                        torch.stack((torch.from_numpy(np_array['Ux']),
+                                     torch.from_numpy(np_array['Uy']),
+                                     torch.from_numpy(np_array['Utc']),
+                                     torch.from_numpy(np_array['vel'])), dim=2)
+                ))
+            else:
+                datasets.append(
+                    torch.utils.data.TensorDataset(
+                        torch.stack((torch.from_numpy(np_array['Ux']),
+                                     torch.from_numpy(np_array['Uy']),
+                                     torch.from_numpy(np_array['vel'])), dim=2)
+                    ))
         return torch.utils.data.ConcatDataset(datasets)
 
-    full_dataset = get_datasets(data_paths)
-    val_dataset = get_datasets(val_paths)
+    val_dataset = get_datasets(val_paths, mode)
+    val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=batch_size, shuffle=shuffle, num_workers=1)
 
-    if val_paths != None:
+    full_dataset = get_datasets(data_paths, mode)
+    train_loader = torch.utils.data.DataLoader(full_dataset, batch_size=batch_size, shuffle=shuffle, num_workers=1)
+    logging.info(" ".join(["train data points:", str(len(train_loader) * batch_size), "| test data points:", str(len(val_loader) * batch_size)]))
+    return train_loader, val_loader
 
-        train_loader = torch.utils.data.DataLoader(full_dataset, batch_size=batch_size, shuffle=shuffle, num_workers=1)
-        val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=batch_size, shuffle=shuffle, num_workers=1)
-
-        logging.info(" ".join(["train data points:", str(len(train_loader) * batch_size), "| test data points:", str(len(val_loader) * batch_size)]))
-        return train_loader, val_loader
-
-    else:
-        train_size = int(train_split * len(full_dataset))
-        val_size = len(full_dataset) - train_size
-        train_dataset, val_dataset = torch.utils.data.random_split(full_dataset, [train_size, val_size])
-        train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=shuffle,
-                                                   num_workers=1)
-        val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=batch_size, shuffle=shuffle, num_workers=1)
-        logging.info(" ".join(["train data points:", len(train_loader) * batch_size, "| test data points:", len(val_loader) * batch_size]))
-        return train_loader, val_loader
 
 
 
@@ -174,19 +169,19 @@ def get_paths(model_res, optimization_type = "none"):
         os.makedirs(main_branch + add)
     data_paths = [
         # '../data/test/end_to_end_test10diag__3l__cp__hf__bp_m' + str(model_res) + '_none.npz'
-        suffix + '../data' + data_suffix + '/end_to_end_0diag__3l__cp__hf__bp_m' + str(model_res) + "_" + optimization_type + '.npz',
-        suffix + '../data' + data_suffix + '/end_to_end_1diag__3l__cp__hf__bp_m' + str(model_res) + "_" + optimization_type + '.npz',
-        suffix + '../data' + data_suffix + '/end_to_end_2diag__3l__cp__hf__bp_m' + str(model_res) + "_" + optimization_type + '.npz',
-        suffix + '../data' + data_suffix + '/end_to_end_3diag__3l__cp__hf__bp_m' + str(model_res) + "_" + optimization_type + '.npz',
-        suffix + '../data' + data_suffix + '/end_to_end_4diag__3l__cp__hf__bp_m' + str(model_res) + "_" + optimization_type + '.npz'
+        suffix + '../data' + '/end_to_end_0diag__3l__cp__hf__bp_m256_parareal.npz',
+        # suffix + '../data' + data_suffix + '/end_to_end_1diag__3l__cp__hf__bp_m' + str(model_res) + "_" + optimization_type + '.npz',
+        # suffix + '../data' + data_suffix + '/end_to_end_2diag__3l__cp__hf__bp_m' + str(model_res) + "_" + optimization_type + '.npz',
+        # suffix + '../data' + data_suffix + '/end_to_end_3diag__3l__cp__hf__bp_m' + str(model_res) + "_" + optimization_type + '.npz',
+        # suffix + '../data' + data_suffix + '/end_to_end_4diag__3l__cp__hf__bp_m' + str(model_res) + "_" + optimization_type + '.npz'
     ]
     val_paths = [
-        suffix + '../data/val/end_to_end_val_3l_' + str(model_res//val_res_factor) + '.npz',
-        suffix + '../data/val/end_to_end_val_bp_' + str(model_res//val_res_factor) + '.npz',
-        suffix + '../data/val/end_to_end_val_cp_' + str(model_res//val_res_factor) + '.npz',
-        suffix + '../data/val/end_to_end_val_diag_' + str(model_res//val_res_factor) + '.npz',
-        suffix + '../data/val/end_to_end_val_hf_' + str(model_res//val_res_factor) + '.npz',
-        suffix + '../data/val/end_to_end_val_m_' + str(model_res//val_res_factor) + '.npz'
+        suffix + '../data/val/end_to_end_val_3l_128.npz',
+        suffix + '../data/val/end_to_end_val_bp_128.npz',
+        suffix + '../data/val/end_to_end_val_cp_128.npz',
+        suffix + '../data/val/end_to_end_val_diag_128.npz',
+        suffix + '../data/val/end_to_end_val_hf_128.npz',
+        suffix + '../data/val/end_to_end_val_m_128.npz'
     ]
     train_logger_path = main_branch + add + 'log_train/'
     valid_logger_path = main_branch + add + 'log_valid/'
@@ -201,18 +196,18 @@ def get_params(params="0"):
     param_dict = {}
 
     if params == "0":
-        param_dict["batch_size"] = 40
+        param_dict["batch_size"] = 1
         param_dict["lr"] = .001
         param_dict["n_epochs"] = 20
-        param_dict["n_snaps"] = 9
+        param_dict["n_snaps"] = 7
         param_dict["flipping"] = False
         param_dict["boundary_c"] = "absorbing"
         param_dict["total_time"] = .6
         param_dict["delta_t_star"] = .06
         param_dict["f_delta_x"] = 2.0 / 128.0
-        param_dict["f_delta_t"] = param_dict["f_delta_x"] / 20
+        param_dict["f_delta_t"] = param_dict["f_delta_x"] / 20.
         param_dict["c_delta_x"] = 2./64.
-        param_dict["c_delta_t"] = 1/600.
+        param_dict["c_delta_t"] = 1./600.
         param_dict["n_epochs_save_model"] = 5
 
     else:
@@ -276,6 +271,10 @@ def relative_frobenius_norm(a, b):
     return norm_diff / norm_b
 
 
+def compute_loss2(prediction, target):
+    return MSE(prediction, target).item()
+
+
 def compute_loss(prediction,target, vel, mode = "MSE/frob(fine)"):
 
     prediction, target = get_wavefield(prediction, vel), get_wavefield(target,vel)
@@ -334,3 +333,9 @@ def get_wavefield_numpy(tensor, vel, f_delta_x=2.0 / 128.0, f_delta_t=(2.0 / 128
                                                  np.sum(np.sum(np.sum(u_x))))
     return WaveEnergyField(u, u_t, vel,
                                   f_delta_x) * f_delta_x * f_delta_x
+
+
+
+
+
+

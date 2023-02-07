@@ -1,7 +1,8 @@
-from torch import nn
-import warnings
 import sys
 sys.path.append("..")
+import logging
+from torch import nn
+import warnings
 from models.model_upsampling import choose_upsampling
 warnings.filterwarnings("ignore")
 from models.model_numerical_solver import Numerical_solver
@@ -44,4 +45,13 @@ class Model_end_to_end(nn.Module):
         return outputs.to(device)
 
 
+def get_model(param_dict, res_scaler, model_res):
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    logging.info(" ".join(["gpu available:", str(torch.cuda.is_available()), "| n of gpus:", str(torch.cuda.device_count())]))
+    model = Model_end_to_end(param_dict, "Interpolation", "UNet3", res_scaler, model_res).double()
+    model = torch.nn.DataParallel(model).to(device)  # multi-GPU use
+    model.load_state_dict(torch.load('../../results/run_3/good/saved_model_Interpolation_UNet3_AdamW_SmoothL1Loss_2_128_False_15.pt'))
+
+    return model
 

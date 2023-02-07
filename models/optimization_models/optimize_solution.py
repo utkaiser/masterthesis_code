@@ -1,22 +1,31 @@
 from analysis.visualize_results.visualize_training import visualize_wavefield
 import random
 import torch
-from models.model_utils import sample_label_normal_dist
+from generate_data.initial_conditions import get_velocities, initial_condition_gaussian
+from generate_data.utils_wave import WaveEnergyComponentField_end_to_end, WaveSol_from_EnergyComponent_tensor, \
+    WaveEnergyComponentField_tensor, WaveEnergyField_tensor
+from generate_data.wave_propagation import pseudo_spectral_tensor
+from models.model_utils import sample_label_normal_dist, get_wavefield, round_loss, compute_loss, compute_loss2
+from generate_data.utils_wave import WaveSol_from_EnergyComponent
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-from models.optimization_models.parallel_scheme import parareal_scheme
+from models.optimization_models.parallel_scheme import parareal_scheme, one_iteration_pseudo_spectral_tensor
+import matplotlib.pyplot as plt
+import numpy as np
 
+def model_optimization_solution(data, model, loss_f, label_distr_shift, mode, i, epoch,
+                                vis_path, vis_save, optimization_type, multi_step, res):
 
-def model_optimization_solution(data, model, loss_f, n_snaps, label_distr_shift, mode, i, epoch,
-                                vis_path, vis_save, optimization_type, multi_step):
-
+    batch_size, n_snaps, c, w, h = data.shape
     loss_list = []
 
     if mode == "train":
-        for input_idx in random.choices(range(n_snaps - 2), k=n_snaps):
-            label_range = sample_label_normal_dist(input_idx, n_snaps, label_distr_shift, multi_step)
+        # random.choices(range(n_snaps - 2), k=n_snaps)
+
+        for input_idx in [0,0]:
+            label_range = 5  # sample_label_normal_dist(input_idx, n_snaps, label_distr_shift, multi_step)
 
             if optimization_type == "parareal":
-                loss_list += parareal_scheme(model, input_idx, 2, label_range, loss_f, data.to(device).detach())
+                loss_list += parareal_scheme(model, input_idx, 4, label_range, loss_f, data)
 
             else:  # optimization_type == "procrustes"
                 pass

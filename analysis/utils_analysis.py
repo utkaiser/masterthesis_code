@@ -39,18 +39,18 @@ def get_solver_solution(u_n_k, n_snapshots, vel, solver="coarse"):
     if solver == "coarse":
         small_res_scale = 2
         b, c, w, h = u_n_k.shape
-        sol = torch.zeros([n_snapshots, b, c, w, h])
+        sol = torch.zeros([b, n_snapshots, c, w, h])
 
         for s in range(n_snapshots):
 
-            sol[s] = u_n_k
+            sol[:,s] = u_n_k
 
             a = F.upsample(u_n_k[:,0].unsqueeze(dim=0), size=(w//small_res_scale, w//small_res_scale), mode='bilinear')
-            b = F.upsample(u_n_k[:,1].unsqueeze(dim=0), size=(w//small_res_scale, w//small_res_scale), mode='bilinear')
+            b1 = F.upsample(u_n_k[:,1].unsqueeze(dim=0), size=(w//small_res_scale, w//small_res_scale), mode='bilinear')
             b2 = F.upsample(u_n_k[:, 2].unsqueeze(dim=0), size=(w // small_res_scale, w // small_res_scale), mode='bilinear')
             d = F.upsample(vel, size=(w//small_res_scale, w//small_res_scale), mode='bilinear')
 
-            u_n_k = torch.concat([a,b,b2,d],dim=1)
+            u_n_k = torch.concat([a,b1,b2,d],dim=1)
 
             u_n_k = one_iteration_velocity_verlet(u_n_k,f_delta_x=2./64., f_delta_t=1./600., delta_t_star = .06)
 
@@ -65,7 +65,7 @@ def get_solver_solution(u_n_k, n_snapshots, vel, solver="coarse"):
         sol = torch.zeros([n_snapshots, b, c, w//2, h//2])
 
         for s in range(n_snapshots):
-            sol[s] = smaller_crop(u_n_k)
+            sol[s,:] = smaller_crop(u_n_k)
             u_n_k = torch.concat([u_n_k,vel], dim=1)
             u_n_k = one_iteration_pseudo_spectral(u_n_k)
 
