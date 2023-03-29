@@ -1,6 +1,4 @@
 import torch
-from generate_data.optimization_generate_data.utils_optimization import smaller_crop, one_iteration_pseudo_spectral, \
-    one_iteration_velocity_verlet
 from old_code.Dtp_old import opp_model
 from generate_data.utils_wave import WaveSol_from_EnergyComponent_tensor, WaveEnergyComponentField_tensor
 from old_code.Dtp_old.postprocess_wave import ApplyOPP2WaveSol

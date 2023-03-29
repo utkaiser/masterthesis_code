@@ -93,7 +93,7 @@ def get_velocities(n_it, res, boundary_condition, n_crops_other_profiles = 50, i
         factor = 1
     # get velocities and save in dictionary
     res_padded = int(res * factor)
-    velocities = get_velocity_dict(res_padded, n_crops_other_profiles, "../" + input_path, boundary_condition, optimization, prefix = prefix)
+    velocities = get_velocity_dict(res_padded, n_crops_other_profiles, input_path, boundary_condition, optimization, prefix = prefix)
 
     # save velocities in tensor
     velocity_tensor = np.concatenate(list(velocities.values()), axis=0)
@@ -115,10 +115,10 @@ def get_velocities(n_it, res, boundary_condition, n_crops_other_profiles = 50, i
 
 def get_velocity_dict(res_padded, n_crops_other_profiles, input_path, boundary_condition="absorbing", optimization = "none", prefix = ""):
     velocities = {
-        # "diag": get_velocity_crop(res_padded, n_crops_other_profiles, "diagonal", boundary_condition, optimization, prefix),  # n_crops x res x res
-        # "3l": get_velocity_crop(res_padded, n_crops_other_profiles, "three_layers", boundary_condition, optimization, prefix),  # n_crops x res x res
-        # "cp": get_velocity_crop(res_padded, n_crops_other_profiles, "crack_profile", boundary_condition, optimization, prefix),  # n_crops x res x res
-        # "hf": get_velocity_crop(res_padded, n_crops_other_profiles, "high_frequency", boundary_condition, optimization, prefix),  # n_crops x res x res
+        "diag": get_velocity_crop(res_padded, n_crops_other_profiles, "diagonal", boundary_condition, optimization, prefix),  # n_crops x res x res
+        "3l": get_velocity_crop(res_padded, n_crops_other_profiles, "three_layers", boundary_condition, optimization, prefix),  # n_crops x res x res
+        "cp": get_velocity_crop(res_padded, n_crops_other_profiles, "crack_profile", boundary_condition, optimization, prefix),  # n_crops x res x res
+        "hf": get_velocity_crop(res_padded, n_crops_other_profiles, "high_frequency", boundary_condition, optimization, prefix),  # n_crops x res x res
         "bp_m": np.load(input_path)['wavespeedlist']  # 200 x w_big x h_big
     }
     return velocities
@@ -195,7 +195,7 @@ def three_layers(n_it, res, boundary_condition, optimization):
 
 
 def crack_profile(n_it, res, boundary_condition, optimization, prefix):
-    marmousi_datamat = loadmat(prefix + '../../data/velocity_profiles/marm1nonsmooth.mat')  # velocity models Marmousi dataset
+    marmousi_datamat = loadmat(prefix + '../data/velocity_profiles/marm1nonsmooth.mat')  # velocity models Marmousi dataset
     img = gaussian(marmousi_datamat['marm1larg'], 4)
 
     k1, k2, k3, k4 = .25, .5, .75, 1

@@ -42,74 +42,30 @@ def load_model(load_path, model):
                                                 load_path), map_location='cpu'), strict=False)
 
 
-def npdat2Tensor(nda):
-    ndt = np.transpose(nda,(2,0,1))
-    return torch.from_numpy(ndt)
+def fetch_data_end_to_end(data_paths, batch_size, val_paths):
 
-def npdat2Tensor_tensor(nda):
-    ndt = torch.permute(nda,(2,0,1))
-    return ndt
-
-
-def fetch_data(data_paths, batch_size=1, shuffle=True):
-    logging.info("setting up data")
-
-    total_n_datapoints = 0
-    train_loaders = []
-
-    for path in data_paths:
-        npz_PropS = np.load(path)
-        inputdata = torch.stack((npdat2Tensor(npz_PropS['Ucx']),
-                                 npdat2Tensor(npz_PropS['Ucy']),
-                                 npdat2Tensor(npz_PropS['Utc']),
-                                 npdat2Tensor(npz_PropS['vel'])), dim=1)
-        outputdata = torch.stack((npdat2Tensor(npz_PropS['Ufx']),
-                                  npdat2Tensor(npz_PropS['Ufy']),
-                                  npdat2Tensor(npz_PropS['Utf'])), dim=1)
-        data_loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(inputdata, outputdata),
-                                                  batch_size=batch_size, shuffle=shuffle, num_workers=1)
-        total_n_datapoints += len(data_loader)
-        train_loaders.append(data_loader)
-
-    logging.info(" ".join(["total number of data points:", total_n_datapoints * batch_size]))
-    return train_loaders
-
-
-
-def fetch_data_end_to_end(data_paths, batch_size, shuffle=True, train_split = .9, validate=False, val_paths = None, opt = None, mode="ut"):
-
-    def get_datasets(data_paths, mode):
+    def get_datasets(data_paths):
 
         #concatenate paths
         datasets = []
         for i, path in enumerate(data_paths):
             np_array = np.load(path)  # 200 x 11 x 128 x 128
-            if mode != "ut":
-                datasets.append(
-                    torch.utils.data.TensorDataset(
-                        torch.stack((torch.from_numpy(np_array['Ux']),
-                                     torch.from_numpy(np_array['Uy']),
-                                     torch.from_numpy(np_array['Utc']),
-                                     torch.from_numpy(np_array['vel'])), dim=2)
-                ))
-            else:
-                datasets.append(
-                    torch.utils.data.TensorDataset(
-                        torch.stack((torch.from_numpy(np_array['Ux']),
-                                     torch.from_numpy(np_array['Uy']),
-                                     torch.from_numpy(np_array['vel'])), dim=2)
-                    ))
+            datasets.append(
+                torch.utils.data.TensorDataset(
+                    torch.stack((torch.from_numpy(np_array['Ux']),
+                                 torch.from_numpy(np_array['Uy']),
+                                 torch.from_numpy(np_array['Utc']),
+                                 torch.from_numpy(np_array['vel'])), dim=2)
+            ))
         return torch.utils.data.ConcatDataset(datasets)
 
-    val_dataset = get_datasets(val_paths, mode)
-    val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=batch_size, shuffle=shuffle, num_workers=1)
+    val_dataset = get_datasets(val_paths)
+    val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=batch_size, shuffle=True, num_workers=1)
 
-    full_dataset = get_datasets(data_paths, mode)
-    train_loader = torch.utils.data.DataLoader(full_dataset, batch_size=batch_size, shuffle=shuffle, num_workers=1)
+    full_dataset = get_datasets(data_paths)
+    train_loader = torch.utils.data.DataLoader(full_dataset, batch_size=batch_size, shuffle=True, num_workers=1)
     logging.info(" ".join(["train data points:", str(len(train_loader) * batch_size), "| test data points:", str(len(val_loader) * batch_size)]))
     return train_loader, val_loader
-
-
 
 
 def flip_tensors(input_tensor, label, v_flipped, h_flipped):
@@ -147,41 +103,34 @@ def sample_label_normal_dist(input_idx, n_snaps, label_distr_shift, multi_step):
             return round(truncnorm((low - mean) / sd, (upp - mean) / sd, loc=mean, scale=sd).rvs())
 
 
-def get_paths(model_res, optimization_type = "none"):
+def get_paths(model_res):
 
     now = datetime.now()
     add = now.strftime("%d_%m_%Y____%H_%M_%S") + "/"
 
-    if optimization_type == "none":
-        suffix = ""
-        if model_res == 128: data_suffix = "/D_t_128"
-        else: data_suffix = "/D_t_256"
-        val_res_factor = 1
-        main_branch_folder = ""
-    else:  # only one way implemented right now
-        suffix = "../"
-        data_suffix = "/D_t_128_parareal"
-        val_res_factor = 2
-        main_branch_folder = "optimization/"
-    main_branch = suffix + '../results/run_3/' + main_branch_folder
+    if model_res == 128: data_suffix = "/D_t_128"
+    else: data_suffix = "/D_t_256"
+    val_res_factor = 1
+    main_branch_folder = ""
+    main_branch = '../results/run_3/' + main_branch_folder
 
     if not os.path.exists(main_branch + add):
         os.makedirs(main_branch + add)
     data_paths = [
-        # '../data/test/end_to_end_test10diag__3l__cp__hf__bp_m' + str(model_res) + '_none.npz'
-        suffix + '../data' + '/end_to_end_0diag__3l__cp__hf__bp_m256_parareal.npz',
-        # suffix + '../data' + data_suffix + '/end_to_end_1diag__3l__cp__hf__bp_m' + str(model_res) + "_" + optimization_type + '.npz',
-        # suffix + '../data' + data_suffix + '/end_to_end_2diag__3l__cp__hf__bp_m' + str(model_res) + "_" + optimization_type + '.npz',
-        # suffix + '../data' + data_suffix + '/end_to_end_3diag__3l__cp__hf__bp_m' + str(model_res) + "_" + optimization_type + '.npz',
-        # suffix + '../data' + data_suffix + '/end_to_end_4diag__3l__cp__hf__bp_m' + str(model_res) + "_" + optimization_type + '.npz'
+        # '../data/D_t_128/end_to_end_0diag__3l__cp__hf__bp_m128_none.npz'
+        '../data' + data_suffix + '/end_to_end_1diag__3l__cp__hf__bp_m' + str(model_res) + '.npz',
+        '../data' + data_suffix + '/end_to_end_2diag__3l__cp__hf__bp_m' + str(model_res) + '.npz',
+        '../data' + data_suffix + '/end_to_end_3diag__3l__cp__hf__bp_m' + str(model_res) + '.npz',
+        '../data' + data_suffix + '/end_to_end_0diag__3l__cp__hf__bp_m' + str(model_res) + '.npz'
+        '../data' + data_suffix + '/end_to_end_4diag__3l__cp__hf__bp_m' + str(model_res) + '.npz'
     ]
     val_paths = [
-        suffix + '../data/val/end_to_end_val_3l_128.npz',
-        suffix + '../data/val/end_to_end_val_bp_128.npz',
-        suffix + '../data/val/end_to_end_val_cp_128.npz',
-        suffix + '../data/val/end_to_end_val_diag_128.npz',
-        suffix + '../data/val/end_to_end_val_hf_128.npz',
-        suffix + '../data/val/end_to_end_val_m_128.npz'
+        '../data/val/end_to_end_val_3l_128.npz',
+        '../data/val/end_to_end_val_bp_128.npz',
+        '../data/val/end_to_end_val_cp_128.npz',
+        '../data/val/end_to_end_val_diag_128.npz',
+        '../data/val/end_to_end_val_hf_128.npz',
+        '../data/val/end_to_end_val_m_128.npz'
     ]
     train_logger_path = main_branch + add + 'log_train/'
     valid_logger_path = main_branch + add + 'log_valid/'
@@ -209,6 +158,8 @@ def get_params(params="0"):
         param_dict["c_delta_x"] = 2./64.
         param_dict["c_delta_t"] = 1./600.
         param_dict["n_epochs_save_model"] = 5
+        param_dict["restriction_type"] = "interpolation"
+        param_dict["res_scaler"] = 2
 
     else:
         raise NotImplementedError("params not defined for params =",params)

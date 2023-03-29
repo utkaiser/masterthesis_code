@@ -16,8 +16,7 @@ def visualize_wavefield(epoch, tensor_list, vel, vis_save, vis_path, initial_u):
         fine_solver_tensor[0,i] = label.cpu()
 
     coarse_solver_tensor = get_solver_solution(initial_u[:, :3], n_snaps+1, initial_u[:, 3].unsqueeze(dim=0),
-                                               solver="coarse")[1:]  # s x b x c x w x h
-
+                                               solver="coarse")[:,1:]  # s x b x c x w x h
     ticks = get_ticks_fine(fine_solver_tensor, vel)  # s x 3
 
     fig = plt.figure(figsize=(20, 8))
@@ -39,10 +38,10 @@ def visualize_wavefield(epoch, tensor_list, vel, vis_save, vis_path, initial_u):
 
         # velocity verlet
         ax = fig.add_subplot(5, n_snaps, n_snaps + 1 + i)
-        wave_field = get_wavefield(coarse_solver_tensor[i], vel.unsqueeze(dim=0))
+        wave_field = get_wavefield(coarse_solver_tensor[:,i], vel.unsqueeze(dim=0))
         pos = ax.imshow(wave_field)
         plt.colorbar(pos, ticks=ticks[i])
-        ax.set_title(round_loss(compute_loss(coarse_solver_tensor[i], label.unsqueeze(dim=0), vel.unsqueeze(dim=0))),
+        ax.set_title(round_loss(compute_loss(coarse_solver_tensor[:,i], label.unsqueeze(dim=0), vel.unsqueeze(dim=0))),
                      fontdict={'fontsize': 9})
         plt.axis('off')
 

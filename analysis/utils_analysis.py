@@ -1,3 +1,4 @@
+import scipy
 import torch
 from scipy.io import savemat
 import numpy as np
@@ -10,16 +11,17 @@ from models.model_utils import smaller_crop, get_wavefield_numpy, get_wavefield
 import torch.nn.functional as F
 
 
-def change_npy_to_mat():
+def change_npy_to_mat(dir_name = ""):
     # changes all files in folder from npy format to mat format
-    npzFiles = glob.glob("*.npy")
-    fm = os.path.splitext("diagonal_fine.npy")[0] + '.mat'
-    d = np.load("diagonal_fine.npy")
-    vel = get_velocity_crop(256, 1, "diagonal")[0]
-    vel = smaller_crop(vel)
-    d = get_wavefield_numpy(d[5, 0], vel)
-    savemat(fm, {"res": d})
 
+    a = np.load("vis_files/vel.npy")
+    scipy.io.savemat('vel.mat', dict(res=a))
+    # d = np.load("diagonal_fine.npy")
+    # vel = get_velocity_crop(128, 1, "marmousi", "absorbing", "none")[0]
+
+
+if __name__ == '__main__':
+    change_npy_to_mat()
 
 def get_ticks_fine(tensor, vel):
     # tensor -> 1 x s x c x w x h
@@ -40,10 +42,9 @@ def get_solver_solution(u_n_k, n_snapshots, vel, solver="coarse"):
         small_res_scale = 2
         b, c, w, h = u_n_k.shape
         sol = torch.zeros([b, n_snapshots, c, w, h])
-
         for s in range(n_snapshots):
 
-            sol[:,s] = u_n_k
+            sol[0,s] = u_n_k.squeeze()
 
             a = F.upsample(u_n_k[:,0].unsqueeze(dim=0), size=(w//small_res_scale, w//small_res_scale), mode='bilinear')
             b1 = F.upsample(u_n_k[:,1].unsqueeze(dim=0), size=(w//small_res_scale, w//small_res_scale), mode='bilinear')
@@ -85,11 +86,11 @@ def one_iteration_pseudo_spectral(u_n_k, f_delta_x = 2./128., f_delta_t = (2./12
                                                  u_n_k[:, 3, :, :].clone(),
                                                  f_delta_x,
                                                  torch.sum(torch.sum(torch.sum(u_n_k[:, 0, :, :].clone()))))
-    u, u_t, vel = u.squeeze().numpy(), u_t.squeeze().numpy(), u_n_k[:, 3, :, :].clone().squeeze().numpy()
-    u_prop, u_t_prop = pseudo_spectral(u, u_t, vel, f_delta_x, f_delta_t, delta_t_star)
-    u_x, u_y, u_t_c = WaveEnergyComponentField_tensor(torch.from_numpy(u_prop).unsqueeze(dim=0),
-                                                      torch.from_numpy(u_t_prop).unsqueeze(dim=0),
-                                                      torch.from_numpy(vel).unsqueeze(dim=0), f_delta_x)
+    vel = u_n_k[:, 3, :, :].clone()
+    u_prop, u_t_prop = pseudo_spectral_tensor(u, u_t, vel, f_delta_x, f_delta_t, delta_t_star)
+    u_x, u_y, u_t_c = WaveEnergyComponentField_tensor(u_prop,
+                                                      u_t_prop,
+                                                      vel.unsqueeze(dim=0), f_delta_x)
     return torch.stack([u_x, u_y, u_t_c], dim=1)
 
 

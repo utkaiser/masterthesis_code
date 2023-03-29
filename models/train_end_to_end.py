@@ -36,7 +36,7 @@ def train_Dt_end_to_end(downsampling_model, upsampling_model, optimizer_name, lo
     loss_f = choose_loss_function(loss_function_name)
 
     # data setup
-    train_loader, val_loader = fetch_data_end_to_end(data_paths, batch_size=batch_size, shuffle=True, val_paths=val_paths)
+    train_loader, val_loader = fetch_data_end_to_end(data_paths, batch_size, val_paths)
 
     # training
     label_distr_shift = 1
@@ -75,7 +75,6 @@ def train_Dt_end_to_end(downsampling_model, upsampling_model, optimizer_name, lo
 
             val_loss_list = []
             for i, data in enumerate(val_loader):
-
                 n_snaps = data[0].shape[1]
                 data = data[0].to(device)  # b x n_snaps x 3 x w x h
 

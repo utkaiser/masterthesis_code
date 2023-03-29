@@ -34,13 +34,13 @@ class Model_end_to_end(nn.Module):
     def forward(self, x):
 
         ###### R (restriction) ######
-        downsampling_res, skip_all = self.model_downsampling(x)
+        downsampling_res, _ = self.model_downsampling(x)
 
         # velocity verlet
         prop_result = self.model_numerical(downsampling_res)
 
         ##### upsampling through nn ######
-        outputs = self.model_upsampling(prop_result.to(device), skip_all=skip_all)  # b x 3 x w x h
+        outputs = self.model_upsampling(prop_result.to(device), skip_all=None)  # b x 3 x w x h
 
         return outputs.to(device)
 

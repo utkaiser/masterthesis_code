@@ -61,24 +61,25 @@ class Simple_restriction(torch.nn.Module):
 
 class CNN_restriction(torch.nn.Module):
     def __init__(self, res_scaler):
-
-        # TODO: more sophisicated architecture, try simple architecture as well
         super(CNN_restriction, self).__init__()
         in_channels = 4
 
-        self.restr_layer1 = Restr_block(in_channels, in_channels * 2, groups=in_channels).double()
-        self.restr_layer3 = Restr_block(in_channels * 2, in_channels * 2, groups=in_channels).double()
-        self.restr_layer5_stride = Restr_block(in_channels * 2, in_channels * 2, groups=in_channels, stride=2).double()
-        self.restr_layer8 = Restr_block(in_channels * 2, in_channels, relu=False, batch_norm=False,
-                                        groups=in_channels).double()
+        self.restr_layer1 = Restr_block(in_channels, in_channels * 2, groups=in_channels, stride=2, kernel=2).double()
+        self.restr_layer2 = Restr_block(in_channels * 2, in_channels * 4, groups=in_channels, stride=2, kernel=2).double()
+        self.restr_layer3 = Restr_block(in_channels * 4, in_channels * 8, groups=in_channels, stride=2, kernel=2).double()
+        self.restr_layer4 = Up_block(in_channels * 8, in_channels * 4, stride = 2, groups=in_channels, kernel=2).double()
+        self.restr_layer5 = Up_block(in_channels * 4, in_channels * 2, stride=2, relu=False, batch_norm=False,
+                                     groups=in_channels, kernel=2, padding=0).double()
+        self.restr_layer6 = Up_block(in_channels * 2, in_channels, relu = False, batch_norm = False, groups=in_channels).double()
 
     def forward(self, x):
         x = self.restr_layer1(x)
+        x = self.restr_layer2(x)
         x = self.restr_layer3(x)
-        skip = x.clone()
-        x = self.restr_layer5_stride(x)
-        x = self.restr_layer8(x)
-        return x, skip
+        x = self.restr_layer4(x)
+        x = self.restr_layer5(x)
+        x = self.restr_layer6(x)
+        return x, None
 
 
 class Restr_block(torch.nn.Module):
@@ -87,6 +88,21 @@ class Restr_block(torch.nn.Module):
 
         layers = [
             torch.nn.Conv2d(in_channels, out_channel, kernel_size=kernel, padding=padding, stride = stride, groups=groups)
+        ]
+        if batch_norm: layers += [torch.nn.BatchNorm2d(out_channel)]
+        if relu: layers += [torch.nn.ReLU()]
+
+        self.restr = torch.nn.Sequential(*layers)
+
+    def forward(self, x):
+        return self.restr(x)
+
+class Up_block(torch.nn.Module):
+    def __init__(self, in_channels, out_channel, stride=1, relu=True, batch_norm=True, kernel=3, padding=1, groups=1):
+        super().__init__()
+
+        layers = [
+            torch.nn.ConvTranspose2d(in_channels, out_channel, kernel_size=kernel, padding=padding, stride=stride, groups=groups)
         ]
         if batch_norm: layers += [torch.nn.BatchNorm2d(out_channel)]
         if relu: layers += [torch.nn.ReLU()]
