@@ -9,7 +9,7 @@ from generate_data import utils_wave
 from generate_data.utils_wave import WaveEnergyComponentField_end_to_end
 
 
-def visualize_wavefield(u_elapse, ut_elapse, f_delta_x = 2.0 / 128.0, f_delta_t = (2.0 / 128.0) / 20., vel = None, frame=True, init_res_f=128, it=0, optimization="none"):
+def visualize_wavefield(u_elapse, ut_elapse, f_delta_x = 2.0 / 128.0, f_delta_t = (2.0 / 128.0) / 20., vel = None, frame=False, init_res_f=128, it=0, optimization="none"):
 
     init_res_f = 128
     wave_field = WaveEnergyComponentField_end_to_end(u_elapse, ut_elapse, vel, f_delta_x)

@@ -67,8 +67,6 @@ def generate_wave_from_medium(output_path, res, boundary_condition, visualize, i
             if s < n_snaps + 1:
                 u_n = one_iteration_pseudo_spectral_tensor(torch.cat([u_n, torch.from_numpy(vel).unsqueeze(dim=0).unsqueeze(dim=0)], dim=1))
 
-
-
     np.savez(output_path+output_appendix+str(res)+"_"+optimization+".npz", vel=V, Ux=Ux, Uy=Uy, Utc=Utc)
 
 

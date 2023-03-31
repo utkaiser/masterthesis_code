@@ -18,12 +18,10 @@ def initial_condition_gaussian(vel, res, boundary_condition, res_padded, optimiz
 
     if mode == "generate_data":
         return u0, ut0
-    elif mode == "parareal":
+    else:  # "parareal" or "other"
         u0, ut0 = torch.from_numpy(u0).unsqueeze(dim=0), torch.from_numpy(ut0).unsqueeze(dim=0)
         wx, wy, wtc = WaveEnergyComponentField_tensor(u0, ut0, vel.unsqueeze(dim=0), dx=dx)
         return torch.stack([wx, wy, wtc], dim=1)
-    else: raise NotImplementedError("Mode for initial condition not implemented")
-
 
 def get_init_cond_settings(res, boundary_condition, optimization):
 
