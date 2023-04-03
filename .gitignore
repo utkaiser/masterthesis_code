@@ -5,8 +5,8 @@ notes.txt
 *.mat
 old_code
 analysis/test.py
-old_code/Dtp_old/additional_code.py
 bash_scripts
 data
 analysis
 results
+results/old/
