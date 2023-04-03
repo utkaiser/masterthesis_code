@@ -19,17 +19,17 @@ def get_paths():
 
     data_paths = [
         '../data/D_t_128_parareal/end_to_end_0diag__3l__cp__hf__bp_m256_parareal.npz',
-        '../data/D_t_128_parareal/end_to_end_1diag__3l__cp__hf__bp_m256_parareal.npz',
-        '../data/D_t_128_parareal/end_to_end_2diag__3l__cp__hf__bp_m256_parareal.npz',
-        '../data/D_t_128_parareal/end_to_end_3diag__3l__cp__hf__bp_m256_parareal.npz'
+        # '../data/D_t_128_parareal/end_to_end_1diag__3l__cp__hf__bp_m256_parareal.npz',
+        # '../data/D_t_128_parareal/end_to_end_2diag__3l__cp__hf__bp_m256_parareal.npz',
+        # '../data/D_t_128_parareal/end_to_end_3diag__3l__cp__hf__bp_m256_parareal.npz'
     ]
     val_paths = [
-        '../data/val/end_to_end_val_diag_128.npz',
-        '../data/val/end_to_end_val_bp_128.npz',
-        '../data/val/end_to_end_val_m_128.npz',
-        '../data/val/end_to_end_val_hf_128.npz',
-        '../data/val/end_to_end_val_3l_128.npz',
-        '../data/val/end_to_end_val_cp_128.npz'
+        '../../data/val/end_to_end_val_diag_128.npz',
+        # '../data/val/end_to_end_val_bp_128.npz',
+        # '../data/val/end_to_end_val_m_128.npz',
+        # '../data/val/end_to_end_val_hf_128.npz',
+        # '../data/val/end_to_end_val_3l_128.npz',
+        # '../data/val/end_to_end_val_cp_128.npz'
     ]
     train_logger_path = main_branch + add + 'log_train/'
     valid_logger_path = main_branch + add + 'log_valid/'

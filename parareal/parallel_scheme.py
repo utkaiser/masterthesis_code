@@ -1,10 +1,10 @@
 import sys
 sys.path.append("..")
-sys.path.append("../..")
+from generate_data.utils import smaller_crop
+from generate_data.utils_wave_propagate import one_iteration_pseudo_spectral_tensor
 import scipy
 import torch
 from models.utils import sample_label_normal_dist
-from parareal.generate_data.wave_util import WaveSol_from_EnergyComponent_tensor, WaveEnergyComponentField_tensor
 import random
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -85,7 +85,7 @@ def compute_parareal_term(model, u_n_k):
 
     # u_n_k -> b x c x w x h
 
-    res_fine_solver = one_iteration_pseudo_spectral(u_n_k) #one_iteration_velocity_verlet(u_n_k)
+    res_fine_solver = one_iteration_pseudo_spectral_tensor(u_n_k) #one_iteration_velocity_verlet(u_n_k)
     res_model = model(u_n_k)  # procrustes_optimization(model(u_n_k), res_fine_solver)
 
     return res_fine_solver.to(device) - res_model.to(device)
@@ -104,88 +104,3 @@ def procrustes_optimization(matrix, target):
 
     return procrustes_res
 
-
-
-def smaller_crop(matrix):
-    # matrix -> b? x c x w x h
-    v = 64
-    if len(matrix.shape) == 3:
-        return matrix[:, v:-v, v:-v]
-    elif len(matrix.shape) == 4:
-        return matrix[:,:,v:-v, v:-v]
-    elif len(matrix.shape) == 5:
-        return matrix[:,:,:,v:-v, v:-v]
-    else:
-        raise NotImplementedError("This dimensionality has not been implemented yet.")
-
-
-def one_iteration_pseudo_spectral(u_n_k):
-
-    # u_n_k -> b x c x w x h
-
-    f_delta_x = 2.0 / 128.0
-    f_delta_t = f_delta_x / 20
-    delta_t_star = .06
-
-    u, u_t = WaveSol_from_EnergyComponent_tensor(u_n_k[:, 0, :, :].clone(),
-                                                 u_n_k[:, 1, :, :].clone(),
-                                                 u_n_k[:, 2, :, :].clone(),
-                                                 u_n_k[:, 3, :, :].clone(),
-                                                 f_delta_x,
-                                                 torch.sum(torch.sum(torch.sum(u_n_k[:, 0, :, :].clone()))))
-    vel = u_n_k[:, 3, :, :].clone()
-    u_prop, u_t_prop = pseudo_spectral_tensor(u, u_t, vel, f_delta_x, f_delta_t, delta_t_star)
-    u_x, u_y, u_t_c = WaveEnergyComponentField_tensor(u_prop,
-                                                      u_t_prop,
-                                                      vel, f_delta_x)
-
-    return torch.stack([u_x, u_y, u_t_c], dim=1)
-
-
-def pseudo_spectral_tensor(u0, ut0, vel, dx, dt, Tf):
-    """
-    propagate wavefield using RK4 in time and spectral approx.
-    of Laplacian in space
-    """
-    # u0 -> b x w x h
-    Nt = round(abs(Tf / dt))
-    c2 = torch.multiply(vel, vel)
-
-    u = u0.to(device)
-    ut = ut0.to(device)
-
-    for i in range(Nt):
-        # RK4 scheme
-        k1u = ut
-        k1ut = torch.multiply(c2.to(device), spectral_del_tensor(u.to(device), dx))
-
-        k2u = ut + dt / 2 * k1ut
-        k2ut = torch.multiply(c2.to(device), spectral_del_tensor(u.to(device) + dt / 2 * k1u, dx))
-
-        k3u = ut + dt / 2 * k2ut
-        k3ut = torch.multiply(c2.to(device), spectral_del_tensor(u.to(device) + dt / 2 * k2u.to(device), dx))
-
-        k4u = ut + dt * k3ut
-        k4ut = torch.multiply(c2.to(device), spectral_del_tensor(u.to(device) + dt * k3u.to(device), dx))
-
-        u = u.to(device) + 1. / 6 * dt * (k1u.to(device) + 2 * k2u.to(device) + 2 * k3u.to(device) + k4u.to(device))
-        ut = ut.to(device) + 1. / 6 * dt * (k1ut.to(device) + 2 * k2ut.to(device) + 2 * k3ut.to(device) + k4ut.to(device))
-
-    return torch.real(u), torch.real(ut)
-
-
-def spectral_del_tensor(v, dx):
-    """
-    evaluate the discrete Laplacian using spectral method
-    """
-
-    N1 = v.shape[-2]
-    N2 = v.shape[-1]
-
-    kx = 2 * torch.pi / (dx * N1) * torch.fft.fftshift(torch.linspace(-round(N1 / 2), round(N1 / 2 - 1), N1))
-    ky = 2 * torch.pi / (dx * N2) * torch.fft.fftshift(torch.linspace(-round(N2 / 2), round(N2 / 2 - 1), N2))
-    [kxx, kyy] = torch.meshgrid(kx, ky, indexing='xy')
-
-    U = -(kxx.to(device) ** 2 + kyy.to(device) ** 2) * torch.fft.fft2(v.to(device))
-
-    return torch.fft.ifft2(U)

@@ -1,14 +1,14 @@
 import sys
+sys.path.append("")
 sys.path.append("..")
-sys.path.append("../..")
 import numpy as np
-from models.utils import setup_logger, fetch_data_end_to_end, save_model
-from parareal.analysis.visualize_training import visualize_wavefield
-from parareal.models.model_utils import get_paths, get_params
+from models.utils import setup_logger, fetch_data_end_to_end
+from parareal.visualize_training import visualize_wavefield
+from parareal.param_settings import get_paths, get_params
 import torch
 import logging
-from models.model_end_to_end import Model_end_to_end
-from parareal.models.parallel_scheme import optimize_solution
+from models.model_end_to_end import Model_end_to_end, save_model
+from parareal.parallel_scheme import optimize_solution
 
 
 def train_Dt_end_to_end(logging_bool=False, visualize=True, vis_param=1, params="0", vis_save=True):
@@ -101,7 +101,7 @@ def train_Dt_end_to_end(logging_bool=False, visualize=True, vis_param=1, params=
                      (epoch + 1, np.array(train_loss_list).mean(), np.array(val_loss_list).mean())]))
 
         if epoch % n_epochs_save_model == 0:  # saves first model as a test
-            save_model(model, model_name + str(model_res), dir_path_save, epoch)
+            save_model(model, model_name + str(model_res), dir_path_save)
             model.to(device)
 
     save_model(model, model_name + str(model_res), dir_path_save)
