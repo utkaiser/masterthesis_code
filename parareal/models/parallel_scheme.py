@@ -3,7 +3,7 @@ sys.path.append("..")
 sys.path.append("../..")
 import scipy
 import torch
-from models.model_utils import sample_label_normal_dist
+from models.utils import sample_label_normal_dist
 from parareal.generate_data.wave_util import WaveSol_from_EnergyComponent_tensor, WaveEnergyComponentField_tensor
 import random
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

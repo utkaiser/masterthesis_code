@@ -5,10 +5,9 @@ import torch
 import numpy as np
 from parareal.models.parallel_scheme import one_iteration_pseudo_spectral, smaller_crop
 from initial_conditions import initial_condition_gaussian, get_velocities
-from utils_wave import WaveEnergyComponentField_end_to_end, \
-    start_logger_datagen_end_to_end, WaveSol_from_EnergyComponent_tensor
-from models.model_utils import get_params
-from analysis.visualize_input.visualize_datagen import visualize_wavefield
+from utils_wave import start_logger_datagen_end_to_end, WaveSol_from_EnergyComponent_tensor
+from models.utils import get_params
+from generate_data.visualize_datagen import visualize_wavefield
 import logging
 
 

@@ -1,14 +1,14 @@
 import sys
 sys.path.append("..")
+import warnings
+warnings.filterwarnings("ignore")
 import logging
 from torch import nn
-import warnings
 from models.model_upsampling import choose_upsampling
-warnings.filterwarnings("ignore")
 from models.model_numerical_solver import Numerical_solver
+from models.models_downsampling import choose_downsampling
 import torch
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-from models.models_downsampling import choose_downsampling
 
 
 class Model_end_to_end(nn.Module):
@@ -55,3 +55,13 @@ def get_model(param_dict, res_scaler, model_res):
 
     return model
 
+
+def save_model(model, modelname, dir_path='results/run_3/'):
+    from torch import save
+    from os import path
+    model.to(torch.device("cpu"))
+    saving_path = dir_path + 'saved_model_' + modelname + '.pt'
+    if not path.isfile(saving_path):
+        return save(model.state_dict(), saving_path)
+    else:
+        raise MemoryError("File (.pt) already exists.")

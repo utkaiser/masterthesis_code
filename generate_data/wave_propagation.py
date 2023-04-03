@@ -1,6 +1,6 @@
 import numpy as np
 import torch
-from skimage.transform import resize # for coarsening
+from skimage.transform import resize
 from scipy import fft
 
 

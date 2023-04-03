@@ -2,7 +2,7 @@ import sys
 sys.path.append("..")
 sys.path.append("../..")
 import numpy as np
-from models.model_utils import setup_logger, fetch_data_end_to_end, save_model
+from models.utils import setup_logger, fetch_data_end_to_end, save_model
 from parareal.analysis.visualize_training import visualize_wavefield
 from parareal.models.model_utils import get_paths, get_params
 import torch

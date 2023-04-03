@@ -88,7 +88,7 @@ def get_velocities(n_it, res, boundary_condition, n_crops_other_profiles = 50, i
         else:
             factor = 1
             if res == 128: input_path = '../data/velocity_profiles/crops_bp_m_200_128.npz'
-            else: input_path = '../data/velocity_profiles/crops_bp_m_400_128*2.npz'
+            else: input_path = '../data/velocity_profiles/crops_bp_m_400_256.npz'
     else:
         factor = 1
     # get velocities and save in dictionary

@@ -12,7 +12,7 @@ from generate_data.wave_util import crop_center, WaveSol_from_EnergyComponent_te
 import torch
 import numpy as np
 from models import model_end_to_end
-from models.model_utils import get_params
+from models.utils import get_params
 from models.parallel_scheme import parareal_scheme, smaller_crop, one_iteration_pseudo_spectral
 
 

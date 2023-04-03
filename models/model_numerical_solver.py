@@ -1,8 +1,9 @@
 import torch
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 from generate_data.wave_propagation import velocity_verlet_tensor
-from generate_data.utils_wave import WaveEnergyComponentField_tensor, WaveSol_from_EnergyComponent_tensor
+from generate_data.change_wave_arguments import WaveEnergyComponentField_tensor, WaveSol_from_EnergyComponent_tensor
 import torch
+
 
 class Numerical_solver(torch.nn.Module):
     def __init__(self, boundary_condition,c_delta_x,c_delta_t,f_delta_x,delta_t_star):
