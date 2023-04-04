@@ -3,6 +3,7 @@ notes.txt
 .DS_Store
 *.npz
 *.mat
+*.pyc
 old_code
 analysis/test.py
 bash_scripts
