@@ -1,13 +1,28 @@
 import torch
 from generate_data.change_wave_arguments import WaveSol_from_EnergyComponent_tensor,WaveEnergyComponentField_tensor
-from generate_data.utils import smaller_crop
 from generate_data.wave_propagation import pseudo_spectral_tensor, velocity_verlet_tensor
 import torch.nn.functional as F
 
 
-def one_iteration_pseudo_spectral_tensor(u_n_k, f_delta_x = 2./128., f_delta_t = (2./128.) / 20., delta_t_star = .06):
+def one_iteration_pseudo_spectral_tensor(
+        u_n_k,
+        f_delta_x = 2./128.,
+        f_delta_t = (2./128.) / 20.,
+        delta_t_star = .06
+):
+    '''
 
-    # u_n_k -> b x c x w x h
+    Parameters
+    ----------
+    u_n_k : (pytorch tensor) wave representation as energy components
+    f_delta_x : (float) spatial step size / grid spacing (in x_1 and x_2 dimension)
+    f_delta_t : (float) temporal step size
+    delta_t_star : (float) time step a solver propagates a wave and solvers are compared
+
+    Returns
+    -------
+    propagates a wave for one time step delta_t_star using the pseudo-spectral method
+    '''
 
     u, u_t = WaveSol_from_EnergyComponent_tensor(u_n_k[:, 0, :, :].clone(),
                                                  u_n_k[:, 1, :, :].clone(),
@@ -23,8 +38,28 @@ def one_iteration_pseudo_spectral_tensor(u_n_k, f_delta_x = 2./128., f_delta_t =
     return torch.stack([u_x, u_y, u_t_c], dim=1)
 
 
-def one_iteration_velocity_verlet(u_n_k,f_delta_x=2./128., f_delta_t=(2./128.)/20.,delta_t_star=.06, new_res = 128, model=None):
-    # u_n_k -> b x c x w x h
+def one_iteration_velocity_verlet(
+        u_n_k,
+        f_delta_x=2./128.,
+        f_delta_t=(2./128.)/20.,
+        delta_t_star=.06,
+        new_res = 128,
+        model=None
+):
+    '''
+    Parameters
+    ----------
+    u_n_k : (pytorch tensor) wave representation as energy components
+    f_delta_x : (float) spatial step size / grid spacing (in x_1 and x_2 dimension)
+    f_delta_t : (float) temporal step size
+    delta_t_star : (float) time step a solver propagates a wave and solvers are compared
+    new_res : (int) how much to downsample the input to (this is not a factor, but resolution)
+    model : end-to-end that can be applied instead of just velocity model
+
+    Returns
+    -------
+    one step of velocity verlet either using just the method, or our end-to-end model
+    '''
 
     if model is None:
 

@@ -15,6 +15,20 @@ def initial_condition_gaussian(
         mode,
         res_padded
 ):
+    '''
+    Parameters
+    ----------
+    vel : (numpy tensor) velocity profile
+    resolution : (int) resolution of actual area to propagate wave
+    boundary_condition : (string) choice of boundary condition, "periodic" or "absorbing"
+    optimization : (string) optimization technique; "parareal" or "none"
+    mode : (string) defines initial condition representation; "physical_components" or "energy_components"
+    res_padded : (int) resolution of padded area to propagate wave, > resolution in case of "parareal" and / or "absorbing"
+
+    Returns
+    -------
+    generates a Gaussian pulse to be used as an initial condition for our end-to-end model to advance waves
+    '''
 
     dx, width, center_x, center_y = _get_init_cond_settings(resolution, boundary_condition, optimization)
     u0, ut0 = init_pulse_gaussian(width, res_padded, center_x, center_y)
@@ -32,6 +46,18 @@ def _get_init_cond_settings(
         boundary_condition,
         optimization
 ):
+    '''
+    Parameters
+    ----------
+    resolution : (int) resolution of actual area to propagate wave
+    boundary_condition : (string) choice of boundary condition, "periodic" or "absorbing"
+    optimization : (string) optimization technique; "parareal" or "none"
+
+    Returns
+    -------
+    get settings of initial condition depending on boundary_condition and optimization technique;
+    settings include random width and centers of initial conditon
+    '''
 
     factor_width = random.random() * 2 - 1
     factor_center_x = random.random() * 2 - 1
@@ -71,30 +97,23 @@ def init_pulse_gaussian(
         center_x,
         center_y
 ):
-    # initial pulse Guassian
+    '''
+
+    Parameters
+    ----------
+    width : (float) width of initial pulse
+    res_padded : (int) padded resolution
+    center_x : (float) center of initial pulse in x_1 direction
+    center_y : (float) center of initial pulse in x_2 direction
+
+    Returns
+    -------
+    generates initial Gaussian pulse  (see formula in paper)
+    '''
 
     xx, yy = np.meshgrid(np.linspace(-1, 1, res_padded), np.linspace(-1, 1, res_padded))
     u0 = np.exp(-width * ((xx - center_x) ** 2 + (yy - center_y) ** 2))
     ut0 = np.zeros([np.size(xx, axis=1), np.size(yy, axis=0)])
     return u0, ut0
-
-
-def init_pulse_ricker(
-        width,
-        center,
-        xx,
-        yy
-):
-    # initial pulse Ricker
-
-    u0 = np.exp(-width * ((xx - center[0]) ** 2 + (yy - center[1]) ** 2))
-    u0 = (1 - 2 * width * ((xx - center[0]) ** 2 + (yy - center[1]) ** 2)) * u0
-    u0 = u0 / np.max(np.abs(u0))
-    ut0 = np.zeros([np.size(xx, axis=1), np.size(yy, axis=0)])
-    return u0, ut0
-
-
-
-
 
 

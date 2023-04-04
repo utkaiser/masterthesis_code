@@ -11,6 +11,20 @@ def get_velocities(
         optimization,
         boundary_condition
 ):
+    '''
+    Parameters
+    ----------
+    n_it : (int) number of different velocity profiles
+    res_padded : (int) padded resolution; space added to actual velocity profile in case of parareal and absorbing bc
+                        when using pseudo-spectral
+    velocity_profiles : (string) name of velocity profiles; "bp_marmousi" or "mixed"
+    optimization : (string) optimization technique; "parareal" or "none"
+    boundary_condition : (string) choice of boundary condition, "periodic" or "absorbing"
+
+    Returns
+    -------
+    get velocity profiles tensor (numpy)
+    '''
 
     if velocity_profiles == "bp_marmousi":
         input_path = f"../data/velocity_profiles/crops_bp_m_{n_it*2}_{res_padded}.npz"
@@ -29,7 +43,28 @@ def get_velocities(
                                                   axis = 0)
         return velocity_accumulated
 
-def get_velocity_crop(resolution, n_crops, velocity_profile, boundary_conditon, optimization):
+
+def get_velocity_crop(
+        resolution,
+        n_crops,
+        velocity_profile,
+        boundary_conditon,
+        optimization
+):
+    '''
+    Parameters
+    ----------
+    resolution : (int) resolution of crop
+    n_crops : (int) number of crops
+    velocity_profile : (string) name of velocity profiles; "bp_marmousi" or "mixed"
+    boundary_condition : (string) choice of boundary condition, "periodic" or "absorbing"
+    optimization : (string) optimization technique; "parareal" or "none"
+
+    Returns
+    -------
+    get velocity crops with special, crafted features:
+    "diagonal", "marmousi", "marmousi2", "bp", "three_layers", "crack_profile", "high_frequency"
+    '''
 
     if velocity_profile == "diagonal":
         img = diagonal_ray(n_crops,resolution, boundary_conditon, optimization)
@@ -64,7 +99,26 @@ def get_velocity_crop(resolution, n_crops, velocity_profile, boundary_conditon, 
     return img
 
 
-def diagonal_ray(n_it, res, boundary_condition, optimization):
+def diagonal_ray(
+        n_it,
+        res,
+        boundary_condition,
+        optimization
+):
+    '''
+    Parameters
+    ----------
+    n_it : (int) number of samples
+    res : (int) resolution of crop
+    boundary_condition : (string) choice of boundary condition, "periodic" or "absorbing"
+    optimization : (string) optimization technique; "parareal" or "none"
+
+    Returns
+    -------
+    velocity profiles with a diagonal ray as seen in paper,
+    used to analyze generalization ability of end-to-end model
+    '''
+
     x = np.linspace(-1, 1, res)
     y = np.linspace(-1, 1, res)
     xx, yy = np.meshgrid(x, y)
@@ -73,15 +127,31 @@ def diagonal_ray(n_it, res, boundary_condition, optimization):
         factor = 2 if optimization == "parareal" else 1
         vel_profile = torch.from_numpy(3. + 0.0 * yy - 1.5 * (np.abs(yy + xx - 0.) > 0.3 / factor))
     else:
-        if optimization == "none":
-            vel_profile = torch.from_numpy(3. + 0.0 * yy - 1.5 * (np.abs(yy + xx - 0.) > 0.3/2))
-        else:
-            vel_profile = torch.from_numpy(3. + 0.0 * yy - 1.5 * (np.abs(yy + xx - 0.) > 0.3/3))
+        if optimization == "none": vel_profile = torch.from_numpy(3. + 0.0 * yy - 1.5 * (np.abs(yy + xx - 0.) > 0.3/2))
+        else: vel_profile = torch.from_numpy(3. + 0.0 * yy - 1.5 * (np.abs(yy + xx - 0.) > 0.3/3))
 
     return vel_profile.unsqueeze(dim=0).repeat(n_it,1,1).numpy()
 
 
-def three_layers(n_it, res, boundary_condition, optimization):
+def three_layers(
+        n_it,
+        res,
+        boundary_condition,
+        optimization
+):
+    '''
+    Parameters
+    ----------
+    n_it : (int) number of samples
+    res : (int) resolution of crop
+    boundary_condition : (string) choice of boundary condition, "periodic" or "absorbing"
+    optimization : (string) optimization technique; "parareal" or "none"
+
+    Returns
+    -------
+    velocity profiles with three layers as seen in paper,
+    used to analyze generalization ability of end-to-end model
+    '''
 
     x = np.linspace(-1, 1, res)
     y = np.linspace(-1, 1, res)
@@ -94,12 +164,30 @@ def three_layers(n_it, res, boundary_condition, optimization):
         if optimization == "none":
             vel_profile = torch.from_numpy(2.6 + 0.0 * yy - .7 * (yy + xx - 0. > -.4/2) - .7 * (yy + xx - 0. > .6/2))
         else:
-            vel_profile = torch.from_numpy(
-                2.6 + 0.0 * yy - .7 * (yy + xx - 0. > -.4 / 3) - .7 * (yy + xx - 0. > .6 / 3))
+            vel_profile = torch.from_numpy(2.6 + 0.0 * yy - .7 * (yy + xx - 0. > -.4 / 3) - .7 * (yy + xx - 0. > .6 / 3))
     return vel_profile.unsqueeze(dim=0).repeat(n_it,1,1).numpy()
 
 
-def crack_profile(n_it, res, boundary_condition, optimization):
+def crack_profile(
+        n_it,
+        res,
+        boundary_condition,
+        optimization
+):
+    '''
+    Parameters
+    ----------
+    n_it : (int) number of samples
+    res : (int) resolution of crop
+    boundary_condition : (string) choice of boundary condition, "periodic" or "absorbing"
+    optimization : (string) optimization technique; "parareal" or "none"
+
+    Returns
+    -------
+    velocity profiles with cracks in marmousi profile as seen in paper,
+    used to analyze generalization ability of end-to-end model
+    '''
+
     marmousi_datamat = loadmat('../data/velocity_profiles/marm1nonsmooth.mat')  # velocity models Marmousi dataset
     img = gaussian(marmousi_datamat['marm1larg'], 4)
 
@@ -153,7 +241,25 @@ def crack_profile(n_it, res, boundary_condition, optimization):
     return torch.from_numpy(vel_profile).unsqueeze(dim=0).repeat(n_it,1,1).numpy()
 
 
-def high_frequency(n_it, res, boundary_condition, optimization):
+def high_frequency(
+        n_it,
+        res,
+        boundary_condition,
+        optimization
+):
+    '''
+    Parameters
+    ----------
+    n_it : (int) number of samples
+    res : (int) resolution of crop
+    boundary_condition : (string) choice of boundary condition, "periodic" or "absorbing"
+    optimization : (string) optimization technique; "parareal" or "none"
+
+    Returns
+    -------
+    velocity profiles with high frequency as seen in paper,
+    used to analyze generalization ability of end-to-end model
+    '''
 
     x = np.linspace(-1, 1, res)
     y = np.linspace(-1, 1, res)

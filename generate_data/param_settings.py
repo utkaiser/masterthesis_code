@@ -1,4 +1,15 @@
-def get_training_params(res):
+def get_training_params(
+        res
+):
+    '''
+    Parameters
+    ----------
+    res : (int) resolution of velocity profile
+
+    Returns
+    -------
+    parameters used for training stored in dictionary
+    '''
 
     param_dict = {
         "total_time": .6,

@@ -1,18 +1,48 @@
 import sys
 sys.path.append("..")
 import torch
+import logging
 import numpy as np
 from initial_conditions import initial_condition_gaussian
-from generate_data.param_settings import get_training_params
 from utils import crop_center, start_logger_datagen_end_to_end, get_resolution_padding
 from change_wave_arguments import WaveEnergyComponentField_end_to_end, WaveSol_from_EnergyComponent_tensor
 from generate_data.visualize_datagen import visualize_wavefield
-import logging
 from generate_velocity_profiles import get_velocities
+from generate_data.param_settings import get_training_params
 from generate_data.utils_wave_propagate import one_iteration_pseudo_spectral_tensor
 
 
-def generate_wave_from_medium(output_dir, res, boundary_condition, visualize, index, n_it, optimization, velocity_profiles):
+def generate_wave_from_medium(
+        output_dir,
+        res,
+        boundary_condition,
+        visualize,
+        index,
+        n_it,
+        optimization,
+        velocity_profiles
+):
+    '''
+    Parameters
+    ----------
+    output_dir : (string) director to save output in
+    res : (int) resolution of input velocity profiles
+    boundary_condition : (string) defines the boundary condition used for pde
+    visualize : (bool) visualize generated data points
+    index : (int) dataset number, used when generated multiple instances of same dataset type
+    n_it : (int) number of different velocity profiles and wave advancement groups (see paper definition),
+                    how many data samples to generate
+    optimization : (string) optimization technique; "parareal" or "none"
+    velocity_profiles : (string) type of velocity profiles "bp_marmousi" or "mixed" (all velocity profiles implemented)
+
+    Returns
+    -------
+    - generates data to use for training the end-to-end model and stores it in a `.npz`-file;
+    - for each velocity profiles, the fine solver (RK4-method) is used to advance a wave n_snaps times;
+    - the parameters are defined in `param_settings.py`,
+    - and we can choose between absorbing and periodic boundary conditions
+    - data is stored as in energy components as we get training of neural networks
+    '''
 
     # parameter setup
     res_padded = get_resolution_padding(boundary_condition, res, optimization)
@@ -75,18 +105,16 @@ def generate_wave_from_medium(output_dir, res, boundary_condition, visualize, in
 
 if __name__ == "__main__":
 
-    velocity_profiles = "bp_marmousi"  # "bp_marmousi" or "mixed" (all velocity profiles implemented)
-
     for index in range(1):  # run multiple iterations of datagen
         generate_wave_from_medium(
             output_dir = "../data/",
             visualize = True,
-            n_it = 200,  # how many data samples to generate
+            n_it = 200,
             res=128,
             boundary_condition="absorbing",
-            optimization = "parareal",  # "none"
+            optimization = "parareal",
             index = index,
-            velocity_profiles = velocity_profiles
+            velocity_profiles = "bp_marmousi"
         )
 
 

@@ -1,42 +1,54 @@
 import numpy as np
 import torch
-from skimage.transform import resize
 from scipy import fft
 
 
-def parallel_compute(u, ut, vel, vel_c, f_delta_x, c_delta_x, f_delta_t, c_delta_t, delta_t_star):
+def velocity_verlet(
+        u0,
+        ut0,
+        vel,
+        dx,
+        dt,
+        delta_t_star
+):
+    '''
+    Parameters
+    ----------
+    u0 : (numpy tensor) physical wave component, displacement of wave
+    ut0 : (numpy tensor) physical wave component derived by t, velocity of wave
+    vel : (numpy tensor) velocity profile dependent on x_1 and x_2
+    dx : (float) time step in both dimensions / grid spacing
+    dt : (float) temporal step size
+    delta_t_star : (float) time step a solver propagates a wave and solvers are compared
 
-    n_snapshots = u.shape[2]
-    resolution_c, resolution_f = vel_c.shape[0], vel.shape[0]
+    Returns
+    -------
+    propagate wavefield using velocity Verlet in time and the second order discrete Laplacian in space
+    '''
 
-    # pre-allocate arrays for output
-    uf = np.zeros([resolution_f,resolution_f,n_snapshots])
-    utf = np.zeros([resolution_f,resolution_f,n_snapshots])
-    uc = np.zeros([resolution_c,resolution_c,n_snapshots])
-    utc = np.zeros([resolution_c,resolution_c,n_snapshots])
 
-    # parallel loop, each rhs is independent of lhs
-    for j in range(n_snapshots):
+    def _periLaplacian(
+            v,
+            dx
+    ):
+        '''
 
-        restriction_u, restriction_ut = resize(u[:, :, j], [resolution_c, resolution_c], order=4),\
-                                        resize(ut[:, :, j], [resolution_c, resolution_c], order=4)
+        Parameters
+        ----------
+        v : (numpy tensor) velocity profile dependent on x_1 and x_2
+        dx : (float) spatial step size / grid spacing (in x_1 and x_2 dimension)
 
-        # coarse solver propagation using finite-difference time-domain method
-        uc[:,:,j], utc[:,:,j] = velocity_verlet(restriction_u, restriction_ut,
-                                                vel_c, c_delta_x, c_delta_t, delta_t_star)
+        Returns
+        -------
+        compute periodic Laplacian evaluate discrete Laplacian with periodic boundary condition
+        '''
 
-        # fine solver propagation using pseudo spectral method
-        uf[:,:,j], utf[:,:,j] = pseudo_spectral(u[:, :, j], ut[:, :, j], vel, f_delta_x, f_delta_t, delta_t_star)
 
-    return uc,utc,uf,utf
+        Lv = (np.roll(v, 1, axis=1) - 2 * v + np.roll(v, -1, axis=1)) / (dx ** 2) + \
+             (np.roll(v, 1, axis=0) - 2 * v + np.roll(v, -1, axis=0)) / (dx ** 2)
 
-def velocity_verlet(u0, ut0, vel, dx, dt, delta_t_star):
-    """
-    Wave solution propagator
-    propagate wavefield using velocity Verlet in time and the second order
-    discrete Laplacian in space
-    found eq. 10 in paper
-    """
+        return Lv
+
 
     Nt = round(abs(delta_t_star / dt))
     c2 = np.multiply(vel,vel)
@@ -44,42 +56,78 @@ def velocity_verlet(u0, ut0, vel, dx, dt, delta_t_star):
     ut = ut0
 
     for i in range(Nt):
-
-        # Velocity Verlet
-        ddxou = periLaplacian(u,dx)
+        ddxou = _periLaplacian(u,dx)
         u = u + dt*ut + 0.5*dt**2*np.multiply(c2,ddxou)
-        ddxu = periLaplacian(u,dx)
+        ddxu = _periLaplacian(u,dx)
         ut = ut + 0.5*dt*np.multiply(c2,ddxou+ddxu)
 
     return u, ut
 
 
 
-def velocity_verlet_tensor(u0, ut0, vel, dx, dt, delta_t_star, number=0, boundary_c='periodic',tj=0):
-    """
-    Wave solution propagator
-    propagate wavefield using velocity Verlet in time and the second order
-    discrete Laplacian in space
-    found eq. 10 in paper
+def velocity_verlet_tensor(
+        u0,
+        ut0,
+        vel,
+        dx,
+        dt,
+        delta_t_star,
+        number=0,
+        boundary_c='periodic'
+):
+    '''
+    Parameters
+    ----------
+    u0 : (pytorch tensor) physical wave component, displacement of wave
+    ut0 : (pytorch tensor) physical wave component derived by t, velocity of wave
+    vel : (pytorch tensor) velocity profile dependent on x_1 and x_2
+    dx : (float) time step in both dimensions / grid spacing
+    dt : (float) temporal step size
+    delta_t_star : (float) time step a solver propagates a wave and solvers are compared
+    number : (int) change number from 0 to 1 if batch added as a dimensionality
+    boundary_c : (string) choice of boundary condition, "periodic" or "absorbing"
 
-    u0 shape: b x w_c x h_c
-    vel shape: b x w_c x h_c
-    """
+    Returns
+    -------
+    propagate wavefield using velocity Verlet in time and the second order discrete Laplacian in space
+    '''
+
+
+    def _periLaplacian_tensor(
+            v,
+            dx,
+            number
+    ):
+        '''
+        Parameters
+        ----------
+        v : (pytorch tensor) velocity profile dependent on x_1 and x_2
+        dx : (float) spatial step size / grid spacing (in x_1 and x_2 dimension)
+        number : (int) change number from 0 to 1 if batch added as a dimensionality
+
+        Returns
+        -------
+        compute periodic Laplacian evaluate discrete Laplacian with periodic boundary condition
+        '''
+
+        Lv = (torch.roll(v, 1, dims=1 + number) - 2 * v + torch.roll(v, -1, dims=1 + number)) / (dx ** 2) + \
+             (torch.roll(v, 1, dims=0 + number) - 2 * v + torch.roll(v, -1, dims=0 + number)) / (dx ** 2)
+
+        return Lv
+
 
     Nt = round(abs(delta_t_star / dt))
     c2 = torch.mul(vel, vel)
-
     u, ut = u0, ut0
-    f_delta_t = 2.0 / 128.0
 
     if boundary_c == 'periodic':
 
         for i in range(Nt):
             # Velocity Verlet
 
-            ddxou = periLaplacian_tensor(u, dx, number)
+            ddxou = _periLaplacian_tensor(u, dx, number)
             u = u + dt * ut + 0.5 * dt ** 2 * torch.mul(c2, ddxou)
-            ddxu = periLaplacian_tensor(u, dx, number)
+            ddxu = _periLaplacian_tensor(u, dx, number)
             ut = ut + 0.5 * dt * torch.mul(c2, ddxou + ddxu)
 
         return u,ut
@@ -159,35 +207,60 @@ def velocity_verlet_tensor(u0, ut0, vel, dx, dt, delta_t_star, number=0, boundar
     else:
         raise NotImplementedError("this boundary condition is not implemented")
 
-def periLaplacian(v,dx):
-    """
-    Define periodic Laplacian
-    evaluate discrete Laplacian with periodic boundary condition
-    """
 
-    Lv = (np.roll(v,1,axis=1) - 2*v + np.roll(v,-1,axis=1))/(dx**2)+\
-         (np.roll(v,1,axis=0) - 2*v + np.roll(v,-1,axis=0))/(dx**2)
+def pseudo_spectral(
+        u0,
+        ut0,
+        vel,
+        dx,
+        dt,
+        delta_t_star
+):
+    '''
+    Parameters
+    ----------
+    u0 : (pytorch tensor) physical wave component, displacement of wave
+    ut0 : (pytorch tensor) physical wave component derived by t, velocity of wave
+    vel : (pytorch tensor) velocity profile dependent on x_1 and x_2
+    dx : (float) time step in both dimensions / grid spacing
+    dt : (float) temporal step size
+    delta_t_star : (float) time step a solver propagates a wave and solvers are compared
 
-    return Lv
+    Returns
+    -------
+    propagate wavefield using RK4 in time and spectral approx. of Laplacian in space
+    '''
 
-def periLaplacian_tensor(v,dx, number):
-    """
-    Define periodic Laplacian
-    evaluate discrete Laplacian with periodic boundary condition
-    """
 
-    Lv = (torch.roll(v,1,dims=1+number) - 2*v + torch.roll(v,-1,dims=1+number))/(dx**2)+\
-         (torch.roll(v,1,dims=0+number) - 2*v + torch.roll(v,-1,dims=0+number))/(dx**2)
+    def _spectral_del(
+            v,
+            dx
+    ):
+        '''
 
-    return Lv
+        Parameters
+        ----------
+        v : (pytorch tensor) velocity profile dependent on x_1 and x_2
+        dx : (float) spatial step size / grid spacing (in x_1 and x_2 dimension)
 
-def pseudo_spectral(u0, ut0, vel, dx, dt, Tf):
-    """
-    propagate wavefield using RK4 in time and spectral approx.
-    of Laplacian in space
-    """
+        Returns
+        -------
+        evaluate the discrete Laplacian using spectral method
+        '''
 
-    Nt = round(abs(Tf / dt))
+        N1 = v.shape[0]
+        N2 = v.shape[1]
+
+        kx = 2 * np.pi / (dx * N1) * fft.fftshift(np.linspace(-round(N1 / 2), round(N1 / 2 - 1), N1))
+        ky = 2 * np.pi / (dx * N2) * fft.fftshift(np.linspace(-round(N2 / 2), round(N2 / 2 - 1), N2))
+        [kxx, kyy] = np.meshgrid(kx, ky)
+
+        U = -(kxx ** 2 + kyy ** 2) * fft.fft2(v)
+
+        return fft.ifft2(U)
+
+
+    Nt = round(abs(delta_t_star / dt))
     c2 = np.multiply(vel, vel)
 
     u = u0
@@ -196,16 +269,16 @@ def pseudo_spectral(u0, ut0, vel, dx, dt, Tf):
     for i in range(Nt):
         # RK4 scheme
         k1u = ut
-        k1ut = np.multiply(c2, spectral_del(u, dx))
+        k1ut = np.multiply(c2, _spectral_del(u, dx))
 
         k2u = ut + dt / 2 * k1ut
-        k2ut = np.multiply(c2, spectral_del(u + dt / 2 * k1u, dx))
+        k2ut = np.multiply(c2, _spectral_del(u + dt / 2 * k1u, dx))
 
         k3u = ut + dt / 2 * k2ut
-        k3ut = np.multiply(c2, spectral_del(u + dt / 2 * k2u, dx))
+        k3ut = np.multiply(c2, _spectral_del(u + dt / 2 * k2u, dx))
 
         k4u = ut + dt * k3ut
-        k4ut = np.multiply(c2, spectral_del(u + dt * k3u, dx))
+        k4ut = np.multiply(c2, _spectral_del(u + dt * k3u, dx))
 
         u = u + 1. / 6 * dt * (k1u + 2 * k2u + 2 * k3u + k4u)
         ut = ut + 1. / 6 * dt * (k1ut + 2 * k2ut + 2 * k3ut + k4ut)
@@ -213,14 +286,59 @@ def pseudo_spectral(u0, ut0, vel, dx, dt, Tf):
     return np.real(u), np.real(ut)
 
 
-def pseudo_spectral_tensor(u0, ut0, vel, dx, dt, Tf):
-    """
-    propagate wavefield using RK4 in time and spectral approx.
-    of Laplacian in space
-    """
-    # u0 -> b x w x h
+def pseudo_spectral_tensor(
+        u0,
+        ut0,
+        vel,
+        dx,
+        dt,
+        delta_t_star
+):
+    '''
+    Parameters
+    ----------
+    u0 : (pytorch tensor) physical wave component, displacement of wave
+    ut0 : (pytorch tensor) physical wave component derived by t, velocity of wave
+    vel : (pytorch tensor) velocity profile dependent on x_1 and x_2
+    dx : (float) time step in both dimensions / grid spacing
+    dt : (float) temporal step size
+    delta_t_star : (float) time step a solver propagates a wave and solvers are compared
 
-    Nt = round(abs(Tf / dt))
+    Returns
+    -------
+    propagate wavefield using RK4 in time and spectral approx. of Laplacian in space (batched)
+    '''
+
+
+    def _spectral_del_tensor(
+            v,
+            dx
+    ):
+        '''
+
+        Parameters
+        ----------
+        v : (pytorch tensor) velocity profile dependent on x_1 and x_2
+        dx : (float) spatial step size / grid spacing (in x_1 and x_2 dimension)
+
+        Returns
+        -------
+        evaluate the discrete Laplacian using spectral method (batched)
+        '''
+
+        N1 = v.shape[-2]
+        N2 = v.shape[-1]
+
+        kx = 2 * torch.pi / (dx * N1) * torch.fft.fftshift(torch.linspace(-round(N1 / 2), round(N1 / 2 - 1), N1))
+        ky = 2 * torch.pi / (dx * N2) * torch.fft.fftshift(torch.linspace(-round(N2 / 2), round(N2 / 2 - 1), N2))
+        [kxx, kyy] = torch.meshgrid(kx, ky, indexing='xy')
+
+        U = -(kxx ** 2 + kyy ** 2) * torch.fft.fft2(v)
+
+        return torch.fft.ifft2(U)
+
+
+    Nt = round(abs(delta_t_star / dt))
     c2 = torch.multiply(vel, vel)
 
     u = u0
@@ -229,16 +347,16 @@ def pseudo_spectral_tensor(u0, ut0, vel, dx, dt, Tf):
     for i in range(Nt):
         # RK4 scheme
         k1u = ut
-        k1ut = torch.multiply(c2, spectral_del_tensor(u, dx))
+        k1ut = torch.multiply(c2, _spectral_del_tensor(u, dx))
 
         k2u = ut + dt / 2 * k1ut
-        k2ut = torch.multiply(c2, spectral_del_tensor(u + dt / 2 * k1u, dx))
+        k2ut = torch.multiply(c2, _spectral_del_tensor(u + dt / 2 * k1u, dx))
 
         k3u = ut + dt / 2 * k2ut
-        k3ut = torch.multiply(c2, spectral_del_tensor(u + dt / 2 * k2u, dx))
+        k3ut = torch.multiply(c2, _spectral_del_tensor(u + dt / 2 * k2u, dx))
 
         k4u = ut + dt * k3ut
-        k4ut = torch.multiply(c2, spectral_del_tensor(u + dt * k3u, dx))
+        k4ut = torch.multiply(c2, _spectral_del_tensor(u + dt * k3u, dx))
 
         u = u + 1. / 6 * dt * (k1u + 2 * k2u + 2 * k3u + k4u)
         ut = ut + 1. / 6 * dt * (k1ut + 2 * k2ut + 2 * k3ut + k4ut)
@@ -246,37 +364,7 @@ def pseudo_spectral_tensor(u0, ut0, vel, dx, dt, Tf):
     return torch.real(u), torch.real(ut)
 
 
-def spectral_del(v, dx):
-    """
-    evaluate the discrete Laplacian using spectral method
-    """
-
-    N1 = v.shape[0]
-    N2 = v.shape[1]
-
-    kx = 2 * np.pi / (dx * N1) * fft.fftshift(np.linspace(-round(N1 / 2), round(N1 / 2 - 1), N1))
-    ky = 2 * np.pi / (dx * N2) * fft.fftshift(np.linspace(-round(N2 / 2), round(N2 / 2 - 1), N2))
-    [kxx, kyy] = np.meshgrid(kx, ky)
-
-    U = -(kxx ** 2 + kyy ** 2) * fft.fft2(v)
-
-    return fft.ifft2(U)
 
 
-def spectral_del_tensor(v, dx):
-    """
-    evaluate the discrete Laplacian using spectral method
-    """
-
-    N1 = v.shape[-2]
-    N2 = v.shape[-1]
-
-    kx = 2 * torch.pi / (dx * N1) * torch.fft.fftshift(torch.linspace(-round(N1 / 2), round(N1 / 2 - 1), N1))
-    ky = 2 * torch.pi / (dx * N2) * torch.fft.fftshift(torch.linspace(-round(N2 / 2), round(N2 / 2 - 1), N2))
-    [kxx, kyy] = torch.meshgrid(kx, ky, indexing='xy')
-
-    U = -(kxx ** 2 + kyy ** 2) * torch.fft.fft2(v)
-
-    return torch.fft.ifft2(U)
 
 
