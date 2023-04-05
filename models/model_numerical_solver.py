@@ -5,8 +5,33 @@ from generate_data.change_wave_arguments import WaveEnergyComponentField_tensor,
 import torch
 
 
-class Numerical_solver(torch.nn.Module):
-    def __init__(self, boundary_condition,c_delta_x,c_delta_t,f_delta_x,delta_t_star):
+class Numerical_solver(
+    torch.nn.Module
+):
+    '''
+    wrapping of numerical solver (velocity Verlet method) as pytorch neural network type
+    for easier training and allowing backpropagation of gradients while training
+    '''
+
+
+    def __init__(
+            self,
+            boundary_condition,
+            c_delta_x,
+            c_delta_t,
+            f_delta_x,
+            delta_t_star
+    ):
+        '''
+        Parameters
+        ----------
+        boundary_condition : (string) choice of boundary condition, "periodic" or "absorbing"
+        c_delta_x : (float) coarse spatial step size / grid spacing (in x_1 and x_2 dimension)
+        c_delta_t : (float) temporal step size
+        f_delta_x : (float) coarse spatial step size / grid spacing (in x_1 and x_2 dimension)
+        delta_t_star : (float) time step a solver propagates a wave and solvers are compared
+        '''
+
         super(Numerical_solver, self).__init__()
         self.boundary_condition = boundary_condition
         self.c_delta_x = c_delta_x
@@ -14,7 +39,20 @@ class Numerical_solver(torch.nn.Module):
         self.f_delta_x = f_delta_x
         self.delta_t_star = delta_t_star
 
-    def forward(self, restr_output):
+
+    def forward(
+            self,
+            restr_output
+    ):
+        '''
+        Parameters
+        ----------
+        restr_output : (pytorch tensor) output of adjacent down sampling component
+
+        Returns
+        -------
+        propagates the wave using the velocity verlet algorithm on a coarse grid representation
+        '''
 
         vel_c = torch.Tensor.double(restr_output[:, 3, :, :])  # b x w_c x h_c
 

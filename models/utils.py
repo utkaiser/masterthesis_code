@@ -18,7 +18,22 @@ environ["OMP_NUM_THREADS"] = "1"
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-def fetch_data_end_to_end(data_paths, batch_size, val_paths):
+def fetch_data_end_to_end(
+        data_paths,
+        batch_size,
+        val_paths
+):
+    '''
+    Parameters
+    ----------
+    data_paths : (string) data paths to use for training
+    batch_size : (int) batch size
+    val_paths : (string) data paths to use for validation
+
+    Returns
+    -------
+    return torch.Dataloader object to iterate over training and validation samples
+    '''
 
     def get_datasets(data_paths):
 
@@ -44,7 +59,24 @@ def fetch_data_end_to_end(data_paths, batch_size, val_paths):
     return train_loader, val_loader
 
 
-def flip_tensors(input_tensor, label, v_flipped, h_flipped):
+def flip_tensors(
+        input_tensor,
+        label,
+        v_flipped,
+        h_flipped
+):
+    '''
+    Parameters
+    ----------
+    input_tensor : (pytorch tensor) wave img representation
+    label : (pytorch tensor) label wave img representation
+    v_flipped : (bool) if input_tensor should be vertically flipped
+    h_flipped : (bool) if input_tensor should be horizontally flipped
+
+    Returns
+    -------
+    flipped input and label according to flipping scheme with flipping probability of .5
+    '''
 
     if v_flipped: label = TF.vflip(label)
     if h_flipped: label = TF.hflip(label)
@@ -62,8 +94,26 @@ def flip_tensors(input_tensor, label, v_flipped, h_flipped):
     return input_tensor, label, v_flipped, h_flipped
 
 
-def sample_label_normal_dist(input_idx, n_snaps, label_distr_shift, multi_step):
-    # randomly sample label idx from normal distribution
+def sample_label_normal_dist(
+        input_idx,
+        n_snaps,
+        label_distr_shift,
+        multi_step
+):
+    '''
+    Parameters
+    ----------
+    input_idx : (int) input index; i.e. which snapshot / wave advancement we consider currently
+    n_snaps : (int) total number of snapshots / wave advancement for this velocity profile and initial condition
+    label_distr_shift : (int) difference between current snapshot and how many wave advancement we would like
+    multi_step : (bool) decides if multi-step loss is used (see paper)
+
+    Returns
+    -------
+    randomly sample label idx from normal distribution
+    used especially for multi-step approach, single-step approach also usable in this function
+    '''
+
     if multi_step == 1:
         return input_idx + 1
     elif multi_step == 2:
@@ -79,7 +129,28 @@ def sample_label_normal_dist(input_idx, n_snaps, label_distr_shift, multi_step):
             return round(truncnorm((low - mean) / sd, (upp - mean) / sd, loc=mean, scale=sd).rvs())
 
 
-def setup_logger(logging_bool, train_logger_path, valid_logger_path, model_name, model_res, vis_path):
+def setup_logger(
+        logging_bool,
+        train_logger_path,
+        valid_logger_path,
+        model_name,
+        model_res,
+        vis_path
+):
+    '''
+    Parameters
+    ----------
+    logging_bool : (bool) decides if results are logged
+    train_logger_path : (string) path used to save logs training
+    valid_logger_path : (string) path used to save logs validation
+    model_name : (string) name of model
+    model_res : (int) resolution model can handle
+    vis_path : (string) path used to save visualization
+
+    Returns
+    -------
+    multiple loggers set up for our framework
+    '''
 
     logger = logging.getLogger()
     for handler in logger.handlers[:]:
@@ -105,7 +176,22 @@ def setup_logger(logging_bool, train_logger_path, valid_logger_path, model_name,
     return train_logger, valid_logger, global_step
 
 
-def choose_optimizer(name, model, lr):
+def choose_optimizer(
+        name,
+        model,
+        lr
+):
+    '''
+    Parameters
+    ----------
+    name : name of optimizer
+    model : end-to-end model instance
+    lr :
+
+    Returns
+    -------
+
+    '''
 
     if name == "AdamW":
         return torch.optim.AdamW(model.parameters(), lr=lr)
@@ -117,7 +203,18 @@ def choose_optimizer(name, model, lr):
         raise NotImplementedError("Optimizer not implemented.")
 
 
-def choose_loss_function(name):
+def choose_loss_function(
+        name
+):
+    '''
+    Parameters
+    ----------
+    name : name of loss function
+
+    Returns
+    -------
+    get pytorch loss function
+    '''
 
     if name == "SmoothL1Loss":
         return torch.nn.SmoothL1Loss()
@@ -127,18 +224,61 @@ def choose_loss_function(name):
         raise NotImplementedError("Loss function not implemented.")
 
 
-def relative_frobenius_norm(a, b):
+def relative_frobenius_norm(
+        a,
+        b
+):
+    '''
+    Parameters
+    ----------
+    a : (pytorch tensor) matrix
+    b : (pytorch tensor) matrix
+
+    Returns
+    -------
+    compute relative frobenius norm for matrix a and b
+    '''
     diff = a - b
     norm_diff = torch.sqrt(torch.sum(diff**2))
     norm_b = torch.sqrt(torch.sum(b**2))
     return norm_diff / norm_b
 
 
-def compute_loss2(prediction, target):
+def compute_loss2(
+        prediction,
+        target
+):
+    '''
+    Parameters
+    ----------
+    prediction : (pytorch tensor) prediction matrix
+    target : (pytorch tensor) target matrix
+
+    Returns
+    -------
+    get mean squared error loss between {prediction} and {target}
+    '''
     return MSE(prediction, target).item()
 
 
-def compute_loss(prediction,target, vel, mode = "MSE/frob(fine)"):
+def compute_loss(
+        prediction,
+        target,
+        vel,
+        mode = "MSE/frob(fine)"
+):
+    '''
+    Parameters
+    ----------
+    prediction : (pytorch tensor) prediction matrix
+    target : (pytorch tensor) target matrix
+    vel : (pytorch tensor) velocity profile
+    mode : type of error function
+
+    Returns
+    -------
+    get error computed depending on choice of {mode}
+    '''
 
     prediction, target = get_wavefield(prediction, vel), get_wavefield(target,vel)
 
@@ -156,7 +296,19 @@ def compute_loss(prediction,target, vel, mode = "MSE/frob(fine)"):
         raise NotImplementedError("This mode has not been implemented yet.")
 
 
-def round_loss(number):
+def round_loss(
+        number
+):
+    '''
+    Parameters
+    ----------
+    number : (float) number to round
+
+    Returns
+    -------
+    get rounding of {number}
+    '''
+
     return number #str(round(number*(10**7),5))+"e-7"
 
 

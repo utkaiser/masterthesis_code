@@ -8,7 +8,7 @@ def get_training_params(
 
     Returns
     -------
-    parameters used for training stored in dictionary
+    parameters used for generating data stored in dictionary
     '''
 
     param_dict = {

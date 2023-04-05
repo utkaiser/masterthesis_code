@@ -1,12 +1,20 @@
 from models.train_end_to_end import train_Dt_end_to_end
 
+def grid_search_end_to_end(
+):
+    '''
+    void
 
-def grid_search_end_to_end():
+    Returns
+    -------
+    performs grid search to run end-to-end model on different parameter
+    '''
 
-    def apply_rules(scale, res, counter):
+    def _apply_rules(scale, res, counter):
         rules_bool = ((scale == 4 and res == 256) or (scale == 2 and res == 128)) \
                      and counter >= -1
         return rules_bool
+
 
     downsampling_model = [
         # "Interpolation",
@@ -56,7 +64,7 @@ def grid_search_end_to_end():
                         for res in model_res:
                                 for f in flipping:
                                     for m in multi_step:
-                                        if apply_rules(scale, res, counter):
+                                        if _apply_rules(scale, res, counter):
                                             train_Dt_end_to_end(
                                                 downsampling_model = d,
                                                 upsampling_model = u,

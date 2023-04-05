@@ -10,13 +10,41 @@ import random
 from models.visualize_training import visualize_wavefield
 
 
-def train_Dt_end_to_end(downsampling_model, upsampling_model, optimizer_name, loss_function_name, res_scaler, model_res,
-                        flipping, multi_step, logging_bool=False, params="0", vis_save=True):
+def train_Dt_end_to_end(
+        downsampling_model,
+        upsampling_model,
+        optimizer_name,
+        loss_function_name,
+        res_scaler,
+        model_res,
+        flipping,
+        multi_step,
+        logging_bool=False,
+        vis_save=True
+):
+    '''
+    Parameters
+    ----------
+    downsampling_model : defines which down sampling component to use
+    upsampling_model : defines which up sampling component to use
+    optimizer_name : name of optimizer to adjust weights
+    loss_function_name : name of loss function
+    res_scaler : (int) scale factor by which input is up sampled (usually 2 or 4)
+    model_res : (int) resolution model can handle
+    flipping : (bool) vertical and horizontal flipping for data augmentation
+    multi_step : (bool) decides if multi-step loss is used (see paper)
+    logging_bool : (bool) decides if results are logged
+    vis_save : (bool) decides if visualization is saved
+
+    Returns
+    -------
+    trained end-to-end model
+    '''
 
     # params and logger setup
     data_paths, train_logger_path, valid_logger_path, dir_path_save, vis_path, val_paths = get_paths(model_res)
     model_name = "_".join([downsampling_model, upsampling_model, optimizer_name, loss_function_name, str(res_scaler), str(model_res), str(flipping), str(multi_step)])
-    param_dict = get_params(params)
+    param_dict = get_params()
     batch_size, lr, n_epochs, boundary_c, delta_t_star, f_delta_x, n_epochs_save_model = \
         param_dict["batch_size"], param_dict["lr"], param_dict["n_epochs"], param_dict["boundary_c"], \
         param_dict["delta_t_star"], param_dict["f_delta_x"], param_dict["n_epochs_save_model"]

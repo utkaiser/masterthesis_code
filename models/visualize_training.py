@@ -6,8 +6,28 @@ from generate_data.utils_wave_propagate import one_iteration_velocity_verlet, on
 from models.utils import round_loss, compute_loss
 
 
-def visualize_wavefield(epoch, tensor_list, vel, vis_save, vis_path, initial_u):
-    # initial_u -> b x c x w x h
+def visualize_wavefield(
+        epoch,
+        tensor_list,
+        vel,
+        vis_save,
+        vis_path,
+        initial_u
+):
+    '''
+    Parameters
+    ----------
+    epoch : (int) number of epochs to train
+    tensor_list : (list of pytorch tensors) list of elements to plot
+    vel :  (pytorch tensor) velocity profile
+    vis_save : (bool) decides if visualization is saved
+    vis_path : (string) path to save visualization
+    initial_u : (pytorch tensor) wave representation as energy components
+
+    Returns
+    -------
+    visualize training epoch
+    '''
 
     n_snaps = len(tensor_list)
     _, w, h = tensor_list[0][-1].shape
@@ -73,9 +93,20 @@ def visualize_wavefield(epoch, tensor_list, vel, vis_save, vis_path, initial_u):
         plt.show()
 
 
-def get_ticks_fine(tensor, vel):
-    # tensor -> 1 x s x c x w x h
-    # vel -> w x h
+def get_ticks_fine(
+        tensor,
+        vel
+):
+    '''
+    Parameters
+    ----------
+    tensor : (pytorch tensor) matrix
+    vel : (pytorch tensor) velocity profile
+
+    Returns
+    -------
+    (list) get ticks for visualization; usual values: [min, avg, max}
+    '''
 
     ticks = []
     for s in range(tensor.shape[1]):
@@ -84,9 +115,24 @@ def get_ticks_fine(tensor, vel):
     return ticks  # s x 3
 
 
-def get_solver_solution(u_n_k, n_snapshots, vel, solver="coarse"):
-    # u_0_k -> b x c x w x h
-    # vel -> b x w x h
+def get_solver_solution(
+        u_n_k,
+        n_snapshots,
+        vel,
+        solver="coarse"
+):
+    '''
+    Parameters
+    ----------
+    u_n_k :  (pytorch tensor) wave representation as energy components
+    n_snapshots : (int) number of wave advancements by end-to-end model
+    vel : (pytorch tensor) velocity profile
+    solver : (string) choice of solver
+
+    Returns
+    -------
+    compute solution of {solver} with down and up samplign to compare it with end-to-end model
+    '''
 
     if solver == "coarse":
         small_res_scale = 2

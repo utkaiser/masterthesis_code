@@ -2,7 +2,18 @@ import os
 from datetime import datetime
 
 
-def get_paths(model_res):
+def get_paths(
+        model_res
+):
+    '''
+    Parameters
+    ----------
+    model_res : (int) resolution of model
+
+    Returns
+    -------
+    (list) paths used for training including data paths and logger paths
+    '''
 
     now = datetime.now()
     add = now.strftime("%d_%m_%Y____%H_%M_%S") + "/"
@@ -38,11 +49,22 @@ def get_paths(model_res):
     return data_paths, train_logger_path, valid_logger_path, dir_path_save, vis_path, val_paths
 
 
-def get_params(params="0"):
+def get_params(
+        mode="0"
+):
+    '''
+    Parameters
+    ----------
+    mode : which parameter composition to use
+
+    Returns
+    -------
+    (dictionary) get parameters used for training
+    '''
 
     param_dict = {}
 
-    if params == "0":
+    if mode == "0":
         param_dict["batch_size"] = 1
         param_dict["lr"] = .001
         param_dict["n_epochs"] = 20

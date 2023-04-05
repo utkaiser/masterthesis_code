@@ -3,24 +3,42 @@ sys.path.append("..")
 import warnings
 warnings.filterwarnings("ignore")
 import logging
-from torch import nn
+from torch import nn, save
 from models.model_upsampling import choose_upsampling
 from models.model_numerical_solver import Numerical_solver
 from models.models_downsampling import choose_downsampling
 import torch
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+from os import path
 
 
-class Model_end_to_end(nn.Module):
+class Model_end_to_end(
+    nn.Module
+):
     '''
-            x: delta t star, dx, prev fine solution
-            -> downsampling (NN1) -> coarse solution propagates -> upsample (NN2)
-            y: fine solution
+    main end-to-end module class that builds interaction of different components
+    down sampling + coarse solver + up sampling
     '''
 
-    def __init__(self, param_dict, downsampling_type, upsampling_type, res_scaler, model_res):
+    def __init__(
+            self,
+            param_dict,
+            downsampling_type,
+            upsampling_type,
+            res_scaler,
+            model_res
+    ):
+        '''
+        Parameters
+        ----------
+        param_dict : (dict) contains parameters to set up model
+        downsampling_type : (string) defines down sampling component
+        upsampling_type : (string) defines up sampling component
+        res_scaler : (int) down scaling factor of input, usually 2 or 4
+        model_res : (int) resolution model can handle
+        '''
+
         super().__init__()
-        # https://arxiv.org/abs/1412.6806 why I added stride
 
         self.param_dict = param_dict
         self.model_downsampling = choose_downsampling(downsampling_type, res_scaler, model_res)
@@ -31,36 +49,83 @@ class Model_end_to_end(nn.Module):
         self.model_upsampling.to(device)
 
 
-    def forward(self, x):
+    def forward(
+            self,
+            x
+    ):
+        '''
+        Parameters
+        ----------
+        x : (pytorch tensor) input x as defined in paper with three wave energy components and velocity profile
 
-        ###### R (restriction) ######
-        downsampling_res, _ = self.model_downsampling(x)
+        Returns
+        -------
+        propagates waves one time step delta_t_star using end-to-end model
+        '''
+
+        # restriction component
+        downsampling_res, _ = self.model_downsampling(x)  # second component is skip connection
 
         # velocity verlet
         prop_result = self.model_numerical(downsampling_res)
 
-        ##### upsampling through nn ######
-        outputs = self.model_upsampling(prop_result.to(device), skip_all=None)  # b x 3 x w x h
+        # up sampling component
+        outputs = self.model_upsampling(prop_result.to(device), skip_all=None)
 
         return outputs.to(device)
 
 
-def get_model(param_dict, res_scaler, model_res):
+def get_model(
+        param_dict,
+        res_scaler,
+        model_res,
+        down_sampling_component = "Interpolation",
+        up_sampling_component = "UNet3",
+        model_path = '../results/run_3/good/saved_model_Interpolation_UNet3_AdamW_SmoothL1Loss_2_128_False_15.pt'
+):
+    '''
+    Parameters
+    ----------
+    param_dict : (dict) contains parameters to set up model
+    res_scaler : (int) down scaling factor of input, usually 2 or 4
+    model_res : (int) resolution model can handle
+    down_sampling_component: (string) choice of down sampling component
+    up_sampling_component: (string)  choice of up sampling component
+    model_path : (string) path to model parameters saved in ".pt"-file
+
+    Returns
+    -------
+    load pre-trained model and retunr model
+    '''
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     logging.info(" ".join(["gpu available:", str(torch.cuda.is_available()), "| n of gpus:", str(torch.cuda.device_count())]))
-    model = Model_end_to_end(param_dict, "Interpolation", "UNet3", res_scaler, model_res).double()
+    model = Model_end_to_end(param_dict, down_sampling_component, up_sampling_component, res_scaler, model_res).double()
     model = torch.nn.DataParallel(model).to(device)  # multi-GPU use
-    model.load_state_dict(torch.load('../../results/run_3/good/saved_model_Interpolation_UNet3_AdamW_SmoothL1Loss_2_128_False_15.pt'))
+    model.load_state_dict(torch.load(model_path))
 
     return model
 
 
-def save_model(model, modelname, dir_path='results/run_3/'):
-    from torch import save
-    from os import path
+def save_model(
+        model,
+        model_name,
+        dir_path='results/run_3/'
+):
+    '''
+    Parameters
+    ----------
+    model : end-to-end model instance
+    model_name : name of end-to-end model
+    dir_path : directory where to save model in
+
+    Returns
+    -------
+    save {model} as ".pt"-file
+    '''
+
     model.to(torch.device("cpu"))
-    saving_path = dir_path + 'saved_model_' + modelname + '.pt'
+    saving_path = dir_path + 'saved_model_' + model_name + '.pt'
     if not path.isfile(saving_path):
         return save(model.state_dict(), saving_path)
     else:

@@ -5,7 +5,20 @@ import math
 import numpy as np
 
 
-def choose_upsampling(mode,scale_factor=2):
+def choose_upsampling(
+        mode,
+        scale_factor=2
+):
+    '''
+    Parameters
+    ----------
+    mode : (string) defines which up sampling method to choose
+    scale_factor : (int) scale factor by which input is up sampled (usually 2 or 4)
+
+    Returns
+    -------
+    chooses up sampling component and returns component
+    '''
 
     if mode == "UNet3":
         return UNet(wf=1, depth=3, scale_factor=scale_factor).double()
@@ -21,20 +34,39 @@ def choose_upsampling(mode,scale_factor=2):
         raise NotImplementedError("This downsampling network has not been implemented yet!")
 
 
-class UNet(nn.Module):
+class UNet(
+    nn.Module
+):
     '''
-    JNet class.
-    # Adapted from https://discuss.pytorch.org/t/unet-implementation/426
-    # Forked from https://github.com/jvanvugt/pytorch-unet
-    Init params
-    in_channels: number of channels in input
-    n_classes: number of channels in output
-    depth: number of levels
-    wf: channel multiplication factor each level
-    acti_func: activation function
+    JNet class
+    adapted from https://discuss.pytorch.org/t/unet-implementation/426
+    forked from https://github.com/jvanvugt/pytorch-unet
     '''
 
-    def __init__(self, in_channels=4, n_classes=3, depth=3, wf=0, acti_func='relu', scale_factor=2):
+    def __init__(
+            self,
+            in_channels=4,
+            n_classes=3,
+            depth=3,
+            wf=0,
+            acti_func='relu',
+            scale_factor=2
+    ):
+        '''
+        Parameters
+        ----------
+        in_channels : (int) number of channels in input
+        n_classes : (int) number of channels in output
+        depth : (int) number of levels
+        wf : (int) channel multiplication factor each level
+        acti_func : (string) activation function, usually "relu"
+        scale_factor : (int) scale factor by which input is up sampled (usually 2 or 4)
+
+        Returns
+        -------
+        return UNet upsampling component
+        '''
+
         super(UNet, self).__init__()
         self.depth = depth
         prev_channels = in_channels
@@ -64,7 +96,21 @@ class UNet(nn.Module):
             self.last.append(UNetConvBlock(prev_channels, prev_channels, self.acti_func))
         self.last.append(nn.Conv2d(prev_channels, n_classes, kernel_size=1, bias=False))
 
-    def forward(self, x, skip_all=None):
+    def forward(
+            self,
+            x,
+            skip_all=None
+    ):
+        '''
+        Parameters
+        ----------
+        x : (pytorch tensor) input from numerical solver
+        skip_all : (pytorch tensor) skip connection as seen in paper that skips numerical solver
+
+        Returns
+        -------
+        up samples input from numerical solver and enhances solution
+        '''
 
         blocks = []
         for i, down in enumerate(self.down_path):
@@ -82,12 +128,27 @@ class UNet(nn.Module):
         return x
 
 
-class UNetConvBlock(nn.Module):
+class UNetConvBlock(
+    nn.Module
+):
     '''
     Convolution blocks
     '''
 
-    def __init__(self, in_size, out_size, acti_func='relu'):
+    def __init__(
+            self,
+            in_size,
+            out_size,
+            acti_func='relu'
+    ):
+        '''
+        Parameters
+        ----------
+        in_size : (int) channel size of input
+        out_size : (int) channel size of output
+        acti_func : (string) activation function
+        '''
+
         super(UNetConvBlock, self).__init__()
         block = []
 
@@ -106,21 +167,63 @@ class UNetConvBlock(nn.Module):
 
         self.block = nn.Sequential(*block)
 
-    def forward(self, x):
+    def forward(
+            self,
+            x
+    ):
+        '''
+        Parameters
+        ----------
+        x : (pytorch tensor) input to convolutional block
+
+        Returns
+        -------
+        propagates the solution inside one convolutional block
+        '''
         return self.block(x)
 
 
-class UNetUpBlock(nn.Module):
+class UNetUpBlock(
+    nn.Module
+):
     '''
     Upstream branch of JNet
     '''
 
-    def __init__(self, in_size, out_size, acti_func='relu'):
+    def __init__(
+            self,
+            in_size,
+            out_size,
+            acti_func='relu'
+    ):
+        '''
+        Parameters
+        ----------
+        in_size : (int) channel size of input
+        out_size : (int) channel size of output
+        acti_func : (string) activation function
+        '''
+
         super(UNetUpBlock, self).__init__()
         self.up = nn.Sequential(nn.Upsample(mode='bilinear', scale_factor=2))
         self.conv_block = UNetConvBlock(in_size, out_size, acti_func)
 
-    def forward(self, x, bridge):
+    def forward(
+            self,
+            x,
+            bridge
+    ):
+        '''
+        Parameters
+        ----------
+        x : (pytorch tensor) input to convolutional block
+        bridge : (pytorch tensor) skip connection from adjacent convolutional block
+
+        Returns
+        -------
+        propagates the solution inside one convolutional block
+        '''
+
         up = self.up(x)
         out = self.conv_block(up)
 
@@ -128,8 +231,59 @@ class UNetUpBlock(nn.Module):
         return out
 
 
+class Numerical_upsampling(
+    torch.nn.Module
+):
+    '''
+    class to up sample solution numerically using bilinear interpolation
+    '''
 
-class Tiramisu(nn.Module):
+    def __init__(
+            self,
+            in_channels=4,
+            scale_factor=2
+    ):
+        '''
+        Parameters
+        ----------
+        in_channels : (int) channel size of input
+        scale_factor : (int) scale factor by which input is up sampled (usually 2 or 4)
+        '''
+
+        super(Numerical_upsampling, self).__init__()
+        self.in_channel = in_channels
+        self.scale_factor = scale_factor
+
+    def forward(
+            self,
+            x
+    ):
+        '''
+        Parameters
+        ----------
+        x : (pytorch tensor) input to convolutional block
+
+        Returns
+        -------
+        up samples solution using bilinear interpolation
+        '''
+        b, c, w, h = x.shape
+        upsample_shape = w * self.scale_factor
+
+        outputs = torch.zeros([b, c, upsample_shape, upsample_shape])
+        outputs[:, 0, :, :] = F.upsample(x[:, 0, :, :].unsqueeze(dim=0), size=(upsample_shape, upsample_shape),
+                                         mode='bilinear')
+        outputs[:, 1, :, :] = F.upsample(x[:, 1, :, :].unsqueeze(dim=0), size=(upsample_shape, upsample_shape),
+                                         mode='bilinear')
+        outputs[:, 2, :, :] = F.upsample(x[:, 2, :, :].unsqueeze(dim=0), size=(upsample_shape, upsample_shape),
+                                         mode='bilinear')
+        return outputs
+
+
+
+class Tiramisu(
+    nn.Module
+):
     '''
     source: https://github.com/bfortuner/pytorch_tiramisu
     '''
@@ -305,10 +459,13 @@ def center_crop(layer, max_height, max_width):
 
 
 class UTransform(nn.Module):
+    '''
+    https://github.com/HXLH50K/U-Net-Transformer/blob/main/models/utransformer/U_Transformer.py
+    https://arxiv.org/pdf/2103.06104.pdf
+    '''
+
     def __init__(self, in_channels=4, classes=3, scale_factor=2):
         super(UTransform, self).__init__()
-        # https://github.com/HXLH50K/U-Net-Transformer/blob/main/models/utransformer/U_Transformer.py
-        # https://arxiv.org/pdf/2103.06104.pdf
 
         self.inc = DoubleConv(in_channels, 64)
         self.down1 = Down(64, 128)
@@ -619,27 +776,4 @@ class Up(nn.Module):
         # https://github.com/xiaopeng-liao/Pytorch-UNet/commit/8ebac70e633bac59fc22bb5195e513d5832fb3bd
         x = torch.cat([x2, x1], dim=1)
         return self.conv(x)
-
-
-
-class Numerical_upsampling(torch.nn.Module):
-    def __init__(self, in_channels=4, scale_factor=2):
-        super(Numerical_upsampling, self).__init__()
-        self.in_channel = in_channels
-        self.scale_factor = scale_factor
-
-    def forward(self, x):
-        b, c, w, h = x.shape
-        upsample_shape = w * self.scale_factor
-
-        outputs = torch.zeros([b, c, upsample_shape, upsample_shape])
-        outputs[:, 0, :, :] = F.upsample(x[:,0, :, :].unsqueeze(dim=0), size=(upsample_shape, upsample_shape), mode='bilinear')
-        outputs[:, 1, :, :] = F.upsample(x[:,1, :, :].unsqueeze(dim=0), size=(upsample_shape, upsample_shape), mode='bilinear')
-        outputs[:, 2, :, :] = F.upsample(x[:,2, :, :].unsqueeze(dim=0), size=(upsample_shape, upsample_shape), mode='bilinear')
-        return outputs
-
-
-
-
-
 
