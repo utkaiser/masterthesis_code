@@ -8,10 +8,30 @@ from parareal.param_settings import get_paths, get_params
 import torch
 import logging
 from models.model_end_to_end import Model_end_to_end, save_model
-from parareal.parallel_scheme import optimize_solution
+from parareal.parallel_scheme_training import optimize_solution
 
 
-def train_Dt_end_to_end(logging_bool=False, visualize=True, vis_param=1, params="0", vis_save=True):
+def train_Dt_end_to_end(
+        logging_bool=False,
+        visualize=True,
+        vis_param=1,
+        params="0",
+        vis_save=True
+):
+    '''
+    Parameters
+    ----------
+    logging_bool : (bool) defines if results are logged
+    visualize : (bool) defines if results are visualized
+    vis_param : (int) defines after how many epochs we visualize wave field
+    params : (dict) parameter dictionary for training
+    vis_save : (bool) defines if visualized results are saved as `.pdf`
+
+    Returns
+    -------
+    training for Parareal end-to-end model
+    '''
+
     # params and logger setup
     data_paths, train_logger_path, valid_logger_path, dir_path_save, vis_path, val_paths = get_paths()
     param_dict = get_params(params)

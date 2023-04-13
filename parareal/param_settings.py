@@ -9,6 +9,12 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 def get_paths():
+    '''
+    Returns
+    -------
+    get relevant paths for end-to-end Parareal training;
+    while we train our model, we perform Parareal iterations so that the model learns how to adjust the weights in this setting
+    '''
 
     main_branch = '../results/run_2/'
     now = datetime.now()
@@ -40,6 +46,15 @@ def get_paths():
 
 
 def get_params(params="0"):
+    '''
+    Parameters
+    ----------
+    params : (string) description of parameter composition
+
+    Returns
+    -------
+    get parameter for Parareal end-to-end training
+    '''
 
     param_dict = {}
 
