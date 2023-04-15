@@ -73,7 +73,7 @@ def generate_wave_from_medium(
                                          "energy_components", res_padded)  # 1 x 3 x 256 x 256
 
         # create and save velocity crop
-        vel_crop = crop_center(vel, res, boundary_condition)
+        vel_crop = crop_center(vel, res, boundary_condition, 2)
         V[it] = np.repeat(vel_crop[np.newaxis, :, :], n_snaps + 1, axis=0)
 
         for s in range(n_snaps+1):
