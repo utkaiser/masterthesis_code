@@ -23,7 +23,7 @@ def choose_upsampling(
     if mode == "UNet3":
         return UNet(wf=1, depth=3, scale_factor=scale_factor).double()
     elif mode == "UNet6":
-        return UNet(wf=1, depth=6, scale_factor=scale_factor).double()
+        return UNet(wf=1, depth=5, scale_factor=scale_factor).double()
     elif mode == "Tiramisu":
         return Tiramisu(in_channels=4, scale_factor = scale_factor).double()
     elif mode == "UTransform":
@@ -288,7 +288,7 @@ class Tiramisu(
     source: https://github.com/bfortuner/pytorch_tiramisu
     '''
 
-    def __init__(self, in_channels=4, down_blocks=(5,5), up_blocks=(5,5), bottleneck_layers=1,
+    def __init__(self, in_channels=4, down_blocks=(2,1), up_blocks=(2,1), bottleneck_layers=1,
                  growth_rate=16, out_chans_first_conv=48, n_classes=3, scale_factor = 2):
         super().__init__()
         self.down_blocks = down_blocks

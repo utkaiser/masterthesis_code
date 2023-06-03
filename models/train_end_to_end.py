@@ -32,7 +32,7 @@ def train_Dt_end_to_end(
     res_scaler : (int) scale factor by which input is up sampled (usually 2 or 4)
     model_res : (int) resolution model can handle
     flipping : (bool) vertical and horizontal flipping for data augmentation
-    multi_step : (bool) decides if multi-step loss is used (see paper)
+    multi_step : (bool) decides if multistep loss is used (see paper)
     logging_bool : (bool) decides if results are logged
     vis_save : (bool) decides if visualization is saved
 

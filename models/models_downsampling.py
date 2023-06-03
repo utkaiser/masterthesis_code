@@ -22,7 +22,7 @@ def choose_downsampling(
     if mode == "Simple":
         return Simple_restriction(res_scaler, model_res)
     elif mode == "CNN":
-        return CNN_restriction(res_scaler).to(device)
+        return CNN_restriction().to(device)
     elif mode == "Interpolation":
         return Numerical_downsampling(res_scaler)
     else:

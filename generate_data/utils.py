@@ -8,8 +8,7 @@ import numpy as np
 def crop_center(
         img,
         crop_size,
-        boundary_condition,
-        scaler
+        scaler = 2
 ):
     '''
     Parameters
@@ -24,14 +23,12 @@ def crop_center(
     crop center of img given size of crop, and scale factor
     '''
 
-    if boundary_condition == "absorbing":
-        y, x = img.shape
-        startx = x // scaler - (crop_size // scaler)
-        starty = y // scaler - (crop_size // scaler)
+    y, x = img.shape
+    startx = x // scaler - (crop_size // scaler)
+    starty = y // scaler - (crop_size // scaler)
 
-        return img[starty:starty + crop_size, startx:startx + crop_size]
-    else:
-        return img
+    return img[starty:starty + crop_size, startx:startx + crop_size]
+
 
 
 def start_logger_datagen_end_to_end(
@@ -55,14 +52,12 @@ def start_logger_datagen_end_to_end(
 
 
 def get_resolution_padding(
-        boundary_condition,
         resolution,
         optimization
 ):
     '''
     Parameters
     ----------
-    boundary_condition : (string) choice of boundary condition, "periodic" or "absorbing"
     resolution : (int) resolution of actual area to propagate wave
     optimization : (string) optimization technique; "parareal" or "none"
 
@@ -72,15 +67,10 @@ def get_resolution_padding(
     in case of "parareal" and / or "absorbing" when using pseudo-spectral method
     '''
 
-    if boundary_condition == "periodic":
-        res_padded = resolution
-    else:  # boundary_condition == "absorbing"
-        if optimization == "none":
-            res_padded = resolution * 2
-        else:  # optimization == "parareal"
-            res_padded = resolution * 3
-    return res_padded
-
+    if optimization == "none":
+        return resolution * 2  # for absorbing boundary conditions
+    else:  # optimization == "parareal"
+        return resolution * 3
 
 def get_wavefield(
         wave_representation,

@@ -67,11 +67,10 @@ def get_params(
     if mode == "0":
         param_dict["batch_size"] = 1
         param_dict["lr"] = .001
-        param_dict["n_epochs"] = 20
-        param_dict["n_snaps"] = 7
+        param_dict["n_epochs"] = 30
+        param_dict["n_snaps"] = 8
         param_dict["flipping"] = False
         param_dict["boundary_c"] = "absorbing"
-        param_dict["total_time"] = .6
         param_dict["delta_t_star"] = .06
         param_dict["f_delta_x"] = 2.0 / 128.0
         param_dict["f_delta_t"] = param_dict["f_delta_x"] / 20.

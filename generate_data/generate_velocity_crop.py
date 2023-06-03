@@ -57,9 +57,15 @@ if __name__ == '__main__':
     databp = loadmat('../data/velocity_profiles/bp2004.mat') #velocity models BP dataset
     fullbp = gaussian(databp['V'],4)/1000 #to make smoother (and different order of magnitude)
 
-    generate_velocity_profile_crop(
-        [fullmarm,fullbp],
-        m=128*3,
-        output_path = '../data/crops_bp_m_200_384.npz',
-        num_times=200
-    )
+
+    config = {
+        "../data/velocity_profiles/crops_bp_m_400_128.npz": 128
+    }
+
+    for k,v in config.items():
+        generate_velocity_profile_crop(
+            [fullmarm,fullbp],
+            m=v,
+            output_path = k,
+            num_times=200
+        )
