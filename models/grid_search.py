@@ -1,82 +1,59 @@
 from models.train_end_to_end import train_Dt_end_to_end
 
-def grid_search_end_to_end(
+
+def component_grid_search_end_to_end(
 ):
     '''
     void
 
     Returns
     -------
-    performs grid search to run end-to-end model on different parameter
+    performs grid search to run end-to-end model on different component configurations
     '''
 
-    def _apply_rules(scale, res, counter):
-        rules_bool = ((scale == 4 and res == 256) or (scale == 2 and res == 128)) \
-                     and counter >= -1
-        return rules_bool
-
-
-    downsampling_model = [
-        # "Interpolation",
-        "CNN",
-        # "Simple"
+    downsampling_models = [
+        "Interpolation",
+        #"CNN"
     ]
-    upsampling_model = [
+
+    upsampling_models = [
         "UNet3",
         # "UNet6",
         # "Tiramisu",
         # "UTransform",
         # "Numerical_upsampling"
     ]
-    optimizer = [
-        "AdamW",
-        # "RMSprop",
-        # "SGD"
-    ]
-    loss_function = [
-        "SmoothL1Loss",
-        # "MSE"
-    ]
-    res_scaler = [
-        2,
-        # 4
-    ]
-    model_res = [
+
+    model_resolutions = [
         128,
-        # 256,
+        #256
     ]
+
     flipping = [
+        False,
+        #True
+    ]
+
+    multi_step = [
         False,
         # True
     ]
-    multi_step = [
-        # 1,
-        # 2,
-        -1  # shifting normal distribution
-    ]
 
-    counter = 0
-    for d in downsampling_model:
-        for u in upsampling_model:
-            for o in optimizer:
-                for l in loss_function:
-                    for scale in res_scaler:
-                        for res in model_res:
-                                for f in flipping:
-                                    for m in multi_step:
-                                        if _apply_rules(scale, res, counter):
-                                            train_Dt_end_to_end(
-                                                downsampling_model = d,
-                                                upsampling_model = u,
-                                                optimizer_name = o,
-                                                loss_function_name = l,
-                                                res_scaler = scale,
-                                                model_res = res,
-                                                flipping = f,
-                                                multi_step = m
-                                            )
-                                        counter += 1
+    for d in downsampling_models:
+        for u in upsampling_models:
+            for res in model_resolutions:
+                for f in flipping:
+                    for m in multi_step:
+                        train_Dt_end_to_end(
+                            downsampling_model = d,
+                            upsampling_model = u,
+                            model_res = res,
+                            flipping = f,
+                            multi_step = m
+                        )
+
+
 
 
 if __name__ == "__main__":
-    grid_search_end_to_end()
+    component_grid_search_end_to_end()

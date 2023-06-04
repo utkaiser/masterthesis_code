@@ -98,7 +98,7 @@ def generate_wave_from_medium(
 
 if __name__ == "__main__":
 
-    for index in range(13):  # run multiple iterations of datagen
+    for index in range(4,13):  # run multiple iterations of datagen
 
         generate_wave_from_medium(
             output_dir = "../data",

@@ -1,4 +1,7 @@
 import sys
+
+from models.utils import choose_optimizer, choose_loss_function
+
 sys.path.append("..")
 import warnings
 warnings.filterwarnings("ignore")
@@ -130,3 +133,15 @@ def save_model(
         return save(model.state_dict(), saving_path)
     else:
         raise MemoryError("File (.pt) already exists.")
+
+
+
+def setup_model(param_d, downsampling_model, upsampling_model,model_res, lr,weight_decay, device):
+
+    # model setup
+    model = Model_end_to_end(param_d, downsampling_model, upsampling_model, param_d["res_scaler"], model_res).double()
+    model = torch.nn.DataParallel(model).to(device)  # multi-GPU use
+    optimizer = choose_optimizer(param_d["optimizer_name"], model, lr,weight_decay)
+    loss_f = choose_loss_function(param_d["loss_function_name"])
+    label_distr_shift = 1
+    return model, optimizer, loss_f, label_distr_shift

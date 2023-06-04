@@ -21,18 +21,18 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 def fetch_data_end_to_end(
         data_paths,
         batch_size,
-        val_paths
+        additional_test_paths
 ):
     '''
     Parameters
     ----------
-    data_paths : (string) data paths to use for training
+    data_paths : (string) data paths to use for training and validation
     batch_size : (int) batch size
-    val_paths : (string) data paths to use for validation
+    additional_test_paths : (string) data paths to use for testing
 
     Returns
     -------
-    return torch.Dataloader object to iterate over training and validation samples
+    return torch.Dataloader object to iterate over training, validation and testing samples
     '''
 
     def get_datasets(data_paths):
@@ -50,13 +50,26 @@ def fetch_data_end_to_end(
             ))
         return torch.utils.data.ConcatDataset(datasets)
 
-    val_dataset = get_datasets(val_paths)
-    val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=batch_size, shuffle=True, num_workers=1)
 
+    # get full dataset
     full_dataset = get_datasets(data_paths)
-    train_loader = torch.utils.data.DataLoader(full_dataset, batch_size=batch_size, shuffle=True, num_workers=1)
-    logging.info(" ".join(["train data points:", str(len(train_loader) * batch_size), "| test data points:", str(len(val_loader) * batch_size)]))
-    return train_loader, val_loader
+
+    # get split sizes
+    train_size = int(0.8 * len(full_dataset))
+    val_or_test_size = int(0.1 * len(full_dataset))
+
+    # split dataset randomly and append special validation/ test data
+    train_dataset, val_dataset, test_dataset = torch.utils.data.random_split(full_dataset, [train_size, val_or_test_size, val_or_test_size])
+    val_datasets = val_dataset  # + get_datasets(additional_test_paths)
+    test_datasets = test_dataset + get_datasets(additional_test_paths)
+
+    # get dataloader objects
+    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=1)
+    val_loader = torch.utils.data.DataLoader(val_datasets, batch_size=batch_size, shuffle=True, num_workers=1)
+    test_loader = torch.utils.data.DataLoader(test_datasets, batch_size=batch_size, shuffle=True, num_workers=1)
+
+    logging.info(f"data points train: {len(train_loader) * batch_size} | val: {len(val_loader) * batch_size} | test: {len(test_loader) * batch_size}")
+    return train_loader, val_loader, test_loader
 
 
 def flip_tensors(
@@ -179,14 +192,16 @@ def setup_logger(
 def choose_optimizer(
         name,
         model,
-        lr
+        lr,
+        weight_decay
 ):
     '''
     Parameters
     ----------
-    name : name of optimizer
-    model : end-to-end model instance
-    lr :
+    name : (string) name of optimizer
+    model : (pytorch.model) end-to-end model instance
+    lr : (float) learning rate
+    weight_decay: (float) weight decay
 
     Returns
     -------
@@ -194,11 +209,11 @@ def choose_optimizer(
     '''
 
     if name == "AdamW":
-        return torch.optim.AdamW(model.parameters(), lr=lr)
+        return torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)
     elif name == "RMSprop":
-        return torch.optim.RMSprop(model.parameters(), lr=lr)
+        return torch.optim.RMSprop(model.parameters(), lr=lr, weight_decay=weight_decay)
     elif name == "SGD":
-        return torch.optim.SGD(model.parameters(), lr=lr)
+        return torch.optim.SGD(model.parameters(), lr=lr, weight_decay=weight_decay)
     else:
         raise NotImplementedError("Optimizer not implemented.")
 
@@ -313,6 +328,40 @@ def round_loss(
 
 
 
+
+def hyperparameter_grid_search_end_to_end(
+):
+    '''
+    void
+
+    Returns
+    -------
+    performs grid search to run end-to-end model on different hyperparameters
+    '''
+
+    list_lr = [
+        .001,
+        #.0001
+    ]
+
+    list_batch_size = [
+        2**6,
+        #2**8
+    ]
+
+    list_weight_decay = [
+        .01,
+        #.001
+    ]
+
+    list_all_allocations = []
+
+    for lr in list_lr:
+        for bs in list_batch_size:
+            for wd in list_weight_decay:
+                list_all_allocations.append((lr,bs,wd))
+
+    return list_all_allocations
 
 
 
