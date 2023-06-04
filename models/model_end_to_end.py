@@ -46,7 +46,7 @@ class Model_end_to_end(
         self.param_dict = param_dict
         self.model_downsampling = choose_downsampling(downsampling_type, res_scaler, model_res)
         self.model_downsampling.to(device)
-        self.model_numerical = Numerical_solver(param_dict["boundary_c"], param_dict["c_delta_x"], param_dict["c_delta_t"],param_dict["f_delta_x"],param_dict["delta_t_star"])
+        self.model_numerical = Numerical_solver(param_dict["boundary_c"], param_dict["c_delta_x"], param_dict["c_delta_t"],param_dict["delta_t_star"])
         self.model_numerical.to(device)
         self.model_upsampling = choose_upsampling(upsampling_type, res_scaler)
         self.model_upsampling.to(device)
@@ -136,12 +136,17 @@ def save_model(
 
 
 
-def setup_model(param_d, downsampling_model, upsampling_model,model_res, lr,weight_decay, device):
+def setup_model(param_d, downsampling_model, upsampling_model,model_res, lr,weight_decay, device, weighted_loss):
 
     # model setup
     model = Model_end_to_end(param_d, downsampling_model, upsampling_model, param_d["res_scaler"], model_res).double()
     model = torch.nn.DataParallel(model).to(device)  # multi-GPU use
     optimizer = choose_optimizer(param_d["optimizer_name"], model, lr,weight_decay)
     loss_f = choose_loss_function(param_d["loss_function_name"])
-    label_distr_shift = 1
+
+    if weighted_loss == False:
+        label_distr_shift = None
+    else:
+        label_distr_shift = 1
+
     return model, optimizer, loss_f, label_distr_shift

@@ -111,7 +111,8 @@ def sample_label_normal_dist(
         input_idx,
         n_snaps,
         label_distr_shift,
-        multi_step
+        multi_step,
+        weighted_loss
 ):
     '''
     Parameters
@@ -127,19 +128,23 @@ def sample_label_normal_dist(
     used especially for multi-step approach, single-step approach also usable in this function
     '''
 
-    if multi_step == 1:
-        return input_idx + 1
-    elif multi_step == 2:
-        return min(n_snaps-1, input_idx + 2)
-    else:  # multi_step == -1; therefore, shifting normal distribution
-        low = input_idx + 1
-        upp = n_snaps - 1
-        mean = min(upp, input_idx + label_distr_shift)
-        sd = 1
-        if input_idx + 1 == n_snaps - 1:
-            return n_snaps - 1
+    if multi_step:
+
+        if weighted_loss:
+            low = input_idx + 1
+            upp = n_snaps - 1
+            mean = min(upp, input_idx + label_distr_shift)
+            sd = 1
+            if input_idx + 1 == n_snaps - 1:
+                return n_snaps - 1
+            else:
+                return round(truncnorm((low - mean) / sd, (upp - mean) / sd, loc=mean, scale=sd).rvs())
+
         else:
-            return round(truncnorm((low - mean) / sd, (upp - mean) / sd, loc=mean, scale=sd).rvs())
+            return random.randint(input_idx + 2, n_snaps-1)
+
+    else:
+        return input_idx + 2
 
 
 def setup_logger(
@@ -330,9 +335,12 @@ def round_loss(
 
 
 def hyperparameter_grid_search_end_to_end(
+        experiment_index,
+        param_d
 ):
     '''
-    void
+    experiment_index: (int) number of the experiment, explained in paper
+    param_d: (dict) contains all relevant parameter settings
 
     Returns
     -------
@@ -354,14 +362,35 @@ def hyperparameter_grid_search_end_to_end(
         #.001
     ]
 
+    list_c_delta_x = [
+        2 ** -6,
+        2 ** -5,
+        2 ** -4
+    ]
+
+    list_c_delta_t = [
+        2 ** -10,
+        2 ** -9,
+        2 ** -8
+    ]
+
     list_all_allocations = []
 
     for lr in list_lr:
         for bs in list_batch_size:
             for wd in list_weight_decay:
-                list_all_allocations.append((lr,bs,wd))
+
+                if experiment_index != 2:
+                    # EXPERIMENT 1
+                    list_all_allocations.append((lr, bs, wd, param_d))
+                else:
+                    # EXPERIMENT 2
+                    for dx in list_c_delta_x:
+                        for dt in list_c_delta_t:
+                            param_d["c_delta_x"] = dx
+                            param_d["c_delta_t"] = dt
+                            list_all_allocations.append((lr, bs, wd, param_d))
 
     return list_all_allocations
-
 
 

@@ -11,9 +11,7 @@ from models.visualize_training import visualize_wavefield
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-# todo: try testing -> error fix next: do validation set
-
-
+# todo: do implementation experiment-wise
 
 def train_Dt_end_to_end(
         downsampling_model,
@@ -24,7 +22,9 @@ def train_Dt_end_to_end(
         logging_bool=False,
         visualize_res_bool = False,
         vis_save=False,
-        config = 0
+        config = 0,
+        experiment_index = 0,
+        weighted_loss = False,
 ):
     '''
     Parameters
@@ -38,6 +38,7 @@ def train_Dt_end_to_end(
     visualize_res_bool: (bool) decides if results are visualized
     vis_save : (bool) decides if visualization is saved
     config : (int) decides which parameter settings
+    experiment_index : (int) number of the experiment, explained in paper
 
     Returns
     -------
@@ -65,17 +66,17 @@ def train_Dt_end_to_end(
     logging.info(f"{'-'*100}\n\nHyperparameter Search:")
 
     # training and hyperparameter search with validation
-    for lr, batch_size, weight_decay in hyperparameter_grid_search_end_to_end():
+    for lr, batch_size, weight_decay, param_d in hyperparameter_grid_search_end_to_end(experiment_index, param_d):
 
-        logging.info(f"{'-'*10} Start training of {lr}, {batch_size}, {weight_decay} {'-'*10}")
+        logging.info(f"{'-'*10} Start training of {lr}, {batch_size}, {weight_decay}, {param_d['c_delta_x']:.4f}_{param_d['c_delta_t']:.4f} {'-'*10}")
 
-        model, optimizer, loss_f, label_distr_shift = setup_model(param_d, downsampling_model, upsampling_model, model_res, lr, weight_decay, device)
+        model, optimizer, loss_f, label_distr_shift = setup_model(param_d, downsampling_model, upsampling_model, model_res, lr, weight_decay, device, weighted_loss)
         train_loader, val_loader, _ = fetch_data_end_to_end(data_paths, batch_size, val_paths)
 
         for epoch in range(param_d["n_epochs"]):
 
             train_loss_list, model, label_distr_shift, global_step,optimizer = \
-                train_model(model, epoch, label_distr_shift, train_loader, param_d, global_step, logging_bool, optimizer, train_logger,loss_f)
+                train_model(model, epoch, label_distr_shift, train_loader, param_d, global_step, logging_bool, optimizer, train_logger,loss_f, weighted_loss)
             val_performance = val_model(model, logging_bool, train_logger, vis_path, vis_save, global_step, valid_logger, val_loader, loss_f, epoch, train_loss_list,visualize_res_bool)
 
             #for last iteration, check if performance is best so far
@@ -89,39 +90,39 @@ def train_Dt_end_to_end(
                         "weight_decay": weight_decay
                     }
 
-        save_model(model, f"{model_name}_{lr}_{batch_size}_{weight_decay}", dir_path_save + "validated_models/")
+        save_model(model, f"{model_name}_{lr}_{batch_size}_{weight_decay}_{param_d['c_delta_x']:.4f}_{param_d['c_delta_t']:.4f}",
+                   dir_path_save + "validated_models/")
 
 
     # testing
     logging.info(f"{'/'*100}\n\nTesting of best parameters: {dict_best_score}")
 
     lr, batch_size, weight_decay = [v for v in dict_best_score.values()][1:]
-    model, optimizer, loss_f, label_distr_shift = setup_model(param_d, downsampling_model, upsampling_model,model_res, lr, weight_decay, device)
+    model, optimizer, loss_f, label_distr_shift = setup_model(param_d, downsampling_model, upsampling_model,model_res, lr, weight_decay, device, weighted_loss)
     train_loader, val_loader, test_loader = fetch_data_end_to_end(data_paths, batch_size, val_paths)
     trainval_loader = [d for dl in [train_loader, val_loader] for d in dl]
 
     for epoch in range(param_d["n_epochs"]):
 
-        train_loss_list, model, label_distr_shift, global_step, optimizer = train_model(model, epoch, label_distr_shift, trainval_loader, param_d, global_step, False, optimizer, train_logger, loss_f)
+        train_loss_list, model, label_distr_shift, global_step, optimizer = train_model(model, epoch, label_distr_shift, trainval_loader, param_d, global_step, False, optimizer, train_logger, loss_f, multi_step, weighted_loss)
         _ = val_model(model, logging_bool, train_logger, vis_path, vis_save, global_step, valid_logger, test_loader, loss_f, epoch, train_loss_list, visualize_res_bool)
 
     save_model(model, f"best_{model_name}_{lr}_{batch_size}_{weight_decay}", dir_path_save)
 
 
 
-
-
-def train_model(model, epoch, label_distr_shift, train_loader, param_d, global_step, logging_bool, optimizer, train_logger, loss_f):
+def train_model(model, epoch, label_distr_shift, train_loader, param_d, global_step, logging_bool, optimizer, train_logger, loss_f, multi_step, weighted_loss):
 
     model.train()
     train_loss_list = []
-    if (epoch + 1) % 3 == 0: label_distr_shift += 1
+    if (epoch + 1) % 3 == 0 and weighted_loss:
+        label_distr_shift += 1
 
     for i, data in enumerate(train_loader):
         loss_list = []
         data = data[0].to(device)  # b x n_snaps x 4 x w x h
         for input_idx in random.choices(range(param_d["n_snaps"] - 2), k=param_d["n_snaps"]):
-            label_range = sample_label_normal_dist(input_idx, param_d["n_snaps"], label_distr_shift, param_d["multi_step"])
+            label_range = sample_label_normal_dist(input_idx, param_d["n_snaps"], label_distr_shift, multi_step, weighted_loss)
             input_tensor = data[:, input_idx].detach()  # b x 4 x w x h
 
             for label_idx in range(input_idx + 1, label_range):  # randomly decide how long path is

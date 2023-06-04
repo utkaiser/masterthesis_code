@@ -28,14 +28,19 @@ def get_velocities(
         return np.load(input_path)['wavespeedlist']
 
     else:  # velocity_profiles == "mixed"
-        percentage_rest = 67  # assumption 400 different velocity profiles bp_m
-        velocity_accumulated = np.load(input_path)['wavespeedlist']
+        percentage_rest = 84  # assumption 400 different velocity profiles bp_m
+        #velocity_accumulated = np.load(input_path)['wavespeedlist']
 
+        counter = 0
         for vel_name in ["diagonal", "three_layers", "crack_profile", "wave_guide"]:
             crop = get_velocity_crop(res_padded, percentage_rest, vel_name, optimization)
-            velocity_accumulated = np.concatenate((velocity_accumulated,
-                                                   crop),
-                                                  axis = 0)
+            if counter == 0:
+                counter += 1
+                velocity_accumulated = crop
+            else:
+                velocity_accumulated = np.concatenate((velocity_accumulated,
+                                                       crop),
+                                                      axis = 0)
         return velocity_accumulated
 
 
@@ -87,7 +92,7 @@ def get_velocity_crop(
         img = high_frequency(n_crops, resolution, optimization)
 
     elif velocity_profile == "wave_guide":
-        img = high_frequency(n_crops, resolution, optimization)
+        img = wave_guide(n_crops, resolution, optimization)
 
     else:
         raise NotImplementedError("Velocity model not implemented.")
@@ -271,9 +276,9 @@ def wave_guide(
     xx, yy = np.meshgrid(x, y)
 
     if optimization == "none":
-        vel_profile = torch.from_numpy(1 - 0.3 * np.cos(np.pi * xx))
+        vel_profile = torch.from_numpy(1 - 0.3 * np.cos(np.pi * xx))*3
     else:
-        vel_profile = torch.from_numpy(1 - 0.3 * np.cos(np.pi * xx))
+        vel_profile = torch.from_numpy(1 - 0.3 * np.cos(np.pi * xx))*3
 
     return vel_profile.unsqueeze(dim=0).repeat(n_it,1,1).numpy()
 
