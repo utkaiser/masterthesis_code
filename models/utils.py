@@ -131,8 +131,9 @@ def sample_label_normal_dist(
     if multi_step:
 
         if weighted_loss:
-            low = input_idx + 1
-            upp = n_snaps - 1
+
+            low = input_idx
+            upp = n_snaps
             mean = min(upp, input_idx + label_distr_shift)
             sd = 1
             if input_idx + 1 == n_snaps - 1:
@@ -141,10 +142,11 @@ def sample_label_normal_dist(
                 return round(truncnorm((low - mean) / sd, (upp - mean) / sd, loc=mean, scale=sd).rvs())
 
         else:
-            return random.randint(input_idx + 2, n_snaps-1)
+
+            return random.randint(min(input_idx + 2, n_snaps), n_snaps)
 
     else:
-        return input_idx + 2
+        return min(input_idx + 2, n_snaps)
 
 
 def setup_logger(
@@ -336,7 +338,8 @@ def round_loss(
 
 def hyperparameter_grid_search_end_to_end(
         experiment_index,
-        param_d
+        param_d,
+        suffix = "end_to_end"
 ):
     '''
     experiment_index: (int) number of the experiment, explained in paper
@@ -349,17 +352,17 @@ def hyperparameter_grid_search_end_to_end(
 
     list_lr = [
         .001,
-        #.0001
+        .0001
     ]
 
     list_batch_size = [
         2**6,
-        #2**8
+        2**8
     ]
 
     list_weight_decay = [
         .01,
-        #.001
+        .001
     ]
 
     list_c_delta_x = [
@@ -376,21 +379,53 @@ def hyperparameter_grid_search_end_to_end(
 
     list_all_allocations = []
 
-    for lr in list_lr:
-        for bs in list_batch_size:
-            for wd in list_weight_decay:
+    if experiment_index == 0:
+        return [(.001,2**6,.01,param_d["c_delta_x"],param_d["c_delta_t"])]
 
-                if experiment_index != 2:
-                    # EXPERIMENT 1
-                    list_all_allocations.append((lr, bs, wd, param_d))
-                else:
-                    # EXPERIMENT 2
-                    for dx in list_c_delta_x:
-                        for dt in list_c_delta_t:
-                            param_d["c_delta_x"] = dx
-                            param_d["c_delta_t"] = dt
-                            list_all_allocations.append((lr, bs, wd, param_d))
+    else:
+        for lr in list_lr:
+            for bs in list_batch_size:
+                for wd in list_weight_decay:
+
+                    if experiment_index != 2 or suffix == "old_paper":
+                        list_all_allocations.append((lr, bs, wd, param_d["c_delta_x"],param_d["c_delta_t"]))
+                    else:
+                        # EXPERIMENT 2
+                        for dx in list_c_delta_x:
+                            for dt in list_c_delta_t:
+                                list_all_allocations.append((lr, bs, wd, dx, dt))
+
+        return list_all_allocations
+
+
+def vanilla_benchmark_grid_search_end_to_end(
+        param_d,
+        experiment_index
+
+):
+
+    list_all_allocations = []
+
+    if experiment_index == 2:
+        list_c_delta_x = [
+            2 ** -6,
+            2 ** -5,
+            2 ** -4
+        ]
+
+        list_c_delta_t = [
+            2 ** -10,
+            2 ** -9,
+            2 ** -8
+        ]
+
+        for dx in list_c_delta_x:
+            for dt in list_c_delta_t:
+                list_all_allocations.append((dx, dt))
+
+    else:
+
+        list_all_allocations.append((param_d["c_delta_x"], param_d["c_delta_t"]))
 
     return list_all_allocations
-
 

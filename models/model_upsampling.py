@@ -28,7 +28,7 @@ def choose_upsampling(
         return Tiramisu(in_channels=4, scale_factor = scale_factor).double()
     elif mode == "UTransform":
         return UTransform(in_channels=4, scale_factor=scale_factor).double()
-    elif mode == "Numerical_upsampling":
+    elif mode == "Interpolation":
         return Numerical_upsampling(in_channels=4, scale_factor=scale_factor).double()
     else:
         raise NotImplementedError("This downsampling network has not been implemented yet!")

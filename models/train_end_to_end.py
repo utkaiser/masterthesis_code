@@ -11,20 +11,17 @@ from models.visualize_training import visualize_wavefield
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-# todo: do implementation experiment-wise
-
 def train_Dt_end_to_end(
         downsampling_model,
         upsampling_model,
         model_res,
         flipping,
         multi_step,
-        logging_bool=False,
-        visualize_res_bool = False,
-        vis_save=False,
-        config = 0,
-        experiment_index = 0,
-        weighted_loss = False,
+        logging_bool,
+        visualize_res_bool,
+        vis_save,
+        experiment_index,
+        weighted_loss,
 ):
     '''
     Parameters
@@ -37,7 +34,6 @@ def train_Dt_end_to_end(
     logging_bool : (bool) decides if results are logged
     visualize_res_bool: (bool) decides if results are visualized
     vis_save : (bool) decides if visualization is saved
-    config : (int) decides which parameter settings
     experiment_index : (int) number of the experiment, explained in paper
 
     Returns
@@ -46,29 +42,34 @@ def train_Dt_end_to_end(
     '''
 
     # params and logger setup
-    data_paths, train_logger_path, valid_logger_path, dir_path_save, vis_path, val_paths = get_paths(config)
-    param_d = get_params(config)
+    data_paths, train_logger_path, valid_logger_path, dir_path_save, vis_path, val_paths = get_paths(experiment_index)
+    param_d = get_params(experiment_index,flipping)
     param_d['model_res'], param_d['flipping'], param_d['multi_step'] = model_res, flipping, multi_step
     model_name = f"{downsampling_model}_{upsampling_model}_{param_d['optimizer_name']}_{param_d['loss_function_name']}_{param_d['res_scaler']}_{model_res}_{flipping}_{multi_step}"
     train_logger, valid_logger, global_step = setup_logger(logging_bool, train_logger_path, valid_logger_path, model_name, model_res, vis_path)
-    logging.info(" ".join(["data settings:", ", ".join(data_paths)]))
-    logging.info(" ".join(["param settings:", ", ".join([i + ": " + str(v) for i, v in param_d.items()])]))
+    logging.info(" ".join(["data settings:\n", ",\n".join(data_paths)]))
+    logging.info(" ".join(["param settings:\n", ",\n".join([f"{i}: {v}" for i, v in param_d.items()])]))
     logging.info(model_name)
-    logging.info(" ".join(["gpu available:", str(torch.cuda.is_available()), "| n of gpus:", str(torch.cuda.device_count())]))
+    logging.info(f"gpu available: {torch.cuda.is_available()} | number of gpus: {torch.cuda.device_count()}")
 
     dict_best_score = {
         "score": float("inf"),
         "lr": None,
         "batch_size": None,
-        "weight_decay": None
+        "weight_decay": None,
+        "dx": None,
+        "dt": None
     }
 
     logging.info(f"{'-'*100}\n\nHyperparameter Search:")
 
     # training and hyperparameter search with validation
-    for lr, batch_size, weight_decay, param_d in hyperparameter_grid_search_end_to_end(experiment_index, param_d):
+    for lr, batch_size, weight_decay, dx, dt in hyperparameter_grid_search_end_to_end(experiment_index, param_d):
 
-        logging.info(f"{'-'*10} Start training of {lr}, {batch_size}, {weight_decay}, {param_d['c_delta_x']:.4f}_{param_d['c_delta_t']:.4f} {'-'*10}")
+        param_d["c_delta_x"] = dx
+        param_d["c_delta_t"] = dt
+
+        logging.info(f"{'-'*10} Start training of {lr}, {batch_size}, {weight_decay}, {param_d['c_delta_x']:.5f}, {param_d['c_delta_t']:.5f} {'-'*10}")
 
         model, optimizer, loss_f, label_distr_shift = setup_model(param_d, downsampling_model, upsampling_model, model_res, lr, weight_decay, device, weighted_loss)
         train_loader, val_loader, _ = fetch_data_end_to_end(data_paths, batch_size, val_paths)
@@ -76,34 +77,37 @@ def train_Dt_end_to_end(
         for epoch in range(param_d["n_epochs"]):
 
             train_loss_list, model, label_distr_shift, global_step,optimizer = \
-                train_model(model, epoch, label_distr_shift, train_loader, param_d, global_step, logging_bool, optimizer, train_logger,loss_f, weighted_loss)
+                train_model(model, epoch, label_distr_shift, train_loader, param_d, global_step, logging_bool, optimizer, train_logger,loss_f, multi_step,weighted_loss)
             val_performance = val_model(model, logging_bool, train_logger, vis_path, vis_save, global_step, valid_logger, val_loader, loss_f, epoch, train_loss_list,visualize_res_bool)
 
             #for last iteration, check if performance is best so far
             if epoch + 1 == param_d["n_epochs"]:
-                logging.info(f"This iteration has a loss of {val_performance} compared to the best loss so far {dict_best_score['score']}")
+                logging.info(f"This iteration has a loss of {val_performance:.4f} compared to the best loss so far {dict_best_score['score']}")
                 if dict_best_score["score"] > val_performance:
                     dict_best_score = {
                         "score": val_performance,
                         "lr": lr,
                         "batch_size": batch_size,
-                        "weight_decay": weight_decay
+                        "weight_decay": weight_decay,
+                        "dx": dx,
+                        "dt": dt
                     }
 
-        save_model(model, f"{model_name}_{lr}_{batch_size}_{weight_decay}_{param_d['c_delta_x']:.4f}_{param_d['c_delta_t']:.4f}",
+        save_model(model, f"{model_name}_{lr}_{batch_size}_{weight_decay}_{param_d['c_delta_x']:.5f}_{param_d['c_delta_t']:.5f}",
                    dir_path_save + "validated_models/")
-
 
     # testing
     logging.info(f"{'/'*100}\n\nTesting of best parameters: {dict_best_score}")
 
+    param_d["c_delta_x"] = dict_best_score["dx"]
+    param_d["c_delta_t"] = dict_best_score["dt"]
+
     lr, batch_size, weight_decay = [v for v in dict_best_score.values()][1:]
     model, optimizer, loss_f, label_distr_shift = setup_model(param_d, downsampling_model, upsampling_model,model_res, lr, weight_decay, device, weighted_loss)
     train_loader, val_loader, test_loader = fetch_data_end_to_end(data_paths, batch_size, val_paths)
-    trainval_loader = [d for dl in [train_loader, val_loader] for d in dl]
+    trainval_loader = [d for dl in [train_loader, val_loader] for d in dl]  # merge train and validation set for testing
 
     for epoch in range(param_d["n_epochs"]):
-
         train_loss_list, model, label_distr_shift, global_step, optimizer = train_model(model, epoch, label_distr_shift, trainval_loader, param_d, global_step, False, optimizer, train_logger, loss_f, multi_step, weighted_loss)
         _ = val_model(model, logging_bool, train_logger, vis_path, vis_save, global_step, valid_logger, test_loader, loss_f, epoch, train_loss_list, visualize_res_bool)
 
@@ -121,11 +125,14 @@ def train_model(model, epoch, label_distr_shift, train_loader, param_d, global_s
     for i, data in enumerate(train_loader):
         loss_list = []
         data = data[0].to(device)  # b x n_snaps x 4 x w x h
-        for input_idx in random.choices(range(param_d["n_snaps"] - 2), k=param_d["n_snaps"]):
+
+        for input_idx in random.choices(range(param_d["n_snaps"]), k=param_d["n_snaps"]):
+
             label_range = sample_label_normal_dist(input_idx, param_d["n_snaps"], label_distr_shift, multi_step, weighted_loss)
             input_tensor = data[:, input_idx].detach()  # b x 4 x w x h
 
-            for label_idx in range(input_idx + 1, label_range):  # randomly decide how long path is
+            for label_idx in range(input_idx + 1, label_range + 1):  # randomly decide how long path is
+
                 label = data[:, label_idx, :3]  # b x 3 x w x h
                 output = model(input_tensor)  # b x 3 x w x h
                 loss_list.append(loss_f(output, label))
@@ -149,6 +156,7 @@ def val_model(model, logging_bool, train_logger, vis_path, vis_save, global_step
 
         val_loss_list = []
         for i, data in enumerate(val_loader):
+
             n_snaps = data[0].shape[1]
             data = data[0].to(device)  # b x n_snaps x 3 x w x h
 
@@ -182,15 +190,6 @@ def val_model(model, logging_bool, train_logger, vis_path, vis_save, global_step
             logging.info(" ".join(['epoch %d, train loss: %.5f, val loss: %.5f' % (epoch + 1, np.array(train_loss_list).mean(), np.array(val_loss_list).mean())]))
 
     return val_performance
-
-
-
-
-
-
-
-
-
 
 
 

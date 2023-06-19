@@ -30,6 +30,31 @@ def crop_center(
     return img[starty:starty + crop_size, startx:startx + crop_size]
 
 
+def crop_center_tensor(
+        img,
+        crop_size,
+        scaler = 2
+):
+    '''
+    Parameters
+    ----------
+    img : (numpy / pytorch tensor) input image to crop
+    crop_size : (int) size of crop
+    boundary_condition : (string) choice of boundary condition, "periodic" or "absorbing"
+    scaler : scale factor
+
+    Returns
+    -------
+    crop center of img given size of crop, and scale factor
+    '''
+
+    b, c, y, x = img.shape
+    startx = x // scaler - (crop_size // scaler)
+    starty = y // scaler - (crop_size // scaler)
+
+    return img[:,:,starty:starty + crop_size, startx:startx + crop_size]
+
+
 
 def start_logger_datagen_end_to_end(
         output_path
@@ -75,8 +100,8 @@ def get_resolution_padding(
 def get_wavefield(
         wave_representation,
         vel,
-        f_delta_x=2.0 / 128.0,
-        f_delta_t=(2.0 / 128.0) / 20
+        delta_x=2.0 / 128.0,
+        delta_t=(2.0 / 128.0) / 20
 ):
     '''
     Parameters
@@ -92,10 +117,10 @@ def get_wavefield(
     '''
 
     u_x, u_y, u_t_c = wave_representation[:, 0], wave_representation[:, 1], wave_representation[:, 2]
-    u, u_t = WaveSol_from_EnergyComponent_tensor(u_x, u_y, u_t_c, vel, f_delta_t,
+    u, u_t = WaveSol_from_EnergyComponent_tensor(u_x, u_y, u_t_c, vel, delta_t,
                                                  torch.sum(torch.sum(torch.sum(u_x))))
     return WaveEnergyField_tensor(u.squeeze().cpu(), u_t.squeeze().cpu(), vel.squeeze().cpu(),
-                                  f_delta_x) * f_delta_x * f_delta_x
+                                  delta_x) * delta_x * delta_x
 
 
 def get_wavefield_numpy(

@@ -28,7 +28,6 @@ class Model_end_to_end(
             param_dict,
             downsampling_type,
             upsampling_type,
-            res_scaler,
             model_res
     ):
         '''
@@ -37,18 +36,19 @@ class Model_end_to_end(
         param_dict : (dict) contains parameters to set up model
         downsampling_type : (string) defines down sampling component
         upsampling_type : (string) defines up sampling component
-        res_scaler : (int) down scaling factor of input, usually 2 or 4
         model_res : (int) resolution model can handle
         '''
 
         super().__init__()
 
+        self.upsampling_type = upsampling_type
+
         self.param_dict = param_dict
-        self.model_downsampling = choose_downsampling(downsampling_type, res_scaler, model_res)
+        self.model_downsampling = choose_downsampling(downsampling_type, self.param_dict["res_scaler"], model_res)
         self.model_downsampling.to(device)
         self.model_numerical = Numerical_solver(param_dict["boundary_c"], param_dict["c_delta_x"], param_dict["c_delta_t"],param_dict["delta_t_star"])
         self.model_numerical.to(device)
-        self.model_upsampling = choose_upsampling(upsampling_type, res_scaler)
+        self.model_upsampling = choose_upsampling(upsampling_type, self.param_dict["res_scaler"])
         self.model_upsampling.to(device)
 
 
@@ -73,7 +73,10 @@ class Model_end_to_end(
         prop_result = self.model_numerical(downsampling_res)
 
         # up sampling component
-        outputs = self.model_upsampling(prop_result.to(device), skip_all=None)
+        if self.upsampling_type == "Interpolation":
+            outputs = self.model_upsampling(prop_result)
+        else:
+            outputs = self.model_upsampling(prop_result.to(device), skip_all=None)
 
         return outputs.to(device)
 
@@ -103,7 +106,7 @@ def get_model(
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     logging.info(" ".join(["gpu available:", str(torch.cuda.is_available()), "| n of gpus:", str(torch.cuda.device_count())]))
-    model = Model_end_to_end(param_dict, down_sampling_component, up_sampling_component, res_scaler, model_res).double()
+    model = Model_end_to_end(param_dict, down_sampling_component, up_sampling_component, model_res).double()
     model = torch.nn.DataParallel(model).to(device)  # multi-GPU use
     model.load_state_dict(torch.load(model_path))
 
@@ -136,17 +139,20 @@ def save_model(
 
 
 
-def setup_model(param_d, downsampling_model, upsampling_model,model_res, lr,weight_decay, device, weighted_loss):
+def setup_model(param_d, downsampling_model, upsampling_model, model_res, lr, weight_decay, device, weighted_loss):
 
     # model setup
-    model = Model_end_to_end(param_d, downsampling_model, upsampling_model, param_d["res_scaler"], model_res).double()
+    model = Model_end_to_end(param_d, downsampling_model, upsampling_model, model_res).double()
     model = torch.nn.DataParallel(model).to(device)  # multi-GPU use
     optimizer = choose_optimizer(param_d["optimizer_name"], model, lr,weight_decay)
     loss_f = choose_loss_function(param_d["loss_function_name"])
 
-    if weighted_loss == False:
-        label_distr_shift = None
-    else:
+    if weighted_loss:
         label_distr_shift = 1
+    else:
+        label_distr_shift = None
 
     return model, optimizer, loss_f, label_distr_shift
+
+
+
