@@ -118,7 +118,7 @@ if __name__ == "__main__":
         generate_wave_from_medium(
             output_dir = "../data_old",
             visualize = False,
-            n_it = 400,
+            n_it = 84,
             res=128,
             optimization_technique = "none",
             index = index,

@@ -96,6 +96,7 @@ class UNet(
             self.last.append(UNetConvBlock(prev_channels, prev_channels, self.acti_func))
         self.last.append(nn.Conv2d(prev_channels, n_classes, kernel_size=1, bias=False))
 
+
     def forward(
             self,
             x,
@@ -167,6 +168,7 @@ class UNetConvBlock(
 
         self.block = nn.Sequential(*block)
 
+
     def forward(
             self,
             x
@@ -207,6 +209,7 @@ class UNetUpBlock(
         super(UNetUpBlock, self).__init__()
         self.up = nn.Sequential(nn.Upsample(mode='bilinear', scale_factor=2))
         self.conv_block = UNetConvBlock(in_size, out_size, acti_func)
+
 
     def forward(
             self,

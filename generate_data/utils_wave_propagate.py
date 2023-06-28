@@ -1,7 +1,7 @@
 import torch
 from generate_data.change_wave_arguments import WaveSol_from_EnergyComponent_tensor,WaveEnergyComponentField_tensor
 from generate_data.wave_propagation import pseudo_spectral_tensor, velocity_verlet_tensor
-import torch.nn.functional as F
+
 
 
 def one_iteration_pseudo_spectral_tensor(
@@ -66,17 +66,21 @@ def one_iteration_velocity_verlet_tensor(
                                                  u_n_k[:, 3].clone(),
                                                  c_delta_x,
                                                  torch.sum(torch.sum(torch.sum(u_n_k[:, 0].clone()))))
+
     u_prop, u_t_prop = velocity_verlet_tensor(u, u_t, vel, c_delta_x, c_delta_t, delta_t_star,number=1,boundary_c="absorbing")
+
+
     u_x, u_y, u_t_c = WaveEnergyComponentField_tensor(u_prop,
                                                       u_t_prop,
-                                                      vel.unsqueeze(dim=0), c_delta_x)
+                                                      vel.unsqueeze(dim=0),
+                                                      c_delta_x)
     return torch.stack([u_x, u_y, u_t_c], dim=1)
 
 
 def resize_to_coarse(u_n, res_coarse):
     # u_n_k.shape: b x c x w x h
 
-    return F.upsample(u_n, size=(res_coarse, res_coarse), mode='bilinear')
+    return u_n[:,:,32:-32,32:-32]
 
 
 

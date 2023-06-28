@@ -151,7 +151,7 @@ def get_solver_solution(
 
             u_n_k = torch.concat([a, b1, b2, d], dim=1)
 
-            u_n_k = one_iteration_velocity_verlet_tensor(u_n_k, f_delta_x=2. / 64., f_delta_t=1. / 600., delta_t_star=.06)
+            u_n_k = one_iteration_velocity_verlet_tensor(u_n_k, c_delta_x=2. / 64., c_delta_t=1. / 600., delta_t_star=.06)
 
             a2 = F.upsample(u_n_k[:, 0].unsqueeze(dim=0), size=(w, w), mode='bilinear')
             b2 = F.upsample(u_n_k[:, 1].unsqueeze(dim=0), size=(w, w), mode='bilinear')
