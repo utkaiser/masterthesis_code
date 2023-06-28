@@ -3,15 +3,8 @@ import torch
 from scipy import fft
 
 
-def velocity_verlet(
-        u0,
-        ut0,
-        vel,
-        dx,
-        dt,
-        delta_t_star
-):
-    '''
+def velocity_verlet(u0, ut0, vel, dx, dt, delta_t_star):
+    """
     Parameters
     ----------
     u0 : (numpy tensor) physical wave component, displacement of wave
@@ -24,14 +17,10 @@ def velocity_verlet(
     Returns
     -------
     propagate wavefield using velocity Verlet in time and the second order discrete Laplacian in space
-    '''
+    """
 
-
-    def _periLaplacian(
-            v,
-            dx
-    ):
-        '''
+    def _periLaplacian(v, dx):
+        """
 
         Parameters
         ----------
@@ -41,41 +30,32 @@ def velocity_verlet(
         Returns
         -------
         compute periodic Laplacian evaluate discrete Laplacian with periodic boundary condition
-        '''
+        """
 
-
-        Lv = (np.roll(v, 1, axis=1) - 2 * v + np.roll(v, -1, axis=1)) / (dx ** 2) + \
-             (np.roll(v, 1, axis=0) - 2 * v + np.roll(v, -1, axis=0)) / (dx ** 2)
+        Lv = (np.roll(v, 1, axis=1) - 2 * v + np.roll(v, -1, axis=1)) / (dx**2) + (
+            np.roll(v, 1, axis=0) - 2 * v + np.roll(v, -1, axis=0)
+        ) / (dx**2)
 
         return Lv
 
-
     Nt = round(abs(delta_t_star / dt))
-    c2 = np.multiply(vel,vel)
+    c2 = np.multiply(vel, vel)
     u = u0
     ut = ut0
 
     for i in range(Nt):
-        ddxou = _periLaplacian(u,dx)
-        u = u + dt*ut + 0.5*dt**2*np.multiply(c2,ddxou)
-        ddxu = _periLaplacian(u,dx)
-        ut = ut + 0.5*dt*np.multiply(c2,ddxou+ddxu)
+        ddxou = _periLaplacian(u, dx)
+        u = u + dt * ut + 0.5 * dt**2 * np.multiply(c2, ddxou)
+        ddxu = _periLaplacian(u, dx)
+        ut = ut + 0.5 * dt * np.multiply(c2, ddxou + ddxu)
 
     return u, ut
 
 
-
 def velocity_verlet_tensor(
-        u0,
-        ut0,
-        vel,
-        dx,
-        dt,
-        delta_t_star,
-        number=0,
-        boundary_c='periodic'
+    u0, ut0, vel, dx, dt, delta_t_star, number=0, boundary_c="periodic"
 ):
-    '''
+    """
     Parameters
     ----------
     u0 : (pytorch tensor) physical wave component, displacement of wave
@@ -90,15 +70,10 @@ def velocity_verlet_tensor(
     Returns
     -------
     propagate wavefield using velocity Verlet in time and the second order discrete Laplacian in space
-    '''
+    """
 
-
-    def _periLaplacian_tensor(
-            v,
-            dx,
-            number
-    ):
-        '''
+    def _periLaplacian_tensor(v, dx, number):
+        """
         Parameters
         ----------
         v : (pytorch tensor) velocity profile dependent on x_1 and x_2
@@ -108,38 +83,44 @@ def velocity_verlet_tensor(
         Returns
         -------
         compute periodic Laplacian evaluate discrete Laplacian with periodic boundary condition
-        '''
+        """
 
-        Lv = (torch.roll(v, 1, dims=1 + number) - 2 * v + torch.roll(v, -1, dims=1 + number)) / (dx ** 2) + \
-             (torch.roll(v, 1, dims=0 + number) - 2 * v + torch.roll(v, -1, dims=0 + number)) / (dx ** 2)
+        Lv = (
+            torch.roll(v, 1, dims=1 + number)
+            - 2 * v
+            + torch.roll(v, -1, dims=1 + number)
+        ) / (dx**2) + (
+            torch.roll(v, 1, dims=0 + number)
+            - 2 * v
+            + torch.roll(v, -1, dims=0 + number)
+        ) / (
+            dx**2
+        )
 
         return Lv
-
 
     Nt = round(abs(delta_t_star / dt))
     c2 = torch.mul(vel, vel)
     u, ut = u0, ut0
 
-    if boundary_c == 'periodic':
-
+    if boundary_c == "periodic":
         for i in range(Nt):
             # Velocity Verlet
 
             ddxou = _periLaplacian_tensor(u, dx, number)
-            u = u + dt * ut + 0.5 * dt ** 2 * torch.mul(c2, ddxou)
+            u = u + dt * ut + 0.5 * dt**2 * torch.mul(c2, ddxou)
             ddxu = _periLaplacian_tensor(u, dx, number)
             ut = ut + 0.5 * dt * torch.mul(c2, ddxou + ddxu)
 
-        return u,ut
+        return u, ut
 
-    elif boundary_c == 'absorbing':
-
+    elif boundary_c == "absorbing":
         # shape: u, ut -> b x w_c x h_c
 
         Ny, Nx = u0.shape[-1] - 1, u0.shape[-2] - 1
 
         lambda_v = abs(dt / dx)
-        lambda2 = lambda_v ** 2
+        lambda2 = lambda_v**2
         lambdaC2 = lambda2 * c2
 
         a = dx / (dx + abs(dt))
@@ -152,49 +133,134 @@ def velocity_verlet_tensor(
 
         for k in range(Nt):
             # wave equation update
-            u2[:,1: Ny, 1: Nx] = 2 * u1[:,1: Ny, 1: Nx] - u0[:,1: Ny, 1: Nx] + lambdaC2[:,1: Ny, 1: Nx] * \
-                                  (u1[:,2:Ny + 1, 1:Nx] + u1[:,0: Ny - 1, 1: Nx] + u1[:,1: Ny, 2: Nx + 1] + u1[:,1: Ny,0: Nx - 1] - 4 * u1[:,1: Ny,1: Nx])
+            u2[:, 1:Ny, 1:Nx] = (
+                2 * u1[:, 1:Ny, 1:Nx]
+                - u0[:, 1:Ny, 1:Nx]
+                + lambdaC2[:, 1:Ny, 1:Nx]
+                * (
+                    u1[:, 2 : Ny + 1, 1:Nx]
+                    + u1[:, 0 : Ny - 1, 1:Nx]
+                    + u1[:, 1:Ny, 2 : Nx + 1]
+                    + u1[:, 1:Ny, 0 : Nx - 1]
+                    - 4 * u1[:, 1:Ny, 1:Nx]
+                )
+            )
 
             # # absorbing boundary update (Engquist-Majda ABC second order)
             Ny, Nx = Ny - 1, Nx - 1
-            u2[:,-1, 1:Nx + 1] = a * (
-                        -u2[:,Ny, 1:Nx + 1] + 2 * u1[:,-1, 1:Nx + 1] - u0[:,-1, 1:Nx + 1] + 2 * u1[:,Ny, 1:Nx + 1] - u0[:,Ny,
-                                                                                                             1:Nx + 1] +
-                        lambda_v * (u2[:,Ny, 1:Nx + 1] - u0[:,Ny, 1:Nx + 1] + u0[:,-1, 1:Nx + 1]) +
-                        .5 * lambda2 * (u0[:,-1, 2:Nx + 2] - 2 * u0[:,-1, 1:Nx + 1] + u0[:,-1, 0:Nx] +
-                                        u2[:,Ny, 2:Nx + 2] - 2 * u2[:,Ny, 1:Nx + 1] + u2[:,Ny, 0:Nx]))
+            u2[:, -1, 1 : Nx + 1] = a * (
+                -u2[:, Ny, 1 : Nx + 1]
+                + 2 * u1[:, -1, 1 : Nx + 1]
+                - u0[:, -1, 1 : Nx + 1]
+                + 2 * u1[:, Ny, 1 : Nx + 1]
+                - u0[:, Ny, 1 : Nx + 1]
+                + lambda_v
+                * (
+                    u2[:, Ny, 1 : Nx + 1]
+                    - u0[:, Ny, 1 : Nx + 1]
+                    + u0[:, -1, 1 : Nx + 1]
+                )
+                + 0.5
+                * lambda2
+                * (
+                    u0[:, -1, 2 : Nx + 2]
+                    - 2 * u0[:, -1, 1 : Nx + 1]
+                    + u0[:, -1, 0:Nx]
+                    + u2[:, Ny, 2 : Nx + 2]
+                    - 2 * u2[:, Ny, 1 : Nx + 1]
+                    + u2[:, Ny, 0:Nx]
+                )
+            )
 
-            u2[:,0, 1:Nx + 1] = a * (
-                        -u2[:,1, 1:Nx + 1] + 2 * u1[:,0, 1:Nx + 1] - u0[:,0, 1:Nx + 1] + 2 * u1[:,1, 1:Nx + 1] - u0[:,1,
-                                                                                                         1:Nx + 1] +
-                        lambda_v * (u2[:,1, 1:Nx + 1] - u0[:,1, 1:Nx + 1] + u0[:,0, 1:Nx + 1]) +
-                        .5 * lambda2 * (u0[:,0, 2:Nx + 2] - 2 * u0[:,0, 1:Nx + 1] + u0[:,0, 0:Nx] +
-                                        u2[:,1, 2:Nx + 2] - 2 * u2[:,1, 1:Nx + 1] + u2[:,1, 0:Nx]))
+            u2[:, 0, 1 : Nx + 1] = a * (
+                -u2[:, 1, 1 : Nx + 1]
+                + 2 * u1[:, 0, 1 : Nx + 1]
+                - u0[:, 0, 1 : Nx + 1]
+                + 2 * u1[:, 1, 1 : Nx + 1]
+                - u0[:, 1, 1 : Nx + 1]
+                + lambda_v
+                * (u2[:, 1, 1 : Nx + 1] - u0[:, 1, 1 : Nx + 1] + u0[:, 0, 1 : Nx + 1])
+                + 0.5
+                * lambda2
+                * (
+                    u0[:, 0, 2 : Nx + 2]
+                    - 2 * u0[:, 0, 1 : Nx + 1]
+                    + u0[:, 0, 0:Nx]
+                    + u2[:, 1, 2 : Nx + 2]
+                    - 2 * u2[:, 1, 1 : Nx + 1]
+                    + u2[:, 1, 0:Nx]
+                )
+            )
 
-            u2[:,1:Ny + 1, -1] = a * (
-                        -u2[:,1:Ny + 1, Nx] + 2 * u1[:,1:Ny + 1, Nx] - u0[:,1:Ny + 1, Nx] + 2 * u1[:,1:Ny + 1, Nx + 1] - u0[:,
-                                                                                                                 1:Ny + 1,
-                                                                                                                 Nx + 1] +
-                        lambda_v * (u2[:,1:Ny + 1, Nx] - u0[:,1:Ny + 1, Nx] + u0[:,1:Ny + 1, Nx + 1]) +
-                        .5 * lambda2 * (u0[:,2:Ny + 2, Nx + 1] - 2 * u0[:,1:Ny + 1, Nx + 1] + u0[:,0:Ny, Nx + 1] +
-                                        u2[:,2:Ny + 2, Nx] - 2 * u2[:,1:Ny + 1, Nx] + u2[:,0:Ny, Nx]))
+            u2[:, 1 : Ny + 1, -1] = a * (
+                -u2[:, 1 : Ny + 1, Nx]
+                + 2 * u1[:, 1 : Ny + 1, Nx]
+                - u0[:, 1 : Ny + 1, Nx]
+                + 2 * u1[:, 1 : Ny + 1, Nx + 1]
+                - u0[:, 1 : Ny + 1, Nx + 1]
+                + lambda_v
+                * (
+                    u2[:, 1 : Ny + 1, Nx]
+                    - u0[:, 1 : Ny + 1, Nx]
+                    + u0[:, 1 : Ny + 1, Nx + 1]
+                )
+                + 0.5
+                * lambda2
+                * (
+                    u0[:, 2 : Ny + 2, Nx + 1]
+                    - 2 * u0[:, 1 : Ny + 1, Nx + 1]
+                    + u0[:, 0:Ny, Nx + 1]
+                    + u2[:, 2 : Ny + 2, Nx]
+                    - 2 * u2[:, 1 : Ny + 1, Nx]
+                    + u2[:, 0:Ny, Nx]
+                )
+            )
 
-            u2[:,1:Ny + 1, 0] = a * (
-                        -u2[:,1:Ny + 1, 1] + 2 * u1[:,1:Ny + 1, 1] - u0[:,1:Ny + 1, 1] + 2 * u1[:,1:Ny + 1, 0] - u0[:,1:Ny + 1,
-                                                                                                         0] +
-                        lambda_v * (u2[:,1:Ny + 1, 1] - u0[:,1:Ny + 1, 1] + u0[:,1:Ny + 1, 0]) +
-                        .5 * lambda2 * (u0[:,2:Ny + 2, 0] - 2 * u0[:,1:Ny + 1, 0] + u0[:,0:Ny, 0] +
-                                        u2[:,2:Ny + 2, 1] - 2 * u2[:,1:Ny + 1, 1] + u2[:,0:Ny, 1]))
+            u2[:, 1 : Ny + 1, 0] = a * (
+                -u2[:, 1 : Ny + 1, 1]
+                + 2 * u1[:, 1 : Ny + 1, 1]
+                - u0[:, 1 : Ny + 1, 1]
+                + 2 * u1[:, 1 : Ny + 1, 0]
+                - u0[:, 1 : Ny + 1, 0]
+                + lambda_v
+                * (u2[:, 1 : Ny + 1, 1] - u0[:, 1 : Ny + 1, 1] + u0[:, 1 : Ny + 1, 0])
+                + 0.5
+                * lambda2
+                * (
+                    u0[:, 2 : Ny + 2, 0]
+                    - 2 * u0[:, 1 : Ny + 1, 0]
+                    + u0[:, 0:Ny, 0]
+                    + u2[:, 2 : Ny + 2, 1]
+                    - 2 * u2[:, 1 : Ny + 1, 1]
+                    + u2[:, 0:Ny, 1]
+                )
+            )
 
             # corners
-            u2[:,-1, 0] = a * (u1[:,-1, 0] - u2[:,Ny, 0] + u1[:,Ny, 0] +
-                             lambda_v * (u2[:,Ny, 0] - u1[:,-1, 0] + u1[:,Ny, 0]))
-            u2[:,0, 0] = a * (u1[:,0, 0] - u2[:,1, 0] + u1[:,1, 0] +
-                            lambda_v * (u2[:,1, 0] - u1[:,0, 0] + u1[:,1, 0]))
-            u2[:,0, -1] = a * (u1[:,0, -1] - u2[:,0, Nx] + u1[:,0, Nx] +
-                             lambda_v * (u2[:,0, Nx] - u1[:,0, -1] + u1[:,0, Nx]))
-            u2[:,-1, -1] = a * (u1[:,-1, -1] - u2[:,Ny, -1] + u1[:,Ny, -1] +
-                              lambda_v * (u2[:,Ny, -1] - u1[:,-1, -1] + u1[:,Ny, -1]))
+            u2[:, -1, 0] = a * (
+                u1[:, -1, 0]
+                - u2[:, Ny, 0]
+                + u1[:, Ny, 0]
+                + lambda_v * (u2[:, Ny, 0] - u1[:, -1, 0] + u1[:, Ny, 0])
+            )
+            u2[:, 0, 0] = a * (
+                u1[:, 0, 0]
+                - u2[:, 1, 0]
+                + u1[:, 1, 0]
+                + lambda_v * (u2[:, 1, 0] - u1[:, 0, 0] + u1[:, 1, 0])
+            )
+            u2[:, 0, -1] = a * (
+                u1[:, 0, -1]
+                - u2[:, 0, Nx]
+                + u1[:, 0, Nx]
+                + lambda_v * (u2[:, 0, Nx] - u1[:, 0, -1] + u1[:, 0, Nx])
+            )
+            u2[:, -1, -1] = a * (
+                u1[:, -1, -1]
+                - u2[:, Ny, -1]
+                + u1[:, Ny, -1]
+                + lambda_v * (u2[:, Ny, -1] - u1[:, -1, -1] + u1[:, Ny, -1])
+            )
 
             # update grids
             u, ut = u2.clone(), (u2 - u0) / (2 * dt)
@@ -208,15 +274,8 @@ def velocity_verlet_tensor(
         raise NotImplementedError("this boundary condition is not implemented")
 
 
-def pseudo_spectral(
-        u0,
-        ut0,
-        vel,
-        dx,
-        dt,
-        delta_t_star
-):
-    '''
+def pseudo_spectral(u0, ut0, vel, dx, dt, delta_t_star):
+    """
     Parameters
     ----------
     u0 : (pytorch tensor) physical wave component, displacement of wave
@@ -229,14 +288,10 @@ def pseudo_spectral(
     Returns
     -------
     propagate wavefield using RK4 in time and spectral approx. of Laplacian in space
-    '''
+    """
 
-
-    def _spectral_del(
-            v,
-            dx
-    ):
-        '''
+    def _spectral_del(v, dx):
+        """
 
         Parameters
         ----------
@@ -246,19 +301,28 @@ def pseudo_spectral(
         Returns
         -------
         evaluate the discrete Laplacian using spectral method
-        '''
+        """
 
         N1 = v.shape[0]
         N2 = v.shape[1]
 
-        kx = 2 * np.pi / (dx * N1) * fft.fftshift(np.linspace(-round(N1 / 2), round(N1 / 2 - 1), N1))
-        ky = 2 * np.pi / (dx * N2) * fft.fftshift(np.linspace(-round(N2 / 2), round(N2 / 2 - 1), N2))
+        kx = (
+            2
+            * np.pi
+            / (dx * N1)
+            * fft.fftshift(np.linspace(-round(N1 / 2), round(N1 / 2 - 1), N1))
+        )
+        ky = (
+            2
+            * np.pi
+            / (dx * N2)
+            * fft.fftshift(np.linspace(-round(N2 / 2), round(N2 / 2 - 1), N2))
+        )
         [kxx, kyy] = np.meshgrid(kx, ky)
 
-        U = -(kxx ** 2 + kyy ** 2) * fft.fft2(v)
+        U = -(kxx**2 + kyy**2) * fft.fft2(v)
 
         return fft.ifft2(U)
-
 
     Nt = round(abs(delta_t_star / dt))
     c2 = np.multiply(vel, vel)
@@ -280,21 +344,14 @@ def pseudo_spectral(
         k4u = ut + dt * k3ut
         k4ut = np.multiply(c2, _spectral_del(u + dt * k3u, dx))
 
-        u = u + 1. / 6 * dt * (k1u + 2 * k2u + 2 * k3u + k4u)
-        ut = ut + 1. / 6 * dt * (k1ut + 2 * k2ut + 2 * k3ut + k4ut)
+        u = u + 1.0 / 6 * dt * (k1u + 2 * k2u + 2 * k3u + k4u)
+        ut = ut + 1.0 / 6 * dt * (k1ut + 2 * k2ut + 2 * k3ut + k4ut)
 
     return np.real(u), np.real(ut)
 
 
-def pseudo_spectral_tensor(
-        u0,
-        ut0,
-        vel,
-        dx,
-        dt,
-        delta_t_star
-):
-    '''
+def pseudo_spectral_tensor(u0, ut0, vel, dx, dt, delta_t_star):
+    """
     Parameters
     ----------
     u0 : (pytorch tensor) physical wave component, displacement of wave
@@ -307,14 +364,10 @@ def pseudo_spectral_tensor(
     Returns
     -------
     propagate wavefield using RK4 in time and spectral approx. of Laplacian in space (batched)
-    '''
+    """
 
-
-    def _spectral_del_tensor(
-            v,
-            dx
-    ):
-        '''
+    def _spectral_del_tensor(v, dx):
+        """
 
         Parameters
         ----------
@@ -324,19 +377,28 @@ def pseudo_spectral_tensor(
         Returns
         -------
         evaluate the discrete Laplacian using spectral method (batched)
-        '''
+        """
 
         N1 = v.shape[-2]
         N2 = v.shape[-1]
 
-        kx = 2 * torch.pi / (dx * N1) * torch.fft.fftshift(torch.linspace(-round(N1 / 2), round(N1 / 2 - 1), N1))
-        ky = 2 * torch.pi / (dx * N2) * torch.fft.fftshift(torch.linspace(-round(N2 / 2), round(N2 / 2 - 1), N2))
-        [kxx, kyy] = torch.meshgrid(kx, ky, indexing='xy')
+        kx = (
+            2
+            * torch.pi
+            / (dx * N1)
+            * torch.fft.fftshift(torch.linspace(-round(N1 / 2), round(N1 / 2 - 1), N1))
+        )
+        ky = (
+            2
+            * torch.pi
+            / (dx * N2)
+            * torch.fft.fftshift(torch.linspace(-round(N2 / 2), round(N2 / 2 - 1), N2))
+        )
+        [kxx, kyy] = torch.meshgrid(kx, ky, indexing="xy")
 
-        U = -(kxx ** 2 + kyy ** 2) * torch.fft.fft2(v)
+        U = -(kxx**2 + kyy**2) * torch.fft.fft2(v)
 
         return torch.fft.ifft2(U)
-
 
     Nt = round(abs(delta_t_star / dt))
     c2 = torch.multiply(vel, vel)
@@ -358,13 +420,7 @@ def pseudo_spectral_tensor(
         k4u = ut + dt * k3ut
         k4ut = torch.multiply(c2, _spectral_del_tensor(u + dt * k3u, dx))
 
-        u = u + 1. / 6 * dt * (k1u + 2 * k2u + 2 * k3u + k4u)
-        ut = ut + 1. / 6 * dt * (k1ut + 2 * k2ut + 2 * k3ut + k4ut)
+        u = u + 1.0 / 6 * dt * (k1u + 2 * k2u + 2 * k3u + k4u)
+        ut = ut + 1.0 / 6 * dt * (k1ut + 2 * k2ut + 2 * k3ut + k4ut)
 
     return torch.real(u), torch.real(ut)
-
-
-
-
-
-

@@ -1,4 +1,2 @@
-def visualize_wavefield(
-):
+def visualize_wavefield():
     pass
-
