@@ -1,6 +1,9 @@
 import sys
 
+import os
+
 sys.path.append("..")
+sys.path.append("../..")
 import logging
 import random
 
@@ -146,7 +149,7 @@ def train_Dt_end_to_end(
                 model,
                 logging_bool,
                 train_logger,
-                vis_path,
+                f"{vis_path}{model_name}_{lr}_{batch_size}_{weight_decay}_{dx}_{dt}",
                 vis_save,
                 global_step,
                 valid_logger,
@@ -220,7 +223,7 @@ def train_Dt_end_to_end(
             model,
             logging_bool,
             train_logger,
-            vis_path,
+            f"{vis_path}best_{model_name}_{dict_best_score['lr']}_{dict_best_score['batch_size']}_{dict_best_score['weight_decay']}_{dict_best_score['dx']}_{dict_best_score['dt']}",
             vis_save,
             global_step,
             valid_logger,
@@ -236,6 +239,8 @@ def train_Dt_end_to_end(
         f"best_{model_name}_{dict_best_score['lr']}_{dict_best_score['batch_size']}_{dict_best_score['weight_decay']}",
         dir_path_save,
     )
+
+    logging.info("\n\n\n" + "*" * 100 + "\n\n\n")
 
 
 def train_model(
@@ -313,6 +318,10 @@ def val_model(
     train_loss_list,
     visualize_res_bool,
 ):
+
+    if visualize_res_bool and not os.path.exists(vis_path):
+        os.makedirs(vis_path)
+
     model.eval()
     with torch.no_grad():
         val_loss_list = []
@@ -347,7 +356,7 @@ def val_model(
                     visualize_list,
                     input_tensor[0, 3].cpu(),
                     vis_save=vis_save,
-                    vis_path=vis_path,
+                    vis_path=vis_path + "/",
                     initial_u=data[0, 0].unsqueeze(dim=0).cpu(),
                 )
 

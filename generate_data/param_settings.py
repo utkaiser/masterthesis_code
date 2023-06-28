@@ -1,3 +1,8 @@
+import sys
+sys.path.append("..")
+sys.path.append("../..")
+
+
 def get_training_params(res):
     """
     Parameters

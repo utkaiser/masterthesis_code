@@ -1,5 +1,9 @@
 import math
 
+import sys
+sys.path.append("..")
+sys.path.append("../..")
+
 import numpy as np
 import torch
 import torch.nn.functional as F

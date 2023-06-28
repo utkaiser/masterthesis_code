@@ -9,6 +9,10 @@ from generate_data.utils_wave_propagate import (
 )
 from models.utils import compute_loss, round_loss
 
+import sys
+sys.path.append("..")
+sys.path.append("../..")
+
 
 def visualize_wavefield(epoch, tensor_list, vel, vis_save, vis_path, initial_u):
     """

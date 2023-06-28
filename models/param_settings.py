@@ -1,6 +1,10 @@
 import os
 from datetime import datetime
 
+import sys
+sys.path.append("..")
+sys.path.append("../..")
+
 
 def get_paths(experiment_index=0):
     """
@@ -14,7 +18,7 @@ def get_paths(experiment_index=0):
     """
 
     # test experiment used for debugging
-    if experiment_index == 0:
+    if experiment_index == 1:  # todo: change back
         data_paths = ["../data/Dt_128/bp_marmousi_128_10_none_14.npz"]
 
     # data paths for all experiments
@@ -49,11 +53,12 @@ def get_paths(experiment_index=0):
     if not os.path.exists(main_branch + add):
         os.makedirs(main_branch + add)
         os.makedirs(main_branch + add + "/validated_models")
+        os.makedirs(main_branch + add + "vis_results")
 
     train_logger_path = main_branch + add + "log_train/"
     valid_logger_path = main_branch + add + "log_valid/"
     dir_path_save = main_branch + add
-    vis_path = main_branch + add
+    vis_path = main_branch + add + "vis_results/"
 
     return (
         data_paths,
@@ -77,7 +82,7 @@ def get_params(experiment_index, flipping):
     """
 
     d = {
-        "n_epochs": 30,
+        "n_epochs": 2,  # todo: change back
         "n_snaps": 8,
         "boundary_c": "absorbing",
         "delta_t_star": 0.06,
@@ -86,7 +91,7 @@ def get_params(experiment_index, flipping):
         "c_delta_x": 2.0 / 64.0,
         "c_delta_t": 1.0 / 600.0,
         "optimizer_name": "AdamW",
-        "loss_function_name": "SmoothL1Loss",
+        "loss_function_name": "MSE",
         "res_scaler": 2,
     }
 

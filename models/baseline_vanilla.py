@@ -2,6 +2,9 @@ import logging
 import os
 import sys
 
+sys.path.append("..")
+sys.path.append("../..")
+
 import numpy as np
 import torch
 
@@ -113,7 +116,6 @@ def setup_logger_vanilla(save_path):
 
 
 def get_vanilla_paths(experiment_index):
-    # todo: change back
 
     data_paths = [
         # 12.5 * 400 * 8 = 40,000

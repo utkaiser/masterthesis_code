@@ -2,6 +2,10 @@ import logging
 import os
 import random
 
+import sys
+sys.path.append("..")
+sys.path.append("../..")
+
 import numpy as np
 import torch
 from torch import nn
@@ -330,8 +334,6 @@ def fetch_data_old_paper(data_paths, batch_size, additional_test_paths):
 
         return torch.utils.data.ConcatDataset(datasets)
 
-    batch_size = 1  # todo: change back
-
     # get full dataset
     full_dataset = get_datasets(data_paths)
 
@@ -427,6 +429,3 @@ def get_paths(experiment_index=0):
         vis_path,
         test_paths,
     )
-
-
-# todo: test data

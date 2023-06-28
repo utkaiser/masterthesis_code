@@ -1,6 +1,10 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
+import sys
+sys.path.append("..")
+sys.path.append("../..")
+
 from generate_data.change_wave_arguments import (
     WaveEnergyComponentField_end_to_end,
     WaveEnergyField,

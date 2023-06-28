@@ -1,4 +1,9 @@
 import torch
+import torch.nn.functional as F
+
+import sys
+sys.path.append("..")
+sys.path.append("../..")
 
 from generate_data.change_wave_arguments import (
     WaveEnergyComponentField_tensor,
@@ -97,3 +102,8 @@ def resize_to_coarse(u_n, res_coarse):
     # u_n_k.shape: b x c x w x h
 
     return u_n[:, :, 32:-32, 32:-32]
+
+def resize_to_coarse_interp(u_n, res_coarse):
+    # u_n_k.shape: b x c x w x h
+
+    return F.upsample(u_n, size=(res_coarse, res_coarse), mode='bilinear')

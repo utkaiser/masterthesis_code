@@ -2,6 +2,10 @@ import numpy as np
 import torch
 from scipy import fft
 
+import sys
+sys.path.append("..")
+sys.path.append("../..")
+
 
 def velocity_verlet(u0, ut0, vel, dx, dt, delta_t_star):
     """

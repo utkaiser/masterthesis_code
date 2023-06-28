@@ -2,6 +2,10 @@ import numpy as np
 import torch
 from scipy import fftpack
 
+import sys
+sys.path.append("..")
+sys.path.append("../..")
+
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 

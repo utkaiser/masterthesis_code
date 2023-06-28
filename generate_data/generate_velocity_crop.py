@@ -4,6 +4,10 @@ from scipy.io import loadmat
 from skimage.filters import gaussian
 from skimage.transform import resize
 
+import sys
+sys.path.append("..")
+sys.path.append("../..")
+
 
 def generate_velocity_profile_crop(v_images, m, output_path, num_times):
     """

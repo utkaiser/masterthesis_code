@@ -3,6 +3,7 @@ import sys
 from models.utils import choose_loss_function, choose_optimizer
 
 sys.path.append("..")
+sys.path.append("../..")
 import warnings
 
 warnings.filterwarnings("ignore")

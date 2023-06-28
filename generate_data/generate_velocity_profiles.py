@@ -3,6 +3,10 @@ import torch
 from scipy.io import loadmat
 from skimage.filters import gaussian
 
+import sys
+sys.path.append("..")
+sys.path.append("../..")
+
 
 def get_velocities(res_padded, velocity_profiles, optimization):
     """

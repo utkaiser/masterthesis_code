@@ -2,7 +2,10 @@ import logging
 import random
 import sys
 import time
-from os import environ, path
+from os import environ
+
+sys.path.append("..")
+sys.path.append("../..")
 
 import numpy as np
 import torch
@@ -14,7 +17,6 @@ from torchmetrics.functional import mean_squared_error as MSE
 
 from generate_data.utils import get_wavefield
 
-sys.path.append("..")
 environ["TOKENIZERS_PARALLELISM"] = "false"
 environ["OMP_NUM_THREADS"] = "1"
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

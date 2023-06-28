@@ -1,5 +1,8 @@
 import sys
 
+sys.path.append("..")
+sys.path.append("../..")
+
 from models.baseline_old_paper import train_Dt_old_paper
 from models.train_end_to_end import train_Dt_end_to_end
 
@@ -22,10 +25,10 @@ def component_grid_search_end_to_end(experiment_index=0):
     elif experiment_index == 1:
         downsampling_models = ["Interpolation"]
         upsampling_models = [
-            "UNet3",
-            "UNet6",
-            "Tiramisu",
-            "UTransform",
+            # "UNet3",
+            # "UNet6",
+            # "Tiramisu",
+            "UTransform",  # todo: this seems to be failing ###################################
         ]
     else:  # experiment 2 -- 5
         downsampling_models = ["Interpolation", "CNN"]
@@ -61,8 +64,8 @@ def component_grid_search_end_to_end(experiment_index=0):
                 experiment_index=experiment_index,
                 weighted_loss=weighted_loss,
                 logging_bool=False,
-                visualize_res_bool=False,
-                vis_save=False,
+                visualize_res_bool=True,
+                vis_save=True,
             )
 
     # train_Dt_old_paper(
@@ -74,6 +77,6 @@ def component_grid_search_end_to_end(experiment_index=0):
 
 
 if __name__ == "__main__":
-    # experiment_index = int(sys.argv[1])
+    experiment_index = int(sys.argv[1])
 
-    component_grid_search_end_to_end(experiment_index=0)  # experiment_index
+    component_grid_search_end_to_end(experiment_index=experiment_index)

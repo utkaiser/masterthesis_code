@@ -1,6 +1,10 @@
 import torch
 import torch.nn.functional as F
 
+import sys
+sys.path.append("..")
+sys.path.append("../..")
+
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 

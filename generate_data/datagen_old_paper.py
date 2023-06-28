@@ -1,6 +1,7 @@
 import sys
 
 sys.path.append("..")
+sys.path.append("../..")
 import logging
 
 import numpy as np
@@ -22,7 +23,7 @@ from generate_data.param_settings import get_training_params
 from generate_data.utils_wave_propagate import (
     one_iteration_pseudo_spectral_tensor,
     one_iteration_velocity_verlet_tensor,
-    resize_to_coarse,
+    resize_to_coarse_interp,
 )
 from generate_data.visualize_datagen import (
     visualize_wavefield,
@@ -102,7 +103,7 @@ def generate_wave_from_medium(
             "energy_components",
             res_padded,
         )
-        u_n_coarse = resize_to_coarse(u_n, res)
+        u_n_coarse = resize_to_coarse_interp(u_n, res)
 
         # create and save velocity crop
         vel_crop = crop_center(vel, res, 2)
@@ -166,7 +167,7 @@ def generate_wave_from_medium(
                 u_n_coarse = one_iteration_velocity_verlet_tensor(
                     torch.cat(
                         [
-                            resize_to_coarse(u_n, res),
+                            resize_to_coarse_interp(u_n, res),
                             torch.from_numpy(vel_crop)
                             .unsqueeze(dim=0)
                             .unsqueeze(dim=0),
@@ -199,13 +200,13 @@ def generate_wave_from_medium(
 
 
 if __name__ == "__main__":
-    for index in range(0, 1):  # run multiple iterations of datagen
+    for index in range(0, 13):  # run multiple iterations of datagen
         generate_wave_from_medium(
             output_dir="../data_old",
             visualize=False,
-            n_it=84,
+            n_it=400,
             res=128,
             optimization_technique="none",
             index=index,
-            velocity_profiles="mixed",
+            velocity_profiles="bp_marmousi",  # mixed
         )
