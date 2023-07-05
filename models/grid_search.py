@@ -7,7 +7,7 @@ from models.baseline_old_paper import train_Dt_old_paper
 from models.train_end_to_end import train_Dt_end_to_end
 
 
-def component_grid_search_end_to_end(experiment_index=0):
+def component_grid_search_end_to_end(downsampling_models, upsampling_models, experiment_index=0):
     """
     experiment_index: (int) number of the experiment, explained in paper
 
@@ -23,15 +23,17 @@ def component_grid_search_end_to_end(experiment_index=0):
         upsampling_models = ["UNet3"]
 
     elif experiment_index == 1:
-        downsampling_models = ["Interpolation"]
-        upsampling_models = [
-            # "UNet3",
-            # "UNet6",
-            # "Tiramisu",
-            "UTransform",  # todo: this seems to be failing ###################################
-        ]
+        # downsampling_models = ["Interpolation"]
+        # upsampling_models = [
+        # "UNet3",
+        # "UNet6",
+        # "Tiramisu",
+        # "UTransform",
+        # ]
+        a = 5
+
     else:  # experiment 2 -- 5
-        downsampling_models = ["Interpolation", "CNN"]
+        downsampling_models = ["Interpolation"]
         upsampling_models = ["UNet3"]
 
     # EXPERIMENT 3
@@ -52,6 +54,9 @@ def component_grid_search_end_to_end(experiment_index=0):
         multi_step = True
     else:
         weighted_loss = False
+
+    if experiment_index == 6:
+        a = 5
 
     for d in downsampling_models:
         for u in upsampling_models:
@@ -77,6 +82,17 @@ def component_grid_search_end_to_end(experiment_index=0):
 
 
 if __name__ == "__main__":
-    experiment_index = int(sys.argv[1])
+    experiment_index = 6 # int(sys.argv[1])
+    downsampling_models = [
+        # sys.argv[2]
+        "Interpolation",
+        # "UNet6",
+        # "Tiramisu",
+        # "UTransform",
+    ]
+    upsampling_models = [
+        "Tiramisu"
+        # sys.argv[3]
+    ]
 
-    component_grid_search_end_to_end(experiment_index=experiment_index)
+    component_grid_search_end_to_end(downsampling_models, upsampling_models, experiment_index=experiment_index)

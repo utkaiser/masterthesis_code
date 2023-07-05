@@ -1,6 +1,8 @@
 import sys
 
 import os
+os.environ['CUDA_VISIBLE_DEVICES']='2, 3'
+os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:64"
 
 sys.path.append("..")
 sys.path.append("../..")
@@ -16,6 +18,7 @@ from utils import (
     setup_logger,
 )
 
+from parareal.parareal_scheme_new import train_model
 from models.model_end_to_end import save_model, setup_model
 from models.param_settings import get_params, get_paths
 from models.visualize_training import visualize_wavefield
@@ -101,8 +104,11 @@ def train_Dt_end_to_end(
 
     # training and hyperparameter search with validation
     for lr, batch_size, weight_decay, dx, dt in hyperparameter_grid_search_end_to_end(
-        experiment_index, param_d
+        upsampling_model, experiment_index, param_d
     ):
+        if experiment_index == 6:
+            batch_size /= 4
+
         param_d["c_delta_x"] = dx
         param_d["c_delta_t"] = dt
 
@@ -120,6 +126,7 @@ def train_Dt_end_to_end(
             device,
             weighted_loss,
         )
+
         train_loader, val_loader, _ = fetch_data_end_to_end(
             data_paths, batch_size, val_paths
         )
@@ -144,6 +151,7 @@ def train_Dt_end_to_end(
                 loss_f,
                 multi_step,
                 weighted_loss,
+                experiment_index,
             )
             val_performance = val_model(
                 model,
@@ -218,6 +226,7 @@ def train_Dt_end_to_end(
             loss_f,
             multi_step,
             weighted_loss,
+            experiment_index,
         )
         _ = val_model(
             model,
@@ -256,52 +265,71 @@ def train_model(
     loss_f,
     multi_step,
     weighted_loss,
+    experiment_index,
 ):
-    model.train()
-    train_loss_list = []
-    if (epoch + 1) % 3 == 0 and weighted_loss:
-        label_distr_shift += 1
+    if experiment_index == 6:
 
-    for i, data in enumerate(train_loader):
-        loss_list = []
-        data = data[0].to(device)  # b x n_snaps x 4 x w x h
-
-        for input_idx in random.choices(
-            range(param_d["n_snaps"]), k=param_d["n_snaps"]
-        ):
-            label_range = sample_label_normal_dist(
-                input_idx,
-                param_d["n_snaps"],
-                label_distr_shift,
-                multi_step,
-                weighted_loss,
-            )
-            input_tensor = data[:, input_idx].detach()  # b x 4 x w x h
-
-            for label_idx in range(
-                input_idx + 1, label_range + 1
-            ):  # randomly decide how long path is
-                label = data[:, label_idx, :3]  # b x 3 x w x h
-                output = model(input_tensor)  # b x 3 x w x h
-                loss_list.append(loss_f(output, label))
-                input_tensor = torch.cat(
-                    (output, input_tensor[:, 3].unsqueeze(dim=1)), dim=1
-                )
-
-        optimizer.zero_grad()
-        sum(loss_list).backward()
-        optimizer.step()
-
-        if logging_bool:
-            train_logger.add_scalar(
-                "loss", np.array(loss_list).mean(), global_step=global_step
-            )
-        train_loss_list.append(
-            np.array([l.cpu().detach().numpy() for l in loss_list]).mean()
+        train_model(
+            model,
+            epoch,
+            label_distr_shift,
+            train_loader,
+            param_d,
+            global_step,
+            logging_bool,
+            optimizer,
+            train_logger,
+            loss_f,
+            multi_step,
+            weighted_loss,
+            experiment_index,
         )
-        global_step += 1
+    else:
+        model.train()
+        train_loss_list = []
+        if (epoch + 1) % 3 == 0 and weighted_loss:
+            label_distr_shift += 1
 
-    return train_loss_list, model, label_distr_shift, global_step, optimizer
+        for i, data in enumerate(train_loader):
+            loss_list = []
+            data = data[0].to(device)  # b x n_snaps x 4 x w x h
+
+            for input_idx in random.choices(
+                range(param_d["n_snaps"]), k=param_d["n_snaps"]
+            ):
+                label_range = sample_label_normal_dist(
+                    input_idx,
+                    param_d["n_snaps"],
+                    label_distr_shift,
+                    multi_step,
+                    weighted_loss,
+                )
+                input_tensor = data[:, input_idx].detach()  # b x 4 x w x h
+
+                for label_idx in range(
+                    input_idx + 1, label_range + 1
+                ):  # randomly decide how long path is
+                    label = data[:, label_idx, :3]  # b x 3 x w x h
+                    output = model(input_tensor)  # b x 3 x w x h
+                    loss_list.append(loss_f(output, label))
+                    input_tensor = torch.cat(
+                        (output, input_tensor[:, 3].unsqueeze(dim=1)), dim=1
+                    )
+
+            optimizer.zero_grad()
+            sum(loss_list).backward()
+            optimizer.step()
+
+            if logging_bool:
+                train_logger.add_scalar(
+                    "loss", np.array(loss_list).mean(), global_step=global_step
+                )
+            train_loss_list.append(
+                np.array([l.cpu().detach().numpy() for l in loss_list]).mean()
+            )
+            global_step += 1
+
+        return train_loss_list, model, label_distr_shift, global_step, optimizer
 
 
 def val_model(

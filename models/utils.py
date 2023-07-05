@@ -330,7 +330,7 @@ def round_loss(number):
 
 
 def hyperparameter_grid_search_end_to_end(
-    experiment_index, param_d, suffix="end_to_end"
+    upsampling_model, experiment_index, param_d, suffix="end_to_end"
 ):
     """
     experiment_index: (int) number of the experiment, explained in paper
@@ -343,7 +343,14 @@ def hyperparameter_grid_search_end_to_end(
 
     list_lr = [0.001, 0.0001]
 
-    list_batch_size = [2**6, 2**8]
+    logging.info(f"here {upsampling_model}")
+
+    if upsampling_model == "Tiramisu":
+        list_batch_size = [2**3, 2**4]
+    elif upsampling_model == "UTransform":
+        list_batch_size = [2**1, 2**2]
+    else:
+        list_batch_size = [2**6, 2**8]
 
     list_weight_decay = [0.01, 0.001]
 

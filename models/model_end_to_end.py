@@ -38,8 +38,8 @@ class Model_end_to_end(nn.Module):
 
         super().__init__()
 
+        self.downsampling_type = downsampling_type
         self.upsampling_type = upsampling_type
-
         self.param_dict = param_dict
         self.model_downsampling = choose_downsampling(
             downsampling_type, self.param_dict["res_scaler"], model_res
@@ -69,9 +69,14 @@ class Model_end_to_end(nn.Module):
         """
 
         # restriction component
-        downsampling_res, _ = self.model_downsampling(
-            x
-        )  # second component is skip connection
+        if self.downsampling_type == "CNN":
+            downsampling_res, skip = self.model_downsampling(
+                x
+            )
+        else:
+            downsampling_res, _ = self.model_downsampling(
+                x
+            )
 
         # velocity verlet
         prop_result = self.model_numerical(downsampling_res)
@@ -80,7 +85,10 @@ class Model_end_to_end(nn.Module):
         if self.upsampling_type == "Interpolation":
             outputs = self.model_upsampling(prop_result)
         else:
-            outputs = self.model_upsampling(prop_result.to(device), skip_all=None)
+            if self.downsampling_type == "CNN":
+                outputs = self.model_upsampling(prop_result.to(device), skip_all=skip)
+            else:
+                outputs = self.model_upsampling(prop_result.to(device), skip_all=None)
 
         return outputs.to(device)
 

@@ -120,18 +120,15 @@ class UNet(nn.Module):
         -------
         up samples input from numerical solver and enhances solution
         """
-
         blocks = []
         for i, down in enumerate(self.down_path):
             x = down(x)
             if i % 2 == 0:
                 blocks.append(x)
-
         for i, up in enumerate(self.up_path):
             x = up(x, blocks[-i - 2])
-
         for i, layer in enumerate(self.last):
-            if len(self.last) - 1 == i and torch.is_tensor(skip_all):
+            if len(self.last) - 3 == i and torch.is_tensor(skip_all):
                 x = skip_all + x
             x = layer(x)
         return x
@@ -507,15 +504,16 @@ class UTransform(nn.Module):
         self.MHSA = MultiHeadSelfAttention(512)
         self.up1 = TransformerUp(512, 256)
         self.up2 = TransformerUp(256, 128)
+        self.scale_factor = scale_factor
 
         if scale_factor == 2:
             self.up3 = TransformerUp(128, 64)
             self.up_sample = nn.ConvTranspose2d(64, 128, kernel_size=2, stride=2)
             last = 128
-        else:
-            self.upsample1 = nn.ConvTranspose2d(128, 256, kernel_size=2, stride=2)
+        else:  # scale_factor == 4
             self.up3 = TransformerUp(256, 128)
             self.up_sample = nn.ConvTranspose2d(128, 256, kernel_size=2, stride=2)
+            self.up_sample2 = nn.ConvTranspose2d(128, 256, kernel_size=2, stride=2)
             last = 256
 
         self.outc = OutConv(last, classes)
@@ -528,10 +526,9 @@ class UTransform(nn.Module):
         x4 = self.MHSA(x4)
         x = self.up1(x4, x3)
         x = self.up2(x, x2)
-        if self.scale_factor:
-            x = self.upsample1(x)
         x = self.up3(x, x1)
         x = self.up_sample(x)
+        if self.scale_factor > 2: x = self.up_sample2(x)
         return self.outc(x)
 
 
@@ -817,7 +814,7 @@ class Up(nn.Module):
         # if bilinear, use the normal convolutions to reduce the number of channels
         if bilinear:
             self.up = nn.Upsample(scale_factor=2, mode="bilinear", align_corners=True)
-            self.conv = DoubleConv(in_channels, out_channels, in_channels // 2)
+            self.conv = DoubleConv(in_channels, out_channels)
         else:
             self.up = nn.ConvTranspose2d(
                 in_channels,

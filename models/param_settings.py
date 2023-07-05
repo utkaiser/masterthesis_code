@@ -18,7 +18,7 @@ def get_paths(experiment_index=0):
     """
 
     # test experiment used for debugging
-    if experiment_index == 1:  # todo: change back
+    if experiment_index == 6:  # todo: change back
         data_paths = ["../data/Dt_128/bp_marmousi_128_10_none_14.npz"]
 
     # data paths for all experiments
