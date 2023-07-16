@@ -5,6 +5,7 @@ import numpy as np
 import torch
 
 from models.utils import sample_label_normal_dist
+from parareal.parallel_scheme_training import parareal_scheme
 
 sys.path.append("..")
 sys.path.append("../..")
@@ -12,10 +13,7 @@ sys.path.append("../..")
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-# todo: write this different and connect with already existing parareal code
-
-
-def train_model(
+def train_model_parareal(
     model,
     epoch,
     label_distr_shift,
@@ -39,20 +37,11 @@ def train_model(
         for input_idx in random.choices(
             range(param_d["n_snaps"]), k=param_d["n_snaps"]
         ):
-            label_range = sample_label_normal_dist(
-                input_idx,param_d["n_snaps"],0,False,False,
-            )
+
             input_tensor = data[:, input_idx].detach()  # b x 4 x w x h
 
-            for label_idx in range(
-                input_idx + 1, label_range + 1
-            ):  # randomly decide how long path is
-                label = data[:, label_idx, :3]  # b x 3 x w x h
-                output = model(input_tensor)  # b x 3 x w x h
-                loss_list.append(loss_f(output, label))
-                input_tensor = torch.cat(
-                    (output, input_tensor[:, 3].unsqueeze(dim=1)), dim=1
-                )
+            label_tensor_all = data[:, input_idx + 1 : , :3].detach()
+            loss_list += parareal_scheme(model, input_tensor, label_tensor_all, loss_f, 4, 8 - input_idx + 1)
 
         optimizer.zero_grad()
         sum(loss_list).backward()

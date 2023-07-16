@@ -18,24 +18,6 @@ def component_grid_search_end_to_end(downsampling_models, upsampling_models, exp
 
     model_res = 128
 
-    if experiment_index == 0:
-        downsampling_models = ["Interpolation"]
-        upsampling_models = ["UNet3"]
-
-    elif experiment_index == 1:
-        # downsampling_models = ["Interpolation"]
-        # upsampling_models = [
-        # "UNet3",
-        # "UNet6",
-        # "Tiramisu",
-        # "UTransform",
-        # ]
-        a = 5
-
-    else:  # experiment 2 -- 5
-        downsampling_models = ["Interpolation"]
-        upsampling_models = ["UNet3"]
-
     # EXPERIMENT 3
     if experiment_index == 3:
         flipping = True
@@ -54,9 +36,6 @@ def component_grid_search_end_to_end(downsampling_models, upsampling_models, exp
         multi_step = True
     else:
         weighted_loss = False
-
-    if experiment_index == 6:
-        a = 5
 
     for d in downsampling_models:
         for u in upsampling_models:
@@ -82,7 +61,7 @@ def component_grid_search_end_to_end(downsampling_models, upsampling_models, exp
 
 
 if __name__ == "__main__":
-    experiment_index = 6 # int(sys.argv[1])
+    experiment_index = 3 # int(sys.argv[1])
     downsampling_models = [
         # sys.argv[2]
         "Interpolation",
@@ -91,7 +70,8 @@ if __name__ == "__main__":
         # "UTransform",
     ]
     upsampling_models = [
-        "Tiramisu"
+        "UNet3"
+        # "Tiramisu"
         # sys.argv[3]
     ]
 

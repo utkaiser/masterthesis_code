@@ -22,7 +22,7 @@ environ["OMP_NUM_THREADS"] = "1"
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-def fetch_data_end_to_end(data_paths, batch_size, additional_test_paths):
+def fetch_data_end_to_end(data_paths, batch_size, additional_test_paths, experiment_index):
     """
     Parameters
     ----------
@@ -63,21 +63,30 @@ def fetch_data_end_to_end(data_paths, batch_size, additional_test_paths):
     val_or_test_size = int(0.1 * len(full_dataset))
 
     # split dataset randomly and append special validation/ test data
-    train_dataset, val_dataset, test_dataset = torch.utils.data.random_split(
-        full_dataset, [train_size, val_or_test_size, val_or_test_size]
-    )
+    if experiment_index == 6:
+        train_dataset, _,__, val_dataset, test_dataset = torch.utils.data.random_split(
+            full_dataset, [train_size//4, train_size//4, train_size//2, val_or_test_size, val_or_test_size]
+        )
+    if experiment_index == 7:
+        train_dataset, _, _, _, val_dataset, test_dataset = torch.utils.data.random_split(
+            full_dataset, [train_size//8, train_size//8, train_size//4, train_size//2, val_or_test_size, val_or_test_size]
+        )
+    else:
+        train_dataset, val_dataset, test_dataset = torch.utils.data.random_split(
+            full_dataset, [train_size, val_or_test_size, val_or_test_size]
+        )
     val_datasets = val_dataset  # + get_datasets(additional_test_paths)
     test_datasets = test_dataset + get_datasets(additional_test_paths)
 
     # get dataloader objects
     train_loader = torch.utils.data.DataLoader(
-        train_dataset, batch_size=batch_size, shuffle=True, num_workers=1
+        train_dataset, batch_size=batch_size, shuffle=True
     )
     val_loader = torch.utils.data.DataLoader(
-        val_datasets, batch_size=batch_size, shuffle=True, num_workers=1
+        val_datasets, batch_size=batch_size, shuffle=True
     )
     test_loader = torch.utils.data.DataLoader(
-        test_datasets, batch_size=batch_size, shuffle=True, num_workers=1
+        test_datasets, batch_size=batch_size, shuffle=True
     )
 
     logging.info(

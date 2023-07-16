@@ -45,7 +45,7 @@ def one_iteration_pseudo_spectral_tensor(
         u, u_t, vel, f_delta_x, f_delta_t, delta_t_star
     )
     u_x, u_y, u_t_c = WaveEnergyComponentField_tensor(
-        u_prop, u_t_prop, vel.unsqueeze(dim=0), f_delta_x
+        u_prop, u_t_prop, vel.unsqueeze(dim=1), f_delta_x
     )
     return torch.stack([u_x, u_y, u_t_c], dim=1)
 

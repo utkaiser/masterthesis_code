@@ -5,6 +5,7 @@ import random
 
 import scipy
 import torch
+import logging
 
 from generate_data.utils import smaller_crop
 from generate_data.utils_wave_propagate import one_iteration_pseudo_spectral_tensor
@@ -13,40 +14,40 @@ from models.utils import sample_label_normal_dist
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-def optimize_solution(model, loss_f, data, label_distr_shift):
-    """
-    Parameters
-    ----------
-    model : (pytorch.Model) end-to-end model to advance a wave front
-    loss_f : (pytorch.LossFunction) loss function to adjust model weights and biases
-    data : (pytorch tensor) input and label data
-    label_distr_shift : (int) defines distribution of iteration length
-
-    Returns
-    -------
-    deploys multiple parareal iterations to enhance standard end-to-end solution using Parareal
-    """
-
-    n_snaps = data.shape[1]
-    loss_list = []
-
-    for input_idx in random.choice(range(n_snaps - 2)):
-        u_0 = data[:, input_idx, :, :, :]
-
-        # randomly sample label idx from normal distribution
-        label_range = sample_label_normal_dist(
-            input_idx, n_snaps, label_distr_shift, -1
-        )
-
-        if label_range - input_idx == 1:
-            label = data[:, input_idx + 1, :3, :, :].unsqueeze(dim=0).to(device)
-            it = 2
-        else:
-            label = data[:, input_idx + 1 : label_range + 1, :3, :, :].to(device)
-            it = label_range - input_idx + 1
-        loss_list += parareal_scheme(model, u_0, label, loss_f, 2, it)
-
-    return loss_list
+# def optimize_solution(model, loss_f, data, label_distr_shift):
+#     """
+#     Parameters
+#     ----------
+#     model : (pytorch.Model) end-to-end model to advance a wave front
+#     loss_f : (pytorch.LossFunction) loss function to adjust model weights and biases
+#     data : (pytorch tensor) input and label data
+#     label_distr_shift : (int) defines distribution of iteration length
+#
+#     Returns
+#     -------
+#     deploys multiple parareal iterations to enhance standard end-to-end solution using Parareal
+#     """
+#
+#     n_snaps = data.shape[1]
+#     loss_list = []
+#
+#     for input_idx in random.choice(range(n_snaps - 2)):
+#         u_0 = data[:, input_idx, :, :, :]
+#
+#         # randomly sample label idx from normal distribution
+#         label_range = sample_label_normal_dist(
+#             input_idx, n_snaps, label_distr_shift, -1
+#         )
+#
+#         if label_range - input_idx == 1:
+#             label = data[:, input_idx + 1, :3, :, :].unsqueeze(dim=0).to(device)
+#             it = 2
+#         else:
+#             label = data[:, input_idx + 1 : label_range + 1, :3, :, :].to(device)
+#             it = label_range - input_idx + 1
+#         loss_list += parareal_scheme(model, u_0, label, loss_f, 2, it)
+#
+#     return loss_list
 
 
 def parareal_scheme(model, u_0, label, loss_f, n_parareal, n_snapshots):
@@ -80,8 +81,6 @@ def parareal_scheme(model, u_0, label, loss_f, n_parareal, n_snapshots):
 
     # parareal iterations: k = 1, 2, 3, 4
     for k in range(1, n_parareal + 1):
-        print(k)
-
         big_tensor[0] = u_0[:, :3].clone()
         parareal_terms = get_parareal_terms(
             model.to(device),
@@ -148,31 +147,31 @@ def compute_parareal_term(model, u_n_k):
 
     res_fine_solver = one_iteration_pseudo_spectral_tensor(
         u_n_k
-    )  # one_iteration_velocity_verlet(u_n_k)
+    )
     res_model = model(u_n_k)  # procrustes_optimization(model(u_n_k), res_fine_solver)
 
     return res_fine_solver.to(device) - res_model.to(device)
 
 
-def procrustes_optimization(matrix, target):
-    """
-    Parameters
-    ----------
-    matrix : (pytorch tensor) input wave field
-    target : (pytorch tensor) output target wave field
-
-    Returns
-    -------
-    performs procrustes optimization according to Hieu and Tsai's paper, not subject of this thesis
-    because of poor performance in our setup (as parareal, and end-to-end model already perform well)
-    """
-
-    procrustes_res = torch.zeros(matrix.shape)
-
-    for c in range(matrix.shape[1]):
-        # channel-wise procrustes
-        m, t = matrix[0, c], target[0, c]
-        omega, _ = scipy.linalg.orthogonal_procrustes(m, t)
-        procrustes_res[0, c, :, :] = torch.from_numpy(omega) * m
-
-    return procrustes_res
+# def procrustes_optimization(matrix, target):
+#     """
+#     Parameters
+#     ----------
+#     matrix : (pytorch tensor) input wave field
+#     target : (pytorch tensor) output target wave field
+#
+#     Returns
+#     -------
+#     performs procrustes optimization according to Hieu and Tsai's paper, not subject of this thesis
+#     because of poor performance in our setup (as parareal, and end-to-end model already perform well)
+#     """
+#
+#     procrustes_res = torch.zeros(matrix.shape)
+#
+#     for c in range(matrix.shape[1]):
+#         # channel-wise procrustes
+#         m, t = matrix[0, c], target[0, c]
+#         omega, _ = scipy.linalg.orthogonal_procrustes(m, t)
+#         procrustes_res[0, c, :, :] = torch.from_numpy(omega) * m
+#
+#     return procrustes_res

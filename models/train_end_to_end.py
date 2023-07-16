@@ -1,6 +1,9 @@
 import sys
 
 import os
+
+from parareal.parallel_scheme_training import parareal_scheme
+
 os.environ['CUDA_VISIBLE_DEVICES']='2, 3'
 os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:64"
 
@@ -15,10 +18,10 @@ from utils import (
     fetch_data_end_to_end,
     hyperparameter_grid_search_end_to_end,
     sample_label_normal_dist,
-    setup_logger,
+    setup_logger, flip_tensors,
 )
 
-from parareal.parareal_scheme_new import train_model
+from parareal.parareal_scheme_new import train_model_parareal
 from models.model_end_to_end import save_model, setup_model
 from models.param_settings import get_params, get_paths
 from models.visualize_training import visualize_wavefield
@@ -106,8 +109,8 @@ def train_Dt_end_to_end(
     for lr, batch_size, weight_decay, dx, dt in hyperparameter_grid_search_end_to_end(
         upsampling_model, experiment_index, param_d
     ):
-        if experiment_index == 6:
-            batch_size /= 4
+        if experiment_index == 6 or experiment_index == 4 or experiment_index == 5 or experiment_index == 7:
+            batch_size //= 4
 
         param_d["c_delta_x"] = dx
         param_d["c_delta_t"] = dt
@@ -125,10 +128,11 @@ def train_Dt_end_to_end(
             weight_decay,
             device,
             weighted_loss,
+            experiment_index,
         )
 
         train_loader, val_loader, _ = fetch_data_end_to_end(
-            data_paths, batch_size, val_paths
+            data_paths, batch_size, val_paths, experiment_index
         )
 
         for epoch in range(param_d["n_epochs"]):
@@ -152,6 +156,7 @@ def train_Dt_end_to_end(
                 multi_step,
                 weighted_loss,
                 experiment_index,
+                flipping
             )
             val_performance = val_model(
                 model,
@@ -204,9 +209,10 @@ def train_Dt_end_to_end(
         dict_best_score["weight_decay"],
         device,
         weighted_loss,
+        experiment_index,
     )
     train_loader, val_loader, test_loader = fetch_data_end_to_end(
-        data_paths, dict_best_score["batch_size"], val_paths
+        data_paths, dict_best_score["batch_size"], val_paths, experiment_index
     )
     trainval_loader = [
         d for dl in [train_loader, val_loader] for d in dl
@@ -227,6 +233,7 @@ def train_Dt_end_to_end(
             multi_step,
             weighted_loss,
             experiment_index,
+            flipping
         )
         _ = val_model(
             model,
@@ -252,6 +259,8 @@ def train_Dt_end_to_end(
     logging.info("\n\n\n" + "*" * 100 + "\n\n\n")
 
 
+import torchvision.transforms.functional as TF
+
 def train_model(
     model,
     epoch,
@@ -266,10 +275,11 @@ def train_model(
     multi_step,
     weighted_loss,
     experiment_index,
+    flipping
 ):
     if experiment_index == 6:
 
-        train_model(
+        return train_model_parareal(
             model,
             epoch,
             label_distr_shift,
@@ -282,7 +292,6 @@ def train_model(
             loss_f,
             multi_step,
             weighted_loss,
-            experiment_index,
         )
     else:
         model.train()
@@ -306,15 +315,21 @@ def train_model(
                 )
                 input_tensor = data[:, input_idx].detach()  # b x 4 x w x h
 
+                v_flipped = False
+                h_flipped = False
+
                 for label_idx in range(
                     input_idx + 1, label_range + 1
                 ):  # randomly decide how long path is
+
                     label = data[:, label_idx, :3]  # b x 3 x w x h
+
+                    if flipping:
+                        input_tensor, label, v_flipped, h_flipped = flip_tensors(input_tensor, label, v_flipped, h_flipped)
+
                     output = model(input_tensor)  # b x 3 x w x h
                     loss_list.append(loss_f(output, label))
-                    input_tensor = torch.cat(
-                        (output, input_tensor[:, 3].unsqueeze(dim=1)), dim=1
-                    )
+                    input_tensor = torch.cat((output, input_tensor[:, 3].unsqueeze(dim=1)), dim=1)
 
             optimizer.zero_grad()
             sum(loss_list).backward()

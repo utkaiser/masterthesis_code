@@ -18,7 +18,7 @@ def get_paths(experiment_index=0):
     """
 
     # test experiment used for debugging
-    if experiment_index == 6:  # todo: change back
+    if experiment_index == 3:  # todo: change back
         data_paths = ["../data/Dt_128/bp_marmousi_128_10_none_14.npz"]
 
     # data paths for all experiments
@@ -82,7 +82,7 @@ def get_params(experiment_index, flipping):
     """
 
     d = {
-        "n_epochs": 2,  # todo: change back
+        "n_epochs": 20,  # todo: change back
         "n_snaps": 8,
         "boundary_c": "absorbing",
         "delta_t_star": 0.06,
@@ -95,7 +95,7 @@ def get_params(experiment_index, flipping):
         "res_scaler": 2,
     }
 
-    if flipping:
+    if experiment_index == 12:  # unet interpolation and longer training
         d["n_epochs"] *= 4
 
     return d

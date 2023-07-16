@@ -198,7 +198,7 @@ class CNN_restriction(torch.nn.Module):
             groups=in_channels,
             kernel=3
         ).double()
-
+        """
         self.skip_block_1 = Restr_block(
             in_channels, in_channels * 2, stride=2, kernel=3
         ).double()
@@ -230,6 +230,7 @@ class CNN_restriction(torch.nn.Module):
             batch_norm=False,
             kernel=3
         ).double()
+        """
 
     def forward(self, x):
         """
@@ -241,7 +242,7 @@ class CNN_restriction(torch.nn.Module):
         -------
         down samples solution using a complex cnn architecture
         """
-
+        '''
         x_skip = x.clone()
         x_skip = self.skip_block_1(x_skip)
         x_skip = self.skip_block_1a(x_skip)
@@ -250,7 +251,7 @@ class CNN_restriction(torch.nn.Module):
         x_skip = self.skip_block_3(x_skip)
         x_skip = self.skip_block_3a(x_skip)
         x_skip = self.skip_block_4(x_skip)
-
+        '''
         x = self.restr_layer1(x)
         x = self.restr_layer2(x)
         x = self.restr_layer3(x)
@@ -263,7 +264,7 @@ class CNN_restriction(torch.nn.Module):
         x = self.restr_layer5(x)
         x = self.restr_layer6(x)
 
-        return x, x_skip
+        return x, None
 
 
 class Restr_block(torch.nn.Module):

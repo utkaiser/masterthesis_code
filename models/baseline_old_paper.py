@@ -3,6 +3,9 @@ import os
 import random
 
 import sys
+
+from models.visualize_training import visualize_wavefield
+
 sys.path.append("..")
 sys.path.append("../..")
 
@@ -10,12 +13,11 @@ import numpy as np
 import torch
 from torch import nn
 
-from generate_data.utils import get_wavefield
 from generate_data.utils_wave_propagate import (
     one_iteration_velocity_verlet_tensor,
     resize_to_coarse,
 )
-from models.model_end_to_end import save_model, setup_model
+from models.model_end_to_end import save_model
 from models.model_upsampling import choose_upsampling
 from models.param_settings import get_params, get_paths
 from models.utils import (
@@ -80,7 +82,7 @@ def train_Dt_old_paper(
 
     # training and hyperparameter search with validation
     for lr, batch_size, weight_decay, _, _ in hyperparameter_grid_search_end_to_end(
-        experiment_index, param_d, "old_paper"
+        "UNet", experiment_index, param_d, "old_paper"
     ):
         logging.info(
             f"{'-' * 10} Start training of {lr}, {batch_size}, {weight_decay}, {param_d['c_delta_x']:.5f}, {param_d['c_delta_t']:.5f} {'-' * 10}"
@@ -97,7 +99,7 @@ def train_Dt_old_paper(
             )
             val_performance = val_model(
                 model,
-                vis_path,
+                f"{vis_path}vis_results/{model_name}_{lr}_{batch_size}_{weight_decay}",
                 vis_save,
                 val_loader,
                 loss_f,
@@ -143,7 +145,7 @@ def train_Dt_old_paper(
         )
         _ = val_model(
             model,
-            vis_path,
+            f"{vis_path}vis_results/best_{model_name}_{dict_best_score['lr']}_{dict_best_score['batch_size']}_{dict_best_score['weight_decay']}",
             vis_save,
             test_loader,
             loss_f,
@@ -164,7 +166,7 @@ def train_model(model, train_loader, param_d, global_step, optimizer, loss_f):
         data = data[0].to(device)
 
         for input_idx in random.choices(
-            range(param_d["n_snaps"] + 1), k=param_d["n_snaps"]
+            range(1, param_d["n_snaps"] + 1), k=param_d["n_snaps"]
         ):
             input_tensor = resize_to_coarse(
                 data[:, input_idx, :4].detach(), 64
@@ -180,14 +182,6 @@ def train_model(model, train_loader, param_d, global_step, optimizer, loss_f):
             global_step += 1
             train_loss_list.append(loss)
 
-            visualize_model_effect(
-                data[:, input_idx, -1].detach().cpu(),
-                input_tensor.detach().cpu(),
-                output.detach().cpu(),
-                label.detach().cpu(),
-                True,
-            )
-
     return train_loss_list, model, global_step, optimizer
 
 
@@ -201,9 +195,14 @@ def val_model(
     train_loss_list,
     visualize_res_bool,
 ):
+
+    if visualize_res_bool and not os.path.exists(vis_path):
+        os.makedirs(vis_path)
+
     model.eval()
     with torch.no_grad():
         val_loss_list = []
+
         for i, data in enumerate(val_loader):
             n_snaps = data[0].shape[1]
             data = data[0].to(device)  # b x n_snaps x 3 x w x h
@@ -212,8 +211,7 @@ def val_model(
             input_tensor = data[:, 0, :4].clone()  # b x 4 x w x h
             vel_large = data[:, 0, -1].unsqueeze(dim=1)
             vel = resize_to_coarse(data[:, 0, 3].unsqueeze(dim=1), 64)
-
-            for label_idx in range(n_snaps):
+            for label_idx in range(1, n_snaps + 1):
                 label = data[:, label_idx, 4:-1]  # b x 3 x w x h
 
                 input_tensor = resize_to_coarse(input_tensor, 64)
@@ -226,9 +224,26 @@ def val_model(
                 val_loss = loss_f(output, label)
                 val_loss_list.append(val_loss.item())
 
-                visualize_model_effect(vel_large, input_tensor, output, label, False)
+                if i == 0:
+                    visualize_list.append(
+                        (
+                            val_loss.item(),
+                            output[0].detach().cpu(),
+                            label[0].detach().cpu(),
+                        )
+                    )
 
                 input_tensor = torch.cat((output, vel_large), dim=1)
+
+            if i == 0:
+                visualize_wavefield(
+                    epoch,
+                    visualize_list,
+                    input_tensor[0, 3].cpu(),
+                    vis_save=True,
+                    vis_path=vis_path + "/",
+                    initial_u=data[0, 0, 4:].unsqueeze(dim=0).cpu(),
+                )
 
         val_performance = np.array(val_loss_list).mean()
 
@@ -247,50 +262,6 @@ def val_model(
             )
 
     return val_performance
-
-
-import matplotlib.pyplot as plt
-import torch.nn.functional as F
-
-
-def visualize_model_effect(vel, input_tensor, output, label, training):
-    if training:
-        suffix = "training"
-    else:
-        suffix = "validation"
-
-    fig = plt.figure(figsize=(20, 8))
-
-    # input
-    ax = fig.add_subplot(1, 4, 1)
-    pos = ax.imshow(vel[0])
-    plt.colorbar(pos)
-    ax.set_title(f"{suffix}_velocity", fontdict={"fontsize": 9})
-    plt.axis("off")
-
-    # input
-    ax = fig.add_subplot(1, 4, 2)
-    inpt_wavefield = F.upsample(input_tensor[:, :3], size=(128, 128), mode="bilinear")
-    pos = ax.imshow(get_wavefield(inpt_wavefield, vel).squeeze())
-    plt.colorbar(pos)
-    ax.set_title("input", fontdict={"fontsize": 9})
-    plt.axis("off")
-
-    # output
-    ax = fig.add_subplot(1, 4, 3)
-    pos = ax.imshow(get_wavefield(output, vel).squeeze())
-    plt.colorbar(pos)
-    ax.set_title("output", fontdict={"fontsize": 9})
-    plt.axis("off")
-
-    # label
-    ax = fig.add_subplot(1, 4, 4)
-    pos = ax.imshow(get_wavefield(label, vel).squeeze())
-    plt.colorbar(pos)
-    ax.set_title("label", fontdict={"fontsize": 9})
-    plt.axis("off")
-
-    plt.show()
 
 
 def setup_model_old_paper(param_d, lr, weight_decay):

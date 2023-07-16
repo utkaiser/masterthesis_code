@@ -62,11 +62,8 @@ def get_results_vanilla(experiment_index=0, flipping=False, model_res=128):
     model = Model_end_to_end(
         param_d, "Interpolation", "Interpolation", model_res
     ).double()  # build vanilla baseline model
-    trainval_loader = [
-        d for dl in [train_loader, val_loader] for d in dl
-    ]  # merge train and validation set for testing
 
-    val_performance = val_model_vanilla(model, trainval_loader, loss_f)
+    val_performance = val_model_vanilla(model, test_loader, loss_f)
 
     logging.info(
         f"Test performance is {val_performance} using baseline_{param_d['c_delta_x']:.5f}_{param_d['c_delta_t']:.5f}"
@@ -89,6 +86,7 @@ def val_model_vanilla(model, val_loader, loss_f):
             val_loss = loss_f(output, label)
             val_loss_list.append(val_loss.item())
             input_tensor = torch.cat((output, vel), dim=1)
+        logging.info(f"Iteration {i}")
 
     val_performance = np.array(val_loss_list).mean()
 

@@ -166,6 +166,7 @@ def setup_model(
     weight_decay,
     device,
     weighted_loss,
+    experiment_index,
 ):
     # model setup
     model = Model_end_to_end(
@@ -174,6 +175,10 @@ def setup_model(
     model = torch.nn.DataParallel(model).to(device)  # multi-GPU use
     optimizer = choose_optimizer(param_d["optimizer_name"], model, lr, weight_decay)
     loss_f = choose_loss_function(param_d["loss_function_name"])
+
+    if experiment_index == 7:  # load pretrained model
+        model.load_state_dict(torch.load("../results/sorted/exp1_Interpolation_UNet3/saved_model_best_Interpolation_UNet3_AdamW_MSE_2_128_False_False_0.001_256_0.01.pt"))
+        logging.info("preload")
 
     if weighted_loss:
         label_distr_shift = 1
