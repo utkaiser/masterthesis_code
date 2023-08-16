@@ -4,8 +4,6 @@ import random
 
 import sys
 
-from models.visualize_training import visualize_wavefield
-
 sys.path.append("..")
 sys.path.append("../..")
 
@@ -15,7 +13,7 @@ from torch import nn
 
 from generate_data.utils_wave_propagate import (
     one_iteration_velocity_verlet_tensor,
-    resize_to_coarse,
+    resize_to_coarse, resize_to_coarse_interp
 )
 from models.model_end_to_end import save_model
 from models.model_upsampling import choose_upsampling
@@ -35,7 +33,7 @@ class Model_old_paper(
 ):
     def __init__(self, param_dict):
         super().__init__()
-        self.model_upsampling = choose_upsampling("UNet3", param_dict["res_scaler"])
+        self.model_upsampling = choose_upsampling("UNet3", 2)
         self.model_upsampling.to(device)
 
     def forward(self, x):
@@ -43,7 +41,7 @@ class Model_old_paper(
 
 
 def train_Dt_old_paper(
-    flipping, experiment_index, visualize_res_bool, vis_save, model_res=128
+        flipping, experiment_index, visualize_res_bool, vis_save, model_res=128
 ):
     # params and logger setup
     (
@@ -82,7 +80,7 @@ def train_Dt_old_paper(
 
     # training and hyperparameter search with validation
     for lr, batch_size, weight_decay, _, _ in hyperparameter_grid_search_end_to_end(
-        "UNet", experiment_index, param_d, "old_paper"
+            "UNet", experiment_index, param_d, "old_paper"
     ):
         logging.info(
             f"{'-' * 10} Start training of {lr}, {batch_size}, {weight_decay}, {param_d['c_delta_x']:.5f}, {param_d['c_delta_t']:.5f} {'-' * 10}"
@@ -95,7 +93,7 @@ def train_Dt_old_paper(
 
         for epoch in range(param_d["n_epochs"]):
             train_loss_list, model, global_step, optimizer = train_model(
-                model, train_loader, param_d, global_step, optimizer, loss_f
+                model, train_loader, param_d, global_step, optimizer, loss_f, flipping
             )
             val_performance = val_model(
                 model,
@@ -141,7 +139,7 @@ def train_Dt_old_paper(
 
     for epoch in range(param_d["n_epochs"]):
         train_loss_list, model, global_step, optimizer = train_model(
-            model, trainval_loader, param_d, global_step, optimizer, loss_f
+            model, trainval_loader, param_d, global_step, optimizer, loss_f, flipping
         )
         _ = val_model(
             model,
@@ -158,44 +156,51 @@ def train_Dt_old_paper(
     )
 
 
-def train_model(model, train_loader, param_d, global_step, optimizer, loss_f):
+def train_model(model, train_loader, param_d, global_step, optimizer, loss_f, flipping):
     model.train()
     train_loss_list = []
 
     for i, data in enumerate(train_loader):
         data = data[0].to(device)
 
+        v_flipped = False
+        h_flipped = False
+
         for input_idx in random.choices(
-            range(1, param_d["n_snaps"] + 1), k=param_d["n_snaps"]
+                range(1, param_d["n_snaps"]), k=param_d["n_snaps"]
         ):
             input_tensor = resize_to_coarse(
-                data[:, input_idx, :4].detach(), 64
+                data[:, input_idx, :4].detach(),
             )  # b x 4 x w x h
+
             label = data[:, input_idx, 4:-1]  # b x 3 x w x h
+
+            if flipping:
+                input_tensor, label, v_flipped, h_flipped = flip_tensors(input_tensor, label, v_flipped, h_flipped)
 
             output = model(input_tensor)  # b x 3 x w x h
             loss = loss_f(output, label)
+
+            train_loss_list.append(loss.item())
 
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
             global_step += 1
-            train_loss_list.append(loss)
 
     return train_loss_list, model, global_step, optimizer
 
 
 def val_model(
-    model,
-    vis_path,
-    vis_save,
-    val_loader,
-    loss_f,
-    epoch,
-    train_loss_list,
-    visualize_res_bool,
+        model,
+        vis_path,
+        vis_save,
+        val_loader,
+        loss_f,
+        epoch,
+        train_loss_list,
+        visualize_res_bool,
 ):
-
     if visualize_res_bool and not os.path.exists(vis_path):
         os.makedirs(vis_path)
 
@@ -208,17 +213,15 @@ def val_model(
             data = data[0].to(device)  # b x n_snaps x 3 x w x h
 
             visualize_list = []
-            input_tensor = data[:, 0, :4].clone()  # b x 4 x w x h
+            input_tensor = resize_to_coarse(data[:, 0, :4].clone())  # b x 4 x w x h
             vel_large = data[:, 0, -1].unsqueeze(dim=1)
-            vel = resize_to_coarse(data[:, 0, 3].unsqueeze(dim=1), 64)
-            for label_idx in range(1, n_snaps + 1):
+            vel = resize_to_coarse(data[:, 0, 3].unsqueeze(dim=1))
+            for label_idx in range(1, n_snaps):
                 label = data[:, label_idx, 4:-1]  # b x 3 x w x h
 
-                input_tensor = resize_to_coarse(input_tensor, 64)
+                input_tensor = one_iteration_velocity_verlet_tensor(input_tensor.cpu()).to(device)
 
-                input_tensor = one_iteration_velocity_verlet_tensor(input_tensor)
-
-                input_tensor = torch.cat((input_tensor, vel), dim=1)
+                input_tensor = torch.cat((input_tensor, vel), dim=1).to(device)
                 output = model(input_tensor)
 
                 val_loss = loss_f(output, label)
@@ -234,16 +237,7 @@ def val_model(
                     )
 
                 input_tensor = torch.cat((output, vel_large), dim=1)
-
-            if i == 0:
-                visualize_wavefield(
-                    epoch,
-                    visualize_list,
-                    input_tensor[0, 3].cpu(),
-                    vis_save=True,
-                    vis_path=vis_path + "/",
-                    initial_u=data[0, 0, 4:].unsqueeze(dim=0).cpu(),
-                )
+                input_tensor = resize_to_coarse_interp(input_tensor, 64)
 
         val_performance = np.array(val_loss_list).mean()
 
@@ -351,7 +345,7 @@ def get_paths(experiment_index=0):
     """
 
     # test experiment used for debugging
-    if experiment_index == 0:
+    if experiment_index == 13:
         data_paths = ["../data_old/Dt_old_128/bp_marmousi_128_10_none_0.npz"]
 
     # data paths for all experiments
@@ -370,7 +364,7 @@ def get_paths(experiment_index=0):
             "../data_old/Dt_old_128/bp_marmousi_128_400_none_9.npz",
             "../data_old/Dt_old_128/bp_marmousi_128_400_none_10.npz",
             "../data_old/Dt_old_128/bp_marmousi_128_400_none_11.npz",
-            "../data_old/Dt_old_128/bp_marmousi_128_200_none_12.npz",
+            "../data_old/Dt_old_128/bp_marmousi_128_400_none_12.npz",
         ]
 
     test_paths = [
@@ -400,3 +394,36 @@ def get_paths(experiment_index=0):
         vis_path,
         test_paths,
     )
+
+import torchvision.transforms.functional as TF
+
+def flip_tensors(input_tensor, label, v_flipped, h_flipped):
+    """
+    Parameters
+    ----------
+    input_tensor : (pytorch tensor) wave img representation
+    label : (pytorch tensor) label wave img representation
+    v_flipped : (bool) if input_tensor should be vertically flipped
+    h_flipped : (bool) if input_tensor should be horizontally flipped
+
+    Returns
+    -------
+    flipped input and label according to flipping scheme with flipping probability of .5
+    """
+
+    if v_flipped:
+        label = TF.vflip(label)
+    if h_flipped:
+        label = TF.hflip(label)
+
+    # random vertical and horizontal flipping
+    if random.random() > 0.5:
+        v_flipped = not v_flipped
+        input_tensor = TF.vflip(input_tensor)
+        label = TF.vflip(label)
+    if random.random() > 0.5:
+        h_flipped = not h_flipped
+        input_tensor = TF.hflip(input_tensor)
+        label = TF.hflip(label)
+
+    return input_tensor.detach(), label.detach(), v_flipped, h_flipped

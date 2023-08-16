@@ -53,7 +53,7 @@ def component_grid_search_end_to_end(downsampling_models, upsampling_models, exp
             )
 
     # train_Dt_old_paper(
-    #     flipping=flipping,
+    #     flipping=True,
     #     experiment_index=experiment_index,
     #     visualize_res_bool=True,
     #     vis_save=False
@@ -61,7 +61,7 @@ def component_grid_search_end_to_end(downsampling_models, upsampling_models, exp
 
 
 if __name__ == "__main__":
-    experiment_index = 3 # int(sys.argv[1])
+    experiment_index = 0 # int(sys.argv[1])
     downsampling_models = [
         # sys.argv[2]
         "Interpolation",

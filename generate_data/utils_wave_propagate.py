@@ -2,6 +2,7 @@ import torch
 import torch.nn.functional as F
 
 import sys
+
 sys.path.append("..")
 sys.path.append("../..")
 
@@ -93,12 +94,13 @@ def one_iteration_velocity_verlet_tensor(
     )
 
     u_x, u_y, u_t_c = WaveEnergyComponentField_tensor(
-        u_prop, u_t_prop, vel.unsqueeze(dim=0), c_delta_x
+        u_prop, u_t_prop, vel, c_delta_x
     )
+
     return torch.stack([u_x, u_y, u_t_c], dim=1)
 
 
-def resize_to_coarse(u_n, res_coarse):
+def resize_to_coarse(u_n):
     # u_n_k.shape: b x c x w x h
 
     return u_n[:, :, 32:-32, 32:-32]

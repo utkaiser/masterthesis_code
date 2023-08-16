@@ -124,7 +124,7 @@ def flip_tensors(input_tensor, label, v_flipped, h_flipped):
         input_tensor = TF.hflip(input_tensor)
         label = TF.hflip(label)
 
-    return input_tensor, label, v_flipped, h_flipped
+    return input_tensor.detach(), label.detach(), v_flipped, h_flipped
 
 
 def sample_label_normal_dist(
@@ -146,19 +146,20 @@ def sample_label_normal_dist(
 
     if multi_step:
         if weighted_loss:
+            if input_idx == 7: return 8
             low = input_idx
             upp = n_snaps
             mean = min(upp, input_idx + label_distr_shift)
             sd = 1
             if input_idx + 1 == n_snaps - 1:
-                return n_snaps - 1
+                result = n_snaps - 1
             else:
-                return round(
+                result = round(
                     truncnorm(
                         (low - mean) / sd, (upp - mean) / sd, loc=mean, scale=sd
                     ).rvs()
                 )
-
+            return min(8, result)
         else:
             return random.randint(min(input_idx + 2, n_snaps), n_snaps)
 

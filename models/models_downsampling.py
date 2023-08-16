@@ -162,42 +162,62 @@ class CNN_restriction(torch.nn.Module):
         super(CNN_restriction, self).__init__()
         in_channels = 4
 
-        self.restr_layer1 = Restr_block(
-            in_channels, in_channels * 2, groups=in_channels, stride=2, kernel=3
-        ).double()
-        self.restr_layer2 = Restr_block(
-            in_channels * 2, in_channels * 4, groups=in_channels, stride=2, kernel=3
-        ).double()
-        self.restr_layer3 = Restr_block(
-            in_channels * 4, in_channels * 8, groups=in_channels, stride=2, kernel=3
-        ).double()
-        self.restr_layer3b = Restr_block(
-            in_channels * 8, in_channels * 16, groups=in_channels, stride=2, kernel=3
-        ).double()
-        self.up3c = Up_block(
-            in_channels * 16, in_channels * 8, stride=2, groups=in_channels, kernel=3
-        ).double()
-        self.restr_layer4 = Up_block(
-            in_channels * 8, in_channels * 4, stride=2, groups=in_channels, kernel=3
-        ).double()
-        self.restr_layer5 = Up_block(
-            in_channels * 4,
-            in_channels * 2,
-            stride=2,
-            relu=False,
-            batch_norm=False,
-            groups=in_channels,
-            kernel=3,
-            padding=1,
-        ).double()
-        self.restr_layer6 = Up_block(
-            in_channels * 2,
-            in_channels,
-            relu=False,
-            batch_norm=False,
-            groups=in_channels,
-            kernel=3
-        ).double()
+        self.block1 = Restr_block(
+            in_channels, in_channels, groups=in_channels, kernel = 7, padding=3
+        )
+        self.block2 = Restr_block(
+            in_channels, in_channels, groups=in_channels, kernel=3
+        )
+        self.block_avg = torch.nn.AvgPool2d(
+            kernel_size=2
+        )
+        self.block3 = Restr_block(
+            in_channels, in_channels, groups=in_channels, kernel=3
+        )
+        self.block4 = Restr_block(
+            in_channels, in_channels, groups=in_channels, kernel=3
+        )
+        self.block5 = Restr_block(
+            in_channels, in_channels, groups=in_channels, kernel=1, padding = 0,
+            batch_norm=False, relu=False
+        )
+
+        # self.restr_layer1 = Restr_block(
+        #     in_channels, in_channels * 2, groups=in_channels, stride=2, kernel=3
+        # ).double()
+        # self.restr_layer2 = Restr_block(
+        #     in_channels * 2, in_channels * 4, groups=in_channels, stride=2, kernel=3
+        # ).double()
+        # self.restr_layer3 = Restr_block(
+        #     in_channels * 4, in_channels * 8, groups=in_channels, stride=2, kernel=3
+        # ).double()
+        # self.restr_layer3b = Restr_block(
+        #     in_channels * 8, in_channels * 16, groups=in_channels, stride=2, kernel=3
+        # ).double()
+        # self.up3c = Up_block(
+        #     in_channels * 16, in_channels * 8, stride=2, groups=in_channels, kernel=3
+        # ).double()
+        # self.restr_layer4 = Up_block(
+        #     in_channels * 8, in_channels * 4, stride=2, groups=in_channels, kernel=3
+        # ).double()
+        # self.restr_layer5 = Up_block(
+        #     in_channels * 4,
+        #     in_channels * 2,
+        #     stride=2,
+        #     relu=False,
+        #     batch_norm=False,
+        #     groups=in_channels,
+        #     kernel=3,
+        #     padding=1,
+        # ).double()
+        # self.restr_layer6 = Up_block(
+        #     in_channels * 2,
+        #     in_channels,
+        #     relu=False,
+        #     batch_norm=False,
+        #     groups=in_channels,
+        #     kernel=3
+        # ).double()
         """
         self.skip_block_1 = Restr_block(
             in_channels, in_channels * 2, stride=2, kernel=3
@@ -252,17 +272,24 @@ class CNN_restriction(torch.nn.Module):
         x_skip = self.skip_block_3a(x_skip)
         x_skip = self.skip_block_4(x_skip)
         '''
-        x = self.restr_layer1(x)
-        x = self.restr_layer2(x)
-        x = self.restr_layer3(x)
-        x = self.restr_layer3b(x)
-        x = torch.nn.functional.interpolate(x, scale_factor=2, mode="bilinear")
-        x = self.up3c(x)
-        x = torch.nn.functional.interpolate(x,scale_factor=2, mode="bilinear")
-        x = self.restr_layer4(x)
-        x = torch.nn.functional.interpolate(x,scale_factor=2, mode="bilinear")
-        x = self.restr_layer5(x)
-        x = self.restr_layer6(x)
+        # x = self.restr_layer1(x)
+        # x = self.restr_layer2(x)
+        # x = self.restr_layer3(x)
+        # x = self.restr_layer3b(x)
+        # x = torch.nn.functional.interpolate(x, scale_factor=2, mode="bilinear")
+        # x = self.up3c(x)
+        # x = torch.nn.functional.interpolate(x,scale_factor=2, mode="bilinear")
+        # x = self.restr_layer4(x)
+        # x = torch.nn.functional.interpolate(x,scale_factor=2, mode="bilinear")
+        # x = self.restr_layer5(x)
+        # x = self.restr_layer6(x)
+
+        x = self.block1(x)
+        x = self.block2(x)
+        x = self.block_avg(x)
+        x = self.block3(x)
+        x = self.block4(x)
+        x = self.block5(x)
 
         return x, None
 

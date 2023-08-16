@@ -259,7 +259,6 @@ def train_Dt_end_to_end(
     logging.info("\n\n\n" + "*" * 100 + "\n\n\n")
 
 
-import torchvision.transforms.functional as TF
 
 def train_model(
     model,
@@ -304,7 +303,7 @@ def train_model(
             data = data[0].to(device)  # b x n_snaps x 4 x w x h
 
             for input_idx in random.choices(
-                range(param_d["n_snaps"]), k=param_d["n_snaps"]
+                range(param_d["n_snaps"] - 1), k=param_d["n_snaps"]
             ):
                 label_range = sample_label_normal_dist(
                     input_idx,
@@ -318,9 +317,13 @@ def train_model(
                 v_flipped = False
                 h_flipped = False
 
+                print("before", input_idx)
+
                 for label_idx in range(
                     input_idx + 1, label_range + 1
                 ):  # randomly decide how long path is
+
+                    print("---in", label_idx)
 
                     label = data[:, label_idx, :3]  # b x 3 x w x h
 
